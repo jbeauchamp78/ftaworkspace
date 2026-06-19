@@ -380,6 +380,30 @@ html[data-theme="win98"] .info-pill {
 .pec-open-btn.queued { opacity: 0.55; cursor: default; }
 .pec-open-btn.queued::after { content: " ✓ queued"; font-size: 9px; font-weight: 500; }
 
+/* "I already created this in FTOP" inline mark — sits below Open PEC */
+.pec-cell-wrap {
+  display: flex; flex-direction: column; align-items: stretch; gap: 3px;
+}
+.pec-already-link {
+  background: transparent; border: 0; padding: 0; margin: 0;
+  font-family: inherit; font-size: 10px; color: var(--cp-text-muted);
+  text-decoration: underline; text-underline-offset: 2px;
+  cursor: pointer; line-height: 1.1; align-self: center;
+}
+.pec-already-link:hover { color: var(--cp-accent); }
+
+/* Manual-mark variant — visually distinct from a real ● Yes (FTOP-confirmed)
+   so the FTA always knows whether the local DB has caught up with FTOP. */
+.pec.yes.pec-manual {
+  background: transparent !important;
+  color: var(--cp-accent) !important;
+  border: 1px dashed var(--cp-accent);
+  cursor: pointer;
+}
+.pec.yes.pec-manual:hover {
+  background: var(--cp-accent-soft) !important;
+}
+
 /* ===== Clawpilot Cart (top-bar pending actions) ===== */
 .cart-badge {
   position: absolute; top: -6px; right: -8px;
@@ -2150,6 +2174,46 @@ body.heatmap-view.kr-expanded .content { margin-left: 24px !important; }
 .sp-row .sp-stage-pill.draft { background: rgba(0,176,240,0.14); color: #00567a; }
 .sp-empty { padding: 20px; text-align: center; color: var(--cp-text-muted); font-size: 13px; }
 
+/* "+ Log existing spotlight" button + manual-source badge in popover */
+.sp-log-existing {
+  display: block; width: 100%; padding: 8px 12px; margin: 0 0 10px;
+  background: var(--cp-surface-soft); border: 1px dashed var(--cp-border);
+  border-radius: 6px; font-size: 12px; color: var(--cp-text-muted);
+  cursor: pointer; font-family: inherit; font-weight: 500;
+}
+.sp-log-existing:hover {
+  border-style: solid; border-color: var(--cp-accent);
+  color: var(--cp-accent); background: var(--cp-accent-soft);
+}
+.sp-src-manual {
+  display: inline-block; font-size: 9.5px; font-weight: 700;
+  padding: 1px 5px; margin-left: 6px; border-radius: 3px;
+  background: var(--cp-accent-soft); color: var(--cp-accent);
+  vertical-align: middle; letter-spacing: 0.4px; text-transform: uppercase;
+}
+
+/* Log-existing inline form */
+.sp-log-form { padding: 10px 4px; }
+.sp-log-form .sp-fld {
+  display: block; font-size: 11px; color: var(--cp-text-muted);
+  font-weight: 600; margin: 8px 0 0; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.sp-log-form .sp-fld input,
+.sp-log-form .sp-fld select {
+  display: block; width: 100%; box-sizing: border-box; margin-top: 3px;
+  padding: 6px 8px; border: 1px solid var(--cp-border); border-radius: 5px;
+  background: var(--cp-bg-elevated, var(--cp-surface)); color: var(--cp-text);
+  font-size: 12px; font-family: inherit; font-weight: 500;
+  text-transform: none; letter-spacing: 0;
+}
+.sp-log-form .sp-fld input:focus,
+.sp-log-form .sp-fld select:focus {
+  outline: none; border-color: var(--cp-accent);
+  box-shadow: 0 0 0 2px var(--cp-accent-soft);
+}
+.sp-log-form .sp-log-status { font-size: 11px; margin-top: 10px; min-height: 14px; }
+.sp-log-form .sp-log-actions { display: flex; gap: 6px; margin-top: 12px; justify-content: flex-end; }
+
 /* ===== Spotlight queue confirm modal ===== */
 .sp-confirm {
   position: fixed; inset: 0; background: rgba(15,23,42,0.45);
@@ -2404,7 +2468,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.35 locked 2026-06-19 (Spotlight draft form — clicking ✨/⚠ on a KR row now opens an editable narrative form pre-filled from MIDAS+FTOP context; payload staged as JSON under ~/.copilot/fta-workspace/spotlight-staging/ + queued to bridge cart with requires_user_confirm=1; SPOTLIGHT_AUTO_SUBMIT flag gates heartbeat auto-fire until /spotlight skill supports --payload; new endpoints GET/POST /api/customer/{nick}/spotlight-draft + new spotlight_draft.py module)">v0.35 · Stable</span>
+      <span class="version-tag" title="Build version: v0.36 locked 2026-06-19 (Manual marks for PECs + Spotlights — ✓ already link below + Open PEC sets pec_flag=Yes locally with source=manual; + Log existing spotlight button in popover inserts spotlight_index row with source=manual; pec_flag_source + source columns lazy-added; manual entries get distinct outlined-dashed pill styling; click manual pill to clear; PATCH /api/customer/{nick}/kr/{kr_label}/pec-flag + POST /api/spotlights/manual endpoints; demo handlers + manual badge in popover)">v0.36 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -2903,8 +2967,9 @@ function renderContent() {
     const kind = isAdmin ? "days" : ((name.includes("Agents") || name === "Win365 POC") ? "" : "pct");
     let pecCell = "";
     if (isAdmin) pecCell = `<span class="pec na">N/A</span>`;
+    else if (k.p === "Yes" && k.p_src === "manual") pecCell = `<span class="pec yes pec-manual" title="Marked manually by you — will be verified on next FTOP refresh. Click to clear." data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}">● Yes · manual</span>`;
     else if (k.p === "Yes") pecCell = `<span class="pec yes">● Yes</span>`;
-    else if ((k.s === "KPI WIN" || k.s === "KPI MET" || k.s === "IN PROGRESS")) pecCell = `<button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button>`;
+    else if ((k.s === "KPI WIN" || k.s === "KPI MET" || k.s === "IN PROGRESS")) pecCell = `<div class="pec-cell-wrap"><button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button><button class="pec-already-link" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="I already created this PEC in FTOP — mark it as Yes locally">✓ already</button></div>`;
     else pecCell = `<span class="pec na">—</span>`;
 
     // MoM cell — month-over-month growth derived by the backend from
@@ -4067,6 +4132,56 @@ document.addEventListener("click", async e => {
   if (result.ok) btn.classList.add("queued");
 });
 
+// ===== "✓ already" link: mark PEC as created manually (no Clawpilot run) =====
+document.addEventListener("click", async e => {
+  const link = e.target.closest(".pec-already-link");
+  if (!link) return;
+  e.preventDefault(); e.stopPropagation();
+  const cust = link.dataset.cust;
+  const kr   = link.dataset.kr;
+  if (!cust || !kr) return;
+  if (!confirm(`Mark "${kr}" PEC for ${cust} as already created in FTOP?\n\nIt will be verified against FTOP on the next refresh.`)) return;
+  try {
+    const r = await fetch(`/api/customer/${encodeURIComponent(cust)}/kr/${encodeURIComponent(kr)}/pec-flag`,
+      { method: "PATCH", headers: {"content-type": "application/json"},
+        body: JSON.stringify({ flag: "Yes" }) });
+    const data = await r.json();
+    if (!data.ok) {
+      if (typeof toast === "function") toast(`Mark failed: ${data.error || 'unknown'}`, "warn");
+      return;
+    }
+    if (typeof toast === "function") toast(`✓ marked PEC as already created (manual)`, "ok");
+    if (typeof load === "function") load();   // re-fetch tracker so UI updates
+  } catch (err) {
+    if (typeof toast === "function") toast(`Error: ${err.message}`, "warn");
+  }
+});
+
+// ===== Manual-mark pill: click to CLEAR the manual mark =====
+document.addEventListener("click", async e => {
+  const pill = e.target.closest(".pec.yes.pec-manual");
+  if (!pill) return;
+  e.preventDefault(); e.stopPropagation();
+  const cust = pill.dataset.cust;
+  const kr   = pill.dataset.kr;
+  if (!cust || !kr) return;
+  if (!confirm(`Clear the manual PEC mark for "${kr}" on ${cust}?\n\nThe row will revert to "+ Open PEC" until you either run a refresh that confirms it from FTOP, or mark it again.`)) return;
+  try {
+    const r = await fetch(`/api/customer/${encodeURIComponent(cust)}/kr/${encodeURIComponent(kr)}/pec-flag`,
+      { method: "PATCH", headers: {"content-type": "application/json"},
+        body: JSON.stringify({ flag: "" }) });
+    const data = await r.json();
+    if (!data.ok) {
+      if (typeof toast === "function") toast(`Clear failed: ${data.error || 'unknown'}`, "warn");
+      return;
+    }
+    if (typeof toast === "function") toast(`✓ manual mark cleared`, "ok");
+    if (typeof load === "function") load();
+  } catch (err) {
+    if (typeof toast === "function") toast(`Error: ${err.message}`, "warn");
+  }
+});
+
 // ===== Clawpilot Cart inline panel (between topbar and counter row) =====
 async function refreshCartBadge() {
   try {
@@ -4658,6 +4773,7 @@ window.__api = (function() {
           prev: k.prev_month_value,
           g: k.fy_growth,
           p: (k.pec_flag && k.pec_flag.toLowerCase() === "yes") ? "Yes" : null,
+          p_src: k.pec_flag_source || null,
           n: k.kr_notes || "",
           edited: k.source === "manual",
           // MoM-MAU derived fields (computed at API time from kr_status_history)
@@ -5973,14 +6089,22 @@ window.__queueSkill = (function () {
     document.getElementById("spPopHeader").textContent =
       `Spotlights · ${nick} · ${data.published_count} published · ${data.total_spotlights} total`;
     const list = document.getElementById("spList");
+
+    // "+ Log existing spotlight" button at the top — for spotlights the FTA
+    // already created in FTOP outside the workspace. Source-tagged 'manual'.
+    const logBtn = `<button class="sp-log-existing" data-cust="${nick}"
+                            title="Already created this spotlight in FTOP? Log it here so the workspace tracks it.">
+                      + Log existing spotlight
+                    </button>`;
+
     if (!data.spotlights || data.spotlights.length === 0) {
-      list.innerHTML = `<div class="sp-empty">No spotlights yet for this customer.<br>
-        <span style="font-size:11.5px">Click ✨ next to any KPI WIN row to draft one.</span></div>`;
+      list.innerHTML = logBtn + `<div class="sp-empty">No spotlights yet for this customer.<br>
+        <span style="font-size:11.5px">Click ✨ next to any KPI WIN row to draft one — or use the button above to log one you already created in FTOP.</span></div>`;
     } else {
-      list.innerHTML = data.spotlights.map((s) => `
+      list.innerHTML = logBtn + data.spotlights.map((s) => `
         <div class="sp-row">
           <div>
-            <div class="sp-title">${s.title || "Untitled spotlight"}</div>
+            <div class="sp-title">${s.title || "Untitled spotlight"}${s.source === "manual" ? ' <span class="sp-src-manual" title="Marked manually by you — pending FTOP verification">manual</span>' : ""}</div>
             <div class="sp-meta">
               ${s.kr_label ? `KR: ${s.kr_label} · ` : ""}
               ${s.kind === "lowlight" ? "Lowlight · " : ""}
@@ -5992,6 +6116,84 @@ window.__queueSkill = (function () {
         </div>`).join("");
     }
     back.classList.add("show");
+
+    // Wire up "+ Log existing spotlight" inside the popover
+    const logBtnEl = list.querySelector(".sp-log-existing");
+    if (logBtnEl) logBtnEl.onclick = () => openLogExistingForm(nick);
+  }
+
+  // ---------- "Log existing spotlight" form ----------
+  // Inline form inside the popover for spotlights the FTA created in FTOP
+  // directly (outside the workspace). POSTs to /api/spotlights/manual
+  // which tags the row with source='manual'.
+  function openLogExistingForm(nick) {
+    const list = document.getElementById("spList");
+    if (!list) return;
+    list.innerHTML = `
+      <div class="sp-log-form">
+        <h4 style="margin:0 0 8px;font-size:13px">Log existing spotlight — ${nick}</h4>
+        <label class="sp-fld">Title <span style="color:#c0392b">*</span>
+          <input type="text" id="spLogTitle" maxlength="120" placeholder="e.g. Acme — M365 Copilot KPI WIN" />
+        </label>
+        <label class="sp-fld">KR / Workload (optional)
+          <input type="text" id="spLogKr" placeholder="e.g. M365 Copilot" />
+        </label>
+        <label class="sp-fld">Stage
+          <select id="spLogStage">
+            <option value="Publish" selected>Publish</option>
+            <option value="Review">Review</option>
+            <option value="Draft">Draft</option>
+          </select>
+        </label>
+        <label class="sp-fld">Kind
+          <select id="spLogKind">
+            <option value="highlight" selected>Highlight</option>
+            <option value="lowlight">Lowlight</option>
+          </select>
+        </label>
+        <label class="sp-fld">FTOP URL (optional)
+          <input type="url" id="spLogUrl" placeholder="https://fasttrack365.crm.dynamics.com/..." />
+        </label>
+        <div class="sp-log-status" id="spLogStatus"></div>
+        <div class="sp-log-actions">
+          <button type="button" class="btn secondary" id="spLogCancel">Cancel</button>
+          <button type="button" class="btn" id="spLogSubmit">Log spotlight</button>
+        </div>
+      </div>`;
+    document.getElementById("spLogCancel").onclick = () => hydrate(nick);
+    document.getElementById("spLogSubmit").onclick = async () => {
+      const title = document.getElementById("spLogTitle").value.trim();
+      const status = document.getElementById("spLogStatus");
+      if (!title) {
+        status.textContent = "Title is required."; status.style.color = "#c0392b";
+        return;
+      }
+      const payload = {
+        cust_nickname: nick, title,
+        kr_label: document.getElementById("spLogKr").value.trim() || null,
+        stage: document.getElementById("spLogStage").value,
+        kind: document.getElementById("spLogKind").value,
+        url: document.getElementById("spLogUrl").value.trim() || null,
+      };
+      status.textContent = "Logging…"; status.style.color = "var(--cp-text-muted)";
+      try {
+        const r = await fetch("/api/spotlights/manual", {
+          method: "POST", headers: {"content-type":"application/json"},
+          body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (!data.ok) {
+          status.textContent = `Failed: ${data.error || 'unknown'}`;
+          status.style.color = "#c0392b";
+          return;
+        }
+        status.textContent = "✓ logged (source: manual). Refreshing…";
+        status.style.color = "#00B050";
+        setTimeout(() => hydrate(nick), 600);
+      } catch (e) {
+        status.textContent = `Error: ${e.message}`; status.style.color = "#c0392b";
+      }
+    };
   }
 
   // ---------- Queue confirm dialog ----------
@@ -6238,14 +6440,14 @@ window.__queueSkill = (function () {
         // PEC column — match the KR table styling:
         //   - ONBOARDED → ● Yes pill (success)
         //   - DEFERRED  → — placeholder
-        //   - else      → + Open PEC button (red), queues manage-pecs-create
+        //   - else      → + Open PEC button (red) + ✓ already manual-mark link
         let pecHtml;
         if (w.status === "ONBOARDED") {
           pecHtml = `<span class="pec yes">● Yes</span>`;
         } else if (w.status === "DEFERRED") {
           pecHtml = `<span class="pec na">—</span>`;
         } else {
-          pecHtml = `<button class="pec missing pec-open-btn" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button>`;
+          pecHtml = `<div class="pec-cell-wrap"><button class="pec missing pec-open-btn" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button><button class="pec-already-link" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="I already created this PEC in FTOP — mark it as Yes locally">✓ already</button></div>`;
         }
         return `<tr>
           <td class="workload">${w.workload}</td>

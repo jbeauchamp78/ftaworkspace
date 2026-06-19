@@ -749,6 +749,42 @@
       return jsonResp({ ok: true, written });
     }],
 
+    // ----- Spotlight: manually logged (FTA already created in FTOP) -----
+    ["POST", /^\/api\/spotlights\/manual$/, async (m, opts) => {
+      const b = JSON.parse(opts?.body || "{}");
+      const nick = (b.cust_nickname || "").trim();
+      const title = (b.title || "").trim();
+      if (!nick || !title) return jsonResp({ ok: false, error: "cust_nickname and title are required" });
+      const c = customerByNick(nick);
+      if (!c) return jsonResp({ ok: false, error: "customer not found" }, 404);
+      c.spotlights = c.spotlights || [];
+      const id = `manual-${Math.random().toString(36).slice(2,14)}`;
+      const now = new Date().toISOString();
+      c.spotlights.push({
+        spotlight_id: id, cust_nickname: nick,
+        title, kr_label: b.kr_label || null,
+        stage: b.stage || "Publish", kind: b.kind || "highlight",
+        created_on: now, last_modified: now, url: b.url || null,
+        source: "manual",
+      });
+      return jsonResp({ ok: true, spotlight_id: id, source: "manual" });
+    }],
+
+    // ----- PEC manual mark / clear -----
+    ["PATCH", /^\/api\/customer\/([^/]+)\/kr\/([^/]+)\/pec-flag$/, async (m, opts) => {
+      const nick = decodeURIComponent(m[1]);
+      const kr   = decodeURIComponent(m[2]);
+      const b = JSON.parse(opts?.body || "{}");
+      const flag = (b.flag || "").trim();
+      const c = customerByNick(nick);
+      if (!c) return jsonResp({ ok: false, error: "customer not found" }, 404);
+      const row = (c.kr_status || []).find(k => k.kr_label === kr);
+      if (!row) return jsonResp({ ok: false, error: `KR row not found: ${kr}` }, 404);
+      row.pec_flag = flag;
+      row.pec_flag_source = flag ? "manual" : null;
+      return jsonResp({ ok: true, pec_flag: flag, source: row.pec_flag_source });
+    }],
+
     // ----- PATCH endpoints (customer edits) -----
     ["PATCH", /^\/api\/customer\/([^/]+)\/notes$/, async (m, opts) => {
       const c = customerByNick(m[1]); if (!c) return jsonResp({ error: "not found" }, 404);
