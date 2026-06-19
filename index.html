@@ -2468,6 +2468,22 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   font-size: 11px; line-height: 1.5; color: var(--cp-text-muted);
 }
 .wl-side-loading { padding: 14px; color: var(--cp-text-muted); font-size: 13px; }
+.wl-mode-toggle {
+  display: inline-flex; gap: 0; margin-left: 12px;
+  border: 1px solid var(--cp-border); border-radius: 6px; overflow: hidden;
+  background: var(--cp-surface);
+}
+.wl-mode-btn {
+  appearance: none; border: 0; background: transparent;
+  padding: 4px 12px; font-size: 12px; font-weight: 500;
+  color: var(--cp-text-muted); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.wl-mode-btn + .wl-mode-btn { border-left: 1px solid var(--cp-border); }
+.wl-mode-btn:hover { background: var(--cp-accent-soft); }
+.wl-mode-btn.active {
+  background: var(--cp-accent); color: var(--cp-accent-fg, #fff);
+}
 .wl-chart-main {
   position: relative; padding: 12px;
   display: flex; align-items: center; justify-content: center;
@@ -2608,7 +2624,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.43 locked 2026-06-19 (Chart Y-axis hardening — defensive ratio-vs-percent clamp so workloads stored as already-percent like Win365 Paid don't blow up the scale; Chart UX cleanup — 📈 button moved next to Workloads title, Non-KR series excluded from chart, default selection is empty so FTA picks only what they want, removed All button; PEC pill UX — cursor:pointer + hover on ● Yes pill; Advance PEC modal — click any FTOP-confirmed ● Yes pill to advance to Engage OR Disengage from one modal; Disengage path keeps the reason+handshake picklists; new endpoint POST /pec-advance replaces /pec-disengage but back-compat alias retained)">v0.43 · Stable</span>
+      <span class="version-tag" title="Build version: v0.44 locked 2026-06-19 (Workloads chart KR/Non-KR toggle — pill toggle in modal head lets FTA switch between KR (15 OKR workloads with threshold overlay) and Non-KR (49 workloads with raw MAU axis); Non-KR mode shows raw MAU on shared axis without KPI reference line; per-mode hint text + selection clears on switch)">v0.44 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -7317,7 +7333,7 @@ document.addEventListener("click", (e) => {
 // external chart library — keeps the demo bundle small.
 window.__workloadChart = (function () {
   let modal = null;
-  let state = { cust: null, data: null, selected: new Set() };
+  let state = { cust: null, data: null, selected: new Set(), mode: "kr" };
 
   // Workload color palette — same hues as KR table chips for continuity
   const COLORS = [
@@ -7335,6 +7351,10 @@ window.__workloadChart = (function () {
       <div class="wl-chart-modal" role="dialog" aria-modal="true" aria-labelledby="wlChartTitle">
         <div class="sp-draft-head">
           <h3 id="wlChartTitle">Workload MoM Progress</h3>
+          <div class="wl-mode-toggle" role="tablist" aria-label="Workload scope">
+            <button type="button" class="wl-mode-btn active" data-mode="kr" role="tab" aria-selected="true">KR</button>
+            <button type="button" class="wl-mode-btn" data-mode="nonkr" role="tab" aria-selected="false">Non-KR</button>
+          </div>
           <span class="sp-kind-badge" id="wlChartScope">All workloads</span>
           <button class="sp-draft-close" type="button" aria-label="Close">×</button>
         </div>
@@ -7345,7 +7365,7 @@ window.__workloadChart = (function () {
               <button class="wl-side-btn" id="wlNoneBtn">None / Reset</button>
             </div>
             <div id="wlChartLegend"></div>
-            <div class="wl-chart-hint">
+            <div class="wl-chart-hint" id="wlChartHint">
               Pick ONE workload to see absolute MAU + a dashed KPI threshold reference line.
               Default multi-line view normalizes everything to "% of threshold" so workloads with
               different scales (ratio vs absolute) are comparable on the same axis.
@@ -7369,6 +7389,40 @@ window.__workloadChart = (function () {
       state.selected.clear();
       renderLegend(); renderChart();
     });
+    modal.querySelectorAll(".wl-mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const m = btn.dataset.mode;
+        if (m === state.mode) return;
+        state.mode = m;
+        modal.querySelectorAll(".wl-mode-btn").forEach(b => {
+          const active = b.dataset.mode === m;
+          b.classList.toggle("active", active);
+          b.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        // Drop any selections that don't belong to the new mode so the
+        // legend + chart stay consistent.
+        state.selected.clear();
+        updateHint();
+        renderLegend();
+        renderChart();
+      });
+    });
+  }
+
+  function updateHint() {
+    const hint = modal && modal.querySelector("#wlChartHint");
+    if (!hint) return;
+    if (state.mode === "kr") {
+      hint.textContent =
+        'Pick ONE workload to see absolute MAU + a dashed KPI threshold reference line. ' +
+        'Multi-line view normalizes everything to "% of threshold" so workloads with ' +
+        'different scales are comparable on the same axis.';
+    } else {
+      hint.textContent =
+        'Non-KR workloads have no OKR threshold — chart shows raw MAU per month. ' +
+        'Pick ONE for a clean line; multi-line uses a shared MAU axis so high-volume ' +
+        'workloads (e.g. Teams) will visually dominate.';
+    }
   }
 
   function close() { if (modal) modal.classList.remove("show"); }
@@ -7377,6 +7431,13 @@ window.__workloadChart = (function () {
     build();
     state.cust = cust;
     state.selected.clear();
+    state.mode = "kr";
+    modal.querySelectorAll(".wl-mode-btn").forEach(b => {
+      const active = b.dataset.mode === "kr";
+      b.classList.toggle("active", active);
+      b.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    updateHint();
     modal.querySelector("#wlChartTitle").textContent = `Workload MoM Progress — ${cust}`;
     modal.querySelector("#wlChartLegend").innerHTML = `<div class="wl-side-loading">loading…</div>`;
     modal.querySelector("#wlChartSvg").innerHTML = "";
@@ -7384,23 +7445,35 @@ window.__workloadChart = (function () {
     try {
       const r = await fetch(`/api/customer/${encodeURIComponent(cust)}/kr-history?months=12`);
       const data = await r.json();
-      // Filter out Non-KR / threshold-less series — the chart is for OKR
-      // progress; without a threshold there's nothing to compare against.
-      data.series = (data.series || []).filter(s => s.threshold);
+      // Keep ALL series (KR + Non-KR). The legend filters by state.mode
+      // so the FTA can toggle between scopes without a re-fetch.
+      data.series = (data.series || []);
       state.data = data;
       // Default: NOTHING selected — FTA picks workloads they care about.
-      // Avoids the visual noise of 15 lines stacked at 0%.
       renderLegend(); renderChart();
     } catch (e) {
       modal.querySelector("#wlChartLegend").innerHTML = `<div class="wl-side-loading" style="color:#c0392b">Failed: ${e.message}</div>`;
     }
   }
 
+  // Returns true if the series belongs to the currently active mode (KR or
+  // Non-KR). KR series always have a non-null threshold; Non-KR don't.
+  function inMode(s) {
+    return state.mode === "kr" ? !!s.threshold : !s.threshold;
+  }
+
   function renderLegend() {
     const host = modal.querySelector("#wlChartLegend");
     if (!state.data) return;
-    host.innerHTML = state.data.series.map((s, i) => {
-      const color = COLORS[i % COLORS.length];
+    const visible = state.data.series.filter(inMode);
+    if (visible.length === 0) {
+      host.innerHTML = `<div class="wl-side-loading">No ${state.mode === "kr" ? "KR" : "Non-KR"} workloads with history.</div>`;
+      updateScopeBadge();
+      return;
+    }
+    host.innerHTML = visible.map((s) => {
+      const idx = state.data.series.indexOf(s);
+      const color = COLORS[idx % COLORS.length];
       const checked = state.selected.has(s.kr_label) ? "checked" : "";
       const last = s.points[s.points.length - 1];
       const valStr = formatValue(last && last.value, last && last.mau, s.threshold);
@@ -7425,7 +7498,7 @@ window.__workloadChart = (function () {
   function updateScopeBadge() {
     const badge = modal.querySelector("#wlChartScope");
     const n = state.selected.size;
-    const total = state.data ? state.data.series.length : 0;
+    const visible = state.data ? state.data.series.filter(inMode).length : 0;
     if (n === 1) {
       const only = [...state.selected][0];
       badge.textContent = only;
@@ -7434,7 +7507,7 @@ window.__workloadChart = (function () {
       badge.textContent = "(none)";
       badge.style.background = "#9CA3AF";
     } else {
-      badge.textContent = `${n}/${total} workloads`;
+      badge.textContent = `${n}/${visible} workloads`;
       badge.style.background = "#0078D4";
     }
     badge.style.color = "#fff";
@@ -7444,8 +7517,13 @@ window.__workloadChart = (function () {
   // data where a ratio-scale workload might have been seeded with an
   // already-percentage value (e.g., Win365 Paid stored as 284 instead of
   // 0.284). When value > 5 on a ratio scale, treat it as already-percent.
+  // Non-KR series (no threshold) get a plain MAU value.
   function formatValue(value, mau, threshold) {
-    if (!threshold) return "—";
+    if (!threshold) {
+      const v = mau != null ? mau : value;
+      if (v == null) return "—";
+      return `${Math.round(v)} MAU`;
+    }
     if (threshold.scale === "ratio") {
       if (value == null) return "—";
       const pct = (Math.abs(value) > 5) ? value : value * 100;
@@ -7480,7 +7558,7 @@ window.__workloadChart = (function () {
     const data = state.data;
     if (!data) return;
     const months = data.months || [];
-    const selected = data.series.filter(s => state.selected.has(s.kr_label));
+    const selected = data.series.filter(s => state.selected.has(s.kr_label) && inMode(s));
     if (selected.length === 0 || months.length === 0) {
       svg.innerHTML = `<text x="380" y="210" text-anchor="middle" fill="var(--cp-text-muted)" font-size="14">No workloads selected.</text>`;
       return;
@@ -7491,18 +7569,28 @@ window.__workloadChart = (function () {
     const innerW = W - PAD.left - PAD.right;
     const innerH = H - PAD.top - PAD.bottom;
 
-    // Determine y-axis mode: single = absolute (with threshold line),
-    // multi = normalized % of threshold
+    // Determine y-axis mode:
+    //   KR single   = absolute (with KPI threshold reference line)
+    //   KR multi    = normalized % of threshold (comparable axis)
+    //   Non-KR any  = raw MAU on shared axis (no threshold to normalize against)
     const singleMode = selected.length === 1;
     const onlyKr = singleMode ? selected[0] : null;
+    const nonKrMode = state.mode === "nonkr";
     let yMin = 0, yMax, yLabel;
-    if (singleMode) {
+    if (nonKrMode) {
+      // Raw MAU across all selected non-KR series
+      let maxV = 0;
+      selected.forEach(s => s.points.forEach(p => {
+        const v = (p.mau != null ? p.mau : p.value) || 0;
+        if (v > maxV) maxV = v;
+      }));
+      yMax = Math.max(maxV * 1.15, 1);
+      yLabel = "MAU";
+    } else if (singleMode) {
       const t = onlyKr.threshold;
-      // Collect actual values (ratio % or absolute MAU)
       const vals = onlyKr.points.map(p => {
         if (!t) return p.mau || 0;
         if (t.scale === "ratio") {
-          // Defensive: if value is already in percent (>5), use as-is
           const raw = p.value || 0;
           return Math.abs(raw) > 5 ? raw : raw * 100;
         }
@@ -7512,7 +7600,7 @@ window.__workloadChart = (function () {
       yMax = Math.max(...vals, tval, 1) * 1.15;
       yLabel = t ? (t.scale === "ratio" ? "% MAU/PAU" : (t.unit || "MAU")) : "value";
     } else {
-      // Normalized: compute max % of threshold across all selected series
+      // KR multi: normalized
       let maxPct = 100;
       selected.forEach(s => {
         s.points.forEach(p => {
@@ -7545,8 +7633,8 @@ window.__workloadChart = (function () {
     // Y axis label
     parts.push(`<text x="${PAD.left - 50}" y="${PAD.top + innerH / 2}" transform="rotate(-90 ${PAD.left - 50} ${PAD.top + innerH / 2})" text-anchor="middle" fill="var(--cp-text-muted)" font-size="11">${yLabel}</text>`);
 
-    // Threshold reference line — in single mode (KPI line at the threshold)
-    if (singleMode && onlyKr.threshold) {
+    // Threshold reference line — single KR mode (KPI line at the threshold)
+    if (!nonKrMode && singleMode && onlyKr.threshold) {
       const t = onlyKr.threshold;
       const tval = t.scale === "ratio" ? t.value * 100 : t.value;
       if (tval >= yMin && tval <= yMax) {
@@ -7555,8 +7643,8 @@ window.__workloadChart = (function () {
         parts.push(`<text x="${PAD.left + innerW - 4}" y="${yy - 4}" text-anchor="end" fill="#D83B01" font-size="10" font-weight="600">KPI threshold (${formatTick(tval, yLabel)})</text>`);
       }
     }
-    // Multi-line mode: draw a "100%" reference line if axis spans it
-    if (!singleMode && yMax >= 100) {
+    // KR multi-line mode: draw a "100%" reference line if axis spans it
+    if (!nonKrMode && !singleMode && yMax >= 100) {
       const yy = y(100);
       parts.push(`<line x1="${PAD.left}" y1="${yy}" x2="${PAD.left + innerW}" y2="${yy}" stroke="#D83B01" stroke-width="1.5" stroke-dasharray="6 4"/>`);
       parts.push(`<text x="${PAD.left + innerW - 4}" y="${yy - 4}" text-anchor="end" fill="#D83B01" font-size="10" font-weight="600">KPI threshold (100%)</text>`);
@@ -7573,7 +7661,9 @@ window.__workloadChart = (function () {
         const p = monthMap[m];
         if (!p) return;
         let v;
-        if (singleMode) {
+        if (nonKrMode) {
+          v = (p.mau != null ? p.mau : p.value);
+        } else if (singleMode) {
           const t = onlyKr.threshold;
           if (!t) v = p.mau || 0;
           else if (t.scale === "ratio") {
