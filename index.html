@@ -778,33 +778,30 @@ html[data-theme="win98"] .info-pill {
 .csl-pec-combined {
   background: var(--cp-surface-soft); color: var(--cp-text);
   border: 1px solid var(--cp-border-strong); cursor: pointer;
-  display: inline-flex; align-items: stretch; gap: 0;
-  padding: 0; overflow: hidden; line-height: 1;
-  transition: border-color .15s, box-shadow .15s;
+  padding: 2px 10px; gap: 6px;
+  transition: border-color .15s, background .15s;
 }
 .csl-pec-combined:hover {
-  border-color: var(--cp-accent);
-  box-shadow: 0 0 0 2px var(--cp-accent-soft);
+  background: var(--cp-accent-soft); border-color: var(--cp-accent);
 }
 .pec-combo-cell {
-  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 3px 8px; gap: 1px; min-width: 28px;
-  border-left: 1px solid var(--cp-border);
+  display: inline-flex; align-items: baseline; gap: 3px;
 }
-.pec-combo-cell:first-child { border-left: 0; }
+.pec-combo-cell + .pec-combo-cell::before {
+  content: "·"; color: var(--cp-text-muted); opacity: 0.5;
+  margin-right: 3px; font-weight: 400;
+}
 .pec-combo-num {
-  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
-  line-height: 1; color: var(--cp-text);
+  font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--cp-text);
 }
 .pec-combo-tag {
-  font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--cp-text-muted); line-height: 1;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.02em;
+  color: var(--cp-text-muted); text-transform: uppercase;
 }
 .pec-combo-stage[data-stage="triage"] { color: #B7791F; }
 .pec-combo-stage[data-stage="engage"] { color: #2C7BE5; }
 .pec-combo-miss .pec-combo-num { color: #C0392B; }
-.pec-combo-total-cell { background: var(--cp-surface); }
-.pec-combo-total { color: var(--cp-text-muted); font-weight: 600; }
 .csl-zero { background: var(--cp-surface-soft); color: var(--cp-text-muted); border-color: var(--cp-border); }
 
 .kr-card {
@@ -2658,7 +2655,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.46 locked 2026-06-19 (PEC pill redesign — switched from inline text to 4 stacked cells (Miss · T · E · Total) with big number above tiny uppercase tag, sized so it doesn't overflow neighboring chips; Subline cleanup — removed redundant TPID line below pills, FTOP account link now sits right of the editable TPID pill in the subline)">v0.46 · Stable</span>
+      <span class="version-tag" title="Build version: v0.47 locked 2026-06-19 (PEC pill final design — inline-baseline 4-cell pill (Miss · Triage · Engage · Total) with bold tabular numbers + tiny uppercase labels, dot separators between cells, matches height + visual weight of neighboring chips; v0.46 stacked-cells design was rendering as an empty circle when hydration hadn't completed)">v0.47 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -3282,9 +3279,9 @@ function renderContent() {
               <span class="csl-chip csl-pec-combined pec-info-pill" data-cust="${c.n}"
                     title="${pecActive} active · ${pecClosed} closed · ${missPec} missing — click for details">
                 <span class="pec-combo-cell pec-combo-miss"><span class="pec-combo-num">${missPec}</span><span class="pec-combo-tag">miss</span></span>
-                <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="triage">—</span><span class="pec-combo-tag">T</span></span>
-                <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="engage">—</span><span class="pec-combo-tag">E</span></span>
-                <span class="pec-combo-cell pec-combo-total-cell"><span class="pec-combo-num pec-combo-total">${pecActive + pecClosed}</span><span class="pec-combo-tag">total</span></span>
+                <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="triage">—</span><span class="pec-combo-tag">triage</span></span>
+                <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="engage">—</span><span class="pec-combo-tag">engage</span></span>
+                <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-total">${pecActive + pecClosed}</span><span class="pec-combo-tag">total</span></span>
               </span>
             `;
           })()}
