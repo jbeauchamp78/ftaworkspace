@@ -624,7 +624,7 @@ html[data-theme="win98"] .info-pill {
   flex: 1; overflow-y: auto; padding: 24px;
   background: var(--cp-bg);
 }
-.cust-header { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
+.cust-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 6px; }
 .cust-header-names { display: flex; flex-direction: column; gap: 0; }
 .cust-header h2.cust-display-name {
   font-size: 24px; font-weight: 600; margin: 0;
@@ -2929,13 +2929,15 @@ function renderContent() {
         </div>
       </div>
       <span style="flex:1"></span>
-      <div style="display:flex; flex-direction:row; gap:8px; align-items:center; margin-left:auto;">
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; margin-left:auto;">
         <button class="btn secondary kr-expand-btn" id="btnExpandKR"
                 title="Expand current view: hides sidebar">⛶ Expand</button>
         <button class="btn secondary" id="btnHeatmap"
                 title="Toggle between Customer Workspace and M365 Usage Heatmap">M365 Usage Heatmap</button>
         <button class="btn secondary" id="btnRefreshCustomer" data-cust="${c.n}"
                 title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Clawpilot bridge.">🔄 Refresh This Customer</button>
+        <span class="customer-refresh-stamp" id="customerRefreshStamp" data-cust="${c.n}"
+              style="font-size:10.5px;color:var(--cp-text-muted);margin-top:-2px;text-align:right;line-height:1.2;min-height:14px;">${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}</span>
       </div>
     </div>
     <div class="cust-statusline">
@@ -3085,9 +3087,6 @@ function renderContent() {
         </table>
       </div>
       <div id="nonkrTableWrap" style="display:none;">
-        <div style="font-size:11px;color:var(--cp-text-muted);margin-bottom:6px;padding:0 4px;">
-          <span id="nonkrFetchedAt-${c.n}">${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}</span>
-        </div>
         <table class="nonkr-table" data-cust="${c.n}">
           <thead><tr>
             <th style="width: 240px">Workload</th>
@@ -5450,11 +5449,9 @@ document.addEventListener("click", (e) => {
       if (typeof toast === "function") toast("refresh queued — KR + Non-KR + heatmap will reload when done", "ok");
       setTimeout(() => {
         try { if (typeof loadHeatmap === "function") loadHeatmap(c); } catch {}
-        // Reload Non-KR table if it's currently visible
-        const nkBody = document.getElementById(`nonkrTableBody-${c}`);
-        if (nkBody && document.getElementById("nonkrTableWrap")?.style.display !== "none") {
-          if (window.__nonKrReload) window.__nonKrReload(c);
-        }
+        // Always reload Non-KR (silently if hidden) so timestamp updates
+        // under the customer-header stamp regardless of which mode is active.
+        if (window.__nonKrReload) window.__nonKrReload(c);
       }, 1500);
     }
   }
@@ -6160,14 +6157,12 @@ window.__queueSkill = (function () {
         </tr>`;
       }).join("");
       body.innerHTML = rows || `<tr><td colspan="6" style="text-align:center;padding:14px;color:var(--cp-text-muted)">No Non-KR workloads configured.</td></tr>`;
-      // Update header timestamp
+      // Update header timestamp (lives under "Refresh This Customer" in cust-header)
       window.__nonKrCache = window.__nonKrCache || {};
       window.__nonKrCache[cust] = maxFetched;
-      // Find the header span (above the table) and update its text
-      const wrap = document.getElementById("nonkrTableWrap");
-      if (wrap) {
-        const stamp = wrap.querySelector("span");
-        if (stamp) stamp.textContent = fmtFetched(maxFetched);
+      const stamp = document.getElementById("customerRefreshStamp");
+      if (stamp && stamp.dataset.cust === cust) {
+        stamp.textContent = fmtFetched(maxFetched);
       }
     } catch (e) {
       body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;color:#c0392b">Failed to load: ${e.message}</td></tr>`;
@@ -6280,6 +6275,9 @@ window.__queueSkill = (function () {
     const currentCust = window.activeCust;
     if (currentCust === _lastModeAppliedFor) return;  // skip subtree noise
     _lastModeAppliedFor = currentCust;
+    // Silent fetch so the "MIDAS refreshed…" stamp under the Refresh button
+    // is populated even when the user is on Key Results mode.
+    if (currentCust) loadAndRender(currentCust);
     let saved = "kr";
     try { saved = localStorage.getItem("fta-workspace-kr-mode") || "kr"; } catch {}
     if (saved === "nonkr") setMode("nonkr");
