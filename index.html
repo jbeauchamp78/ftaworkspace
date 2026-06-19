@@ -2253,6 +2253,86 @@ html[data-theme="storm"] .status-select.win   { color: #0a1628; }
 html[data-theme="storm"] .status-select.intent { color: #0a1628; }
 html[data-theme="storm"] .status-select.na    { background-color: #000000; color: #ffffff; }
 
+/* ===== Spotlight draft modal ===== */
+.sp-draft-backdrop {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 1100; align-items: flex-start; justify-content: center; padding: 40px 20px;
+  overflow-y: auto;
+}
+.sp-draft-backdrop.show { display: flex; }
+.sp-draft-modal {
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: 12px; box-shadow: var(--cp-shadow, 0 18px 48px rgba(0,0,0,0.25));
+  width: 100%; max-width: 740px; max-height: 92vh; display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sp-draft-head {
+  display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+  border-bottom: 1px solid var(--cp-border); background: var(--cp-surface-soft);
+}
+.sp-draft-head h3 { margin: 0; font-size: 15px; font-weight: 600; flex: 1; }
+.sp-draft-head .sp-kind-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+}
+.sp-draft-head .sp-kind-badge.highlight { background: #00B050; color: #fff; }
+.sp-draft-head .sp-kind-badge.lowlight  { background: #d99c1f; color: #fff; }
+.sp-draft-head button.sp-draft-close {
+  background: transparent; border: 0; font-size: 22px; cursor: pointer;
+  color: var(--cp-text-muted); padding: 2px 8px; line-height: 1;
+}
+.sp-draft-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+.sp-draft-body label.fld { display: block; font-size: 11px; font-weight: 600;
+  color: var(--cp-text-muted); text-transform: uppercase; margin: 12px 0 4px;
+  letter-spacing: 0.4px;
+}
+.sp-draft-body label.fld .req { color: #c0392b; }
+.sp-draft-body label.fld .opt { color: var(--cp-text-soft); font-weight: 500;
+  text-transform: none; letter-spacing: 0; }
+.sp-draft-body input[type="text"],
+.sp-draft-body input[type="url"],
+.sp-draft-body select,
+.sp-draft-body textarea {
+  width: 100%; box-sizing: border-box; padding: 8px 10px;
+  border: 1px solid var(--cp-border); border-radius: 6px;
+  background: var(--cp-bg-elevated, var(--cp-surface));
+  color: var(--cp-text); font-size: 13px; font-family: inherit;
+  line-height: 1.4;
+}
+.sp-draft-body textarea { resize: vertical; min-height: 60px; }
+.sp-draft-body input:focus, .sp-draft-body select:focus, .sp-draft-body textarea:focus {
+  outline: none; border-color: var(--cp-accent);
+  box-shadow: 0 0 0 2px var(--cp-accent-soft);
+}
+.sp-draft-body .sp-row { display: grid; grid-template-columns: 1fr 200px; gap: 12px; }
+.sp-draft-body .sp-hint { font-size: 11px; color: var(--cp-text-soft); margin-top: 2px; }
+.sp-draft-body details { margin-top: 14px; }
+.sp-draft-body details summary {
+  cursor: pointer; font-size: 12px; color: var(--cp-text-muted);
+  font-weight: 600; padding: 4px 0;
+}
+.sp-draft-body details summary:hover { color: var(--cp-text); }
+.sp-draft-foot {
+  display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+  border-top: 1px solid var(--cp-border); background: var(--cp-surface-soft);
+}
+.sp-draft-foot .sp-auto-toggle {
+  display: flex; align-items: center; gap: 6px; font-size: 11px;
+  color: var(--cp-text-muted); cursor: pointer; user-select: none; flex: 1;
+}
+.sp-draft-foot button {
+  padding: 7px 14px; font-size: 13px; font-weight: 500; border-radius: 6px;
+  border: 1px solid var(--cp-border); background: var(--cp-surface);
+  color: var(--cp-text); cursor: pointer;
+}
+.sp-draft-foot button.primary {
+  background: var(--cp-accent); color: var(--cp-accent-fg, #fff);
+  border-color: var(--cp-accent);
+}
+.sp-draft-foot button:hover { filter: brightness(1.05); }
+.sp-draft-foot button:disabled { opacity: 0.5; cursor: not-allowed; }
+.sp-draft-status { font-size: 11px; color: var(--cp-text-muted); margin-top: 6px; }
+.sp-draft-status.err { color: #c0392b; }
+
 /* ===== KR / Non-KR toggle slider in KR card header ===== */
 .kr-mode-toggle {
   display: inline-flex; align-items: center; gap: 0;
@@ -2324,7 +2404,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.29 locked 2026-06-19 (🔄 Refresh This Customer button moved to customer header — under Expand + M365 Usage Heatmap; single click now pulls fresh MIDAS data for ALL workloads — both KR and Non-KR — plus FTOP PECs and Lynx admin config; removed inline Non-KR refresh button + redundant heatmap-card refresh button)">v0.29 · Stable</span>
+      <span class="version-tag" title="Build version: v0.35 locked 2026-06-19 (Spotlight draft form — clicking ✨/⚠ on a KR row now opens an editable narrative form pre-filled from MIDAS+FTOP context; payload staged as JSON under ~/.copilot/fta-workspace/spotlight-staging/ + queued to bridge cart with requires_user_confirm=1; SPOTLIGHT_AUTO_SUBMIT flag gates heartbeat auto-fire until /spotlight skill supports --payload; new endpoints GET/POST /api/customer/{nick}/spotlight-draft + new spotlight_draft.py module)">v0.35 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -5936,15 +6016,30 @@ window.__queueSkill = (function () {
   }
 
   async function confirmAndQueue(nick, krLabel, isLowlight) {
-    // Route through shared queue-confirm modal (window.__queueSkill).
+    // v0.35: open the new draft form instead of the legacy queue-confirm modal.
+    // The form pre-fills from MIDAS+FTOP context, lets the FTA edit narrative
+    // fields, then stages a JSON payload + queues a bridge row. When the
+    // /spotlight skill ships --payload support, heartbeat fires Drafts to FTOP.
+    if (window.__spotlightDraftForm) {
+      await window.__spotlightDraftForm.open({
+        cust: nick, kr_label: krLabel, lowlight: !!isLowlight,
+      });
+      // Re-hydrate so the icon flips state once the user queues
+      const watcher = setInterval(() => {
+        const back = document.getElementById("spDraftBackdrop");
+        if (!back || !back.classList.contains("show")) {
+          clearInterval(watcher);
+          hydrate(nick);
+        }
+      }, 500);
+      return;
+    }
+    // Fallback to legacy flow if the new form isn't loaded
     const kind = isLowlight ? "spotlight-lowlight" : "spotlight";
     const result = await window.__queueSkill.queueSkill(kind, {
       cust: nick, kr_label: krLabel,
     });
-    if (result.ok) {
-      // Refresh per-cust spotlight state so the icon flips ⏳
-      hydrate(nick);
-    }
+    if (result.ok) hydrate(nick);
   }
 
   // ---------- Hydrate on customer switch or row re-render ----------
@@ -6287,6 +6382,193 @@ window.__queueSkill = (function () {
   });
   const watchTarget = document.querySelector(".content") || document.body;
   obs.observe(watchTarget, { childList: true, subtree: true });
+})();
+
+// ---------- Spotlight draft form modal ----------
+// Opens when the user clicks ✨ (highlight) or ⚠ (lowlight) on a KR row.
+// Fetches a pre-filled payload from the workspace, lets the FTA edit, then
+// stages the JSON + queues a bridge cart row. The inner /spotlight skill
+// (once it supports --payload) will read the staged file and submit the
+// spotlight as Draft to FTOP. Until then, the row sits with
+// requires_user_confirm=1 and the FTA approves it from the cart.
+window.__spotlightDraftForm = (function () {
+  let modal = null;
+  let currentCtx = null;
+
+  function build() {
+    if (document.getElementById("spDraftBackdrop")) return;
+    modal = document.createElement("div");
+    modal.id = "spDraftBackdrop";
+    modal.className = "sp-draft-backdrop";
+    modal.innerHTML = `
+      <div class="sp-draft-modal" role="dialog" aria-modal="true" aria-labelledby="spDraftTitle">
+        <div class="sp-draft-head">
+          <h3 id="spDraftTitle">Draft Spotlight</h3>
+          <span class="sp-kind-badge" id="spKindBadge"></span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="sp-draft-body">
+          <div class="sp-row">
+            <div>
+              <label class="fld">Title <span class="req">*</span></label>
+              <input type="text" id="spfTitle" maxlength="80" />
+              <div class="sp-hint">Short headline · ≤ 80 chars · keep it factual</div>
+            </div>
+            <div>
+              <label class="fld">Workload</label>
+              <input type="text" id="spfWorkload" placeholder="(KR label)" readonly
+                     style="background: var(--cp-surface-soft); cursor: not-allowed;" />
+              <div class="sp-hint">Resolved from KR row context</div>
+            </div>
+          </div>
+          <label class="fld">Background <span class="opt">— what's the situation</span></label>
+          <textarea id="spfBackground" rows="3"></textarea>
+          <label class="fld">Problem <span class="opt">— what was the challenge</span></label>
+          <textarea id="spfProblem" rows="3"></textarea>
+          <label class="fld">Solution <span class="opt">— what was deployed</span></label>
+          <textarea id="spfSolution" rows="3"></textarea>
+          <label class="fld">FastTrack Involvement <span class="opt">— FT-specific motions</span></label>
+          <textarea id="spfFasttrack" rows="3"></textarea>
+          <details>
+            <summary>▸ Optional: Teamwork · Quote · Reference link</summary>
+            <label class="fld">Teamwork <span class="opt">— cross-team collab credits</span></label>
+            <textarea id="spfTeamwork" rows="2"></textarea>
+            <div class="sp-row">
+              <div>
+                <label class="fld">Customer Quote <span class="opt">— attributed</span></label>
+                <textarea id="spfQuote" rows="2" placeholder="(verbatim quote)"></textarea>
+              </div>
+              <div>
+                <label class="fld">Attribution</label>
+                <input type="text" id="spfQuoteAttr" placeholder="Name, Title" />
+              </div>
+            </div>
+            <label class="fld">Reference link <span class="opt">— URL to evidence (ESN, deck, news)</span></label>
+            <input type="url" id="spfRefLink" placeholder="https://..." />
+          </details>
+          <div class="sp-draft-status" id="spfStatus"></div>
+        </div>
+        <div class="sp-draft-foot">
+          <label class="sp-auto-toggle" id="spfAutoLabel" title="If checked, the 30-min heartbeat will fire this spotlight as a Draft to FTOP automatically. If unchecked, it waits in the cart for your ✓ Approve click.">
+            <input type="checkbox" id="spfAuto" />
+            <span id="spfAutoText">Auto-submit on heartbeat (skip cart Approve)</span>
+          </label>
+          <button type="button" id="spfCancel">Cancel</button>
+          <button type="button" id="spfQueue" class="primary">⚡ Queue as Draft</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) close();
+    });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#spfCancel").addEventListener("click", close);
+    modal.querySelector("#spfQueue").addEventListener("click", submit);
+  }
+
+  function close() {
+    if (modal) modal.classList.remove("show");
+    currentCtx = null;
+  }
+
+  function setStatus(msg, isError) {
+    const el = modal.querySelector("#spfStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("err", !!isError);
+  }
+
+  async function open(ctx) {
+    build();
+    currentCtx = ctx;
+    const { cust, kr_label, lowlight } = ctx;
+    // Reset all fields + show loading state
+    modal.querySelectorAll("input, textarea").forEach(el => el.value = "");
+    setStatus("Loading suggested draft…", false);
+    modal.querySelector("#spKindBadge").textContent = lowlight ? "⚠ LOWLIGHT" : "✨ HIGHLIGHT";
+    modal.querySelector("#spKindBadge").className = "sp-kind-badge " + (lowlight ? "lowlight" : "highlight");
+    modal.querySelector("#spDraftTitle").textContent = `Draft Spotlight — ${cust}${kr_label ? " · " + kr_label : ""}`;
+    modal.classList.add("show");
+
+    try {
+      const url = `/api/customer/${encodeURIComponent(cust)}/spotlight-draft?kr_label=${encodeURIComponent(kr_label || "")}&lowlight=${lowlight ? "true" : "false"}`;
+      const r = await fetch(url);
+      const draft = await r.json();
+      modal.querySelector("#spfTitle").value     = draft.title || "";
+      modal.querySelector("#spfWorkload").value  = draft.kr_label || "(none)";
+      modal.querySelector("#spfBackground").value = draft.background || "";
+      modal.querySelector("#spfProblem").value   = draft.problem || "";
+      modal.querySelector("#spfSolution").value  = draft.solution || "";
+      modal.querySelector("#spfFasttrack").value = draft.fasttrack || "";
+      modal.querySelector("#spfTeamwork").value  = draft.teamwork || "";
+      modal.querySelector("#spfQuote").value     = draft.quote || "";
+      modal.querySelector("#spfQuoteAttr").value = draft.quote_attribution || "";
+      modal.querySelector("#spfRefLink").value   = draft.reference_link || "";
+      currentCtx._draft = draft;
+      // Auto-submit checkbox state — global preference per skill kind
+      const auto = localStorage.getItem("fta-workspace-spotlight-auto") === "1";
+      modal.querySelector("#spfAuto").checked = auto;
+      setStatus("Pre-filled from MIDAS + FTOP context. Review and edit before queueing.", false);
+    } catch (e) {
+      setStatus(`Failed to load draft: ${e.message}`, true);
+    }
+  }
+
+  async function submit() {
+    if (!currentCtx) return;
+    const btn = modal.querySelector("#spfQueue");
+    const cancel = modal.querySelector("#spfCancel");
+    btn.disabled = true; cancel.disabled = true;
+    setStatus("Staging payload + queuing…", false);
+    try {
+      const auto = modal.querySelector("#spfAuto").checked;
+      localStorage.setItem("fta-workspace-spotlight-auto", auto ? "1" : "0");
+      const payload = Object.assign({}, currentCtx._draft || {}, {
+        title:               modal.querySelector("#spfTitle").value.trim(),
+        background:          modal.querySelector("#spfBackground").value,
+        problem:             modal.querySelector("#spfProblem").value,
+        solution:            modal.querySelector("#spfSolution").value,
+        fasttrack:           modal.querySelector("#spfFasttrack").value,
+        teamwork:            modal.querySelector("#spfTeamwork").value,
+        quote:               modal.querySelector("#spfQuote").value,
+        quote_attribution:   modal.querySelector("#spfQuoteAttr").value,
+        reference_link:      modal.querySelector("#spfRefLink").value.trim(),
+        kr_label:            currentCtx.kr_label || "",
+        kind:                currentCtx.lowlight ? "lowlight" : "highlight",
+      });
+      if (!payload.title) {
+        setStatus("Title is required.", true);
+        btn.disabled = false; cancel.disabled = false;
+        return;
+      }
+      const r = await fetch(`/api/customer/${encodeURIComponent(currentCtx.cust)}/spotlight-draft/queue`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setStatus(`Queue failed: ${data.error || 'unknown'}`, true);
+        btn.disabled = false; cancel.disabled = false;
+        return;
+      }
+      const msg = data.auto_submit_enabled
+        ? `✓ Queued — heartbeat will fire as Draft within 30 min (cart id ${data.id}).`
+        : `✓ Queued — waiting in cart for your ✓ Approve (cart id ${data.id}).`;
+      setStatus(msg, false);
+      if (typeof toast === "function") {
+        toast(`Spotlight queued — cart id ${data.id}`, "ok");
+      }
+      if (typeof refreshCartBadge === "function") refreshCartBadge();
+      setTimeout(close, 1500);
+    } catch (e) {
+      setStatus(`Error: ${e.message}`, true);
+      btn.disabled = false; cancel.disabled = false;
+    }
+  }
+
+  return { open, close };
 })();
 
 // ---------- Help / Info modal ("i" pill in topbar) ----------

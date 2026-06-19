@@ -20,12 +20,16 @@
   window.fetch = function (input, opts) {
     const url = typeof input === "string" ? input : input?.url;
     if (!url) return origFetch(input, opts);
-    let p = url;
-    try { p = new URL(url, location.href).pathname; } catch {}
+    let p = url; let search = "";
+    try {
+      const u = new URL(url, location.href);
+      p = u.pathname;
+      search = u.search || "";
+    } catch {}
     if (!p.startsWith("/api/")) return origFetch(input, opts);
     if (realDispatch) {
       const method = ((opts && opts.method) || "GET").toUpperCase();
-      return Promise.resolve(realDispatch(method, p, opts));
+      return Promise.resolve(realDispatch(method, p, opts, search));
     }
     return new Promise((resolve, reject) => {
       queued.push({ input, opts, resolve, reject });
@@ -343,6 +347,55 @@
       return jsonResp({ ok: true, workloads_updated: fresh.filter(r=>r.current_mau!=null).length,
                         workloads_with_data: fresh.filter(r=>r.current_mau!=null).length,
                         latest_iso: now.slice(0,10), error: null });
+    }],
+
+    // ----- Spotlight draft form (v0.35) -----
+    ["GET", /^\/api\/customer\/([^/?]+)\/spotlight-draft$/, (m, opts, search) => {
+      const cust = decodeURIComponent(m[1]);
+      const params = new URLSearchParams(search || "");
+      const krLabel = params.get("kr_label") || "";
+      const lowlight = params.get("lowlight") === "true";
+      const kind = lowlight ? "lowlight" : "highlight";
+      const winType = lowlight ? "REGRESSION" : "KPI WIN";
+      const title = `${cust} — ${krLabel || "Workload"} ${winType}`;
+      const c = customerByNick(cust);
+      const full = c ? (c.full_name || cust) : cust;
+      return jsonResp({
+        customer_nickname: cust, customer_full_name: full, tpid: c ? c.tpid : null,
+        kr_label: krLabel, kind, stage: "draft",
+        workload_code: null,
+        title: title.slice(0, 80),
+        background: `${full} is a FastTrack-engaged customer working on ${krLabel || "Microsoft 365 adoption"} as part of the FY26 deployment plan. (Demo pre-fill — real backend mines MIDAS + FTOP ESN history.)`,
+        problem: lowlight
+          ? `Adoption regressed against the prior period — the cause is being investigated and a recovery plan is in motion.`
+          : `Initial adoption plateaued below the FY26 H2 threshold, creating a need for structured FastTrack engagement to drive measurable usage growth.`,
+        solution: `FastTrack delivered targeted workshops, established a recurring cadence with the customer's CSAM/AE, and unblocked the technical and change-management gaps identified in the engagement plan.`,
+        fasttrack: `FastTrack Architect led the engagement plan, coordinated specialist hand-offs, and authored the per-cycle ESNs that tracked progress against the KR.`,
+        teamwork: `Worked alongside the ${full} CSAM, account team, and FastTrack Specialist Team to align on technical scope, change-management plan, and renewal narrative.`,
+        quote: "", quote_attribution: "", reference_link: "",
+        secondary_workload_code: null, is_fta: true, is_partner: false, version: 1,
+      });
+    }],
+    ["POST", /^\/api\/customer\/([^/?]+)\/spotlight-draft\/queue$/, (m, opts) => {
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      if (!body.title) return jsonResp({ ok: false, error: "title is required" });
+      // Push into STATE.queue so the cart panel shows it
+      STATE.queue.pending = STATE.queue.pending || [];
+      const id = STATE.nextQueueId++;
+      const cust = decodeURIComponent(m[1]);
+      STATE.queue.pending.push({
+        id, kind: "spotlight-auto",
+        label: `${body.kind === "lowlight" ? "(Lowlight) " : ""}Spotlight - ${cust}${body.kr_label ? " - " + body.kr_label : ""}`,
+        prompt: `/spotlight --payload "[demo-staged]/${cust}-${id}.json"`,
+        cust, status: "pending", requires_user_confirm: 1,
+        trigger: "ui_spotlight_draft", created_at: new Date().toISOString(),
+      });
+      STATE.queue.count = (STATE.queue.count || 0) + 1;
+      return jsonResp({
+        ok: true, id, staged_path: `[demo-staged]/${cust}-${id}.json`,
+        prompt: `/spotlight --payload "[demo-staged]/${cust}-${id}.json"`,
+        requires_user_confirm: 1, auto_submit_enabled: false,
+      });
     }],
 
     // ----- Single-customer refresh (demo: instant success) -----
@@ -817,12 +870,12 @@
   ];
 
   // Fallback: anything else returns 200 with {ok:true, demo:"unhandled"}
-  function dispatch(method, path, opts) {
+  function dispatch(method, path, opts, search) {
     for (const [m, re, h] of ROUTES) {
       if (m !== method) continue;
       const match = path.match(re);
       if (match) {
-        try { return h(match, opts); }
+        try { return h(match, opts, search || ""); }
         catch (e) {
           console.warn("[DEMO] handler error", method, path, e);
           return jsonResp({ error: String(e) }, 500);
@@ -839,9 +892,9 @@
   for (const { opts, resolve, reject, input } of queued) {
     try {
       const url = typeof input === "string" ? input : input?.url;
-      const p = new URL(url, location.href).pathname;
+      const u = new URL(url, location.href);
       const method = ((opts && opts.method) || "GET").toUpperCase();
-      resolve(dispatch(method, p, opts));
+      resolve(dispatch(method, u.pathname, opts, u.search || ""));
     } catch (e) { reject(e); }
   }
   queued.length = 0;
