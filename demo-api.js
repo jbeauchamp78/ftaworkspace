@@ -563,6 +563,34 @@
       STATE.queue.count = (STATE.queue.count || 0) + 1;
       return jsonResp({ ok: true, id, prompt: `/manage-pecs disengage ...` });
     }],
+    ["POST", /^\/api\/customer\/([^/?]+)\/kr\/([^/?]+)\/pec-advance$/, (m, opts) => {
+      const cust = decodeURIComponent(m[1]);
+      const kr = decodeURIComponent(m[2]);
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      const stage = (body.target_stage || "").toLowerCase();
+      if (stage !== "engage" && stage !== "disengage") {
+        return jsonResp({ ok: false, error: "target_stage must be 'engage' or 'disengage'" });
+      }
+      if (stage === "disengage" && (!body.reason || !body.handshake)) {
+        return jsonResp({ ok: false, error: "reason and handshake required for disengage" });
+      }
+      STATE.queue.pending = STATE.queue.pending || [];
+      const id = STATE.nextQueueId++;
+      const kind = stage === "engage" ? "pec-advance" : "pec-disengage";
+      const label = stage === "engage"
+        ? `Advance PEC → Engage - ${cust} - ${kr}`
+        : `Disengage PEC - ${cust} - ${kr}`;
+      const prompt = stage === "engage"
+        ? `/manage-pecs advance "${cust}" --kr "${kr}" --stage engage`
+        : `/manage-pecs disengage "${cust}" --kr "${kr}" --reason "${body.reason}" --handshake "${body.handshake}"`;
+      STATE.queue.pending.push({
+        id, kind, label, prompt, cust,
+        status: "pending", requires_user_confirm: 0,
+        trigger: "ui_pec_advance", created_at: new Date().toISOString(),
+      });
+      STATE.queue.count = (STATE.queue.count || 0) + 1;
+      return jsonResp({ ok: true, id, prompt, target_stage: stage });
+    }],
 
     // ----- Single-customer refresh (demo: instant success) -----
     ["POST", /^\/api\/customer\/([^/?]+)\/refresh$/, (m) => {

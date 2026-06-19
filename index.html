@@ -886,7 +886,8 @@ table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 }
 
 .pec { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 500; }
-.pec.yes { background: var(--cp-accent-soft); color: var(--cp-accent); }
+.pec.yes { background: var(--cp-accent-soft); color: var(--cp-accent); cursor: pointer; transition: opacity .15s; }
+.pec.yes:hover { opacity: 0.80; }
 .pec.na  { color: var(--cp-text-muted); }
 .pec.missing { background: var(--cp-danger); color: var(--cp-accent-fg); cursor: pointer; }
 .pec.missing:hover { opacity: 0.85; }
@@ -2607,7 +2608,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.42 locked 2026-06-19 (Workloads MoM chart — 📈 button on Workloads header opens SVG line chart with 12-workload overlay (% of threshold y-axis, comparable scales) + per-workload checkbox toggle + single-workload zoom with dashed KPI threshold line; PEC Disengage motion — click any FTOP-confirmed ● Yes pill opens reason+handshake picklist mini-modal, queues /manage-pecs disengage to the bridge; new endpoints GET /api/customer/{nick}/kr-history + GET /api/pec/disengage-options + POST /api/customer/{nick}/kr/{kr}/pec-disengage)">v0.42 · Stable</span>
+      <span class="version-tag" title="Build version: v0.43 locked 2026-06-19 (Chart Y-axis hardening — defensive ratio-vs-percent clamp so workloads stored as already-percent like Win365 Paid don't blow up the scale; Chart UX cleanup — 📈 button moved next to Workloads title, Non-KR series excluded from chart, default selection is empty so FTA picks only what they want, removed All button; PEC pill UX — cursor:pointer + hover on ● Yes pill; Advance PEC modal — click any FTOP-confirmed ● Yes pill to advance to Engage OR Disengage from one modal; Disengage path keeps the reason+handshake picklists; new endpoint POST /pec-advance replaces /pec-disengage but back-compat alias retained)">v0.43 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -3349,7 +3350,8 @@ function renderContent() {
       <div class="kr-card-hdr">
         <h3>Workloads</h3>
         <button type="button" class="wl-chart-btn" id="btnWlChart" data-cust="${c.n}"
-                title="MoM progress chart for all workloads — multi-line view with per-workload KPI threshold overlay">📈 Chart</button>
+                title="MoM progress chart for all KR workloads — multi-line view with per-workload KPI threshold overlay">📈 Chart</button>
+        <span style="flex:1"></span>
         <div class="kr-mode-toggle" id="krModeToggle" role="tablist" aria-label="Switch between KR and Non-KR workload tracking">
           <button type="button" data-mode="kr" class="active" role="tab" aria-selected="true">Key Results</button>
           <button type="button" data-mode="nonkr" role="tab" aria-selected="false">Non-KR</button>
@@ -7340,8 +7342,7 @@ window.__workloadChart = (function () {
           <div class="wl-chart-side">
             <div class="wl-chart-side-hdr">
               <strong>Show</strong>
-              <button class="wl-side-btn" id="wlAllBtn">All</button>
-              <button class="wl-side-btn" id="wlNoneBtn">None</button>
+              <button class="wl-side-btn" id="wlNoneBtn">None / Reset</button>
             </div>
             <div id="wlChartLegend"></div>
             <div class="wl-chart-hint">
@@ -7364,10 +7365,6 @@ window.__workloadChart = (function () {
     modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
     modal.querySelector(".sp-draft-close").addEventListener("click", close);
     modal.querySelector("#wlChartClose").addEventListener("click", close);
-    modal.querySelector("#wlAllBtn").addEventListener("click", () => {
-      state.data.series.forEach(s => state.selected.add(s.kr_label));
-      renderLegend(); renderChart();
-    });
     modal.querySelector("#wlNoneBtn").addEventListener("click", () => {
       state.selected.clear();
       renderLegend(); renderChart();
@@ -7387,9 +7384,12 @@ window.__workloadChart = (function () {
     try {
       const r = await fetch(`/api/customer/${encodeURIComponent(cust)}/kr-history?months=12`);
       const data = await r.json();
+      // Filter out Non-KR / threshold-less series — the chart is for OKR
+      // progress; without a threshold there's nothing to compare against.
+      data.series = (data.series || []).filter(s => s.threshold);
       state.data = data;
-      // Default: select all workloads with a threshold (the KR set)
-      data.series.forEach(s => state.selected.add(s.kr_label));
+      // Default: NOTHING selected — FTA picks workloads they care about.
+      // Avoids the visual noise of 15 lines stacked at 0%.
       renderLegend(); renderChart();
     } catch (e) {
       modal.querySelector("#wlChartLegend").innerHTML = `<div class="wl-side-loading" style="color:#c0392b">Failed: ${e.message}</div>`;
@@ -7440,12 +7440,16 @@ window.__workloadChart = (function () {
     badge.style.color = "#fff";
   }
 
-  // Format the legend "current value" cell
+  // Format the legend "current value" cell. Defensive against demo/real
+  // data where a ratio-scale workload might have been seeded with an
+  // already-percentage value (e.g., Win365 Paid stored as 284 instead of
+  // 0.284). When value > 5 on a ratio scale, treat it as already-percent.
   function formatValue(value, mau, threshold) {
     if (!threshold) return "—";
     if (threshold.scale === "ratio") {
       if (value == null) return "—";
-      return `${Math.round(value * 100)}% / ${Math.round(threshold.value * 100)}%`;
+      const pct = (Math.abs(value) > 5) ? value : value * 100;
+      return `${Math.round(pct)}% / ${Math.round(threshold.value * 100)}%`;
     }
     // absolute
     const v = mau != null ? mau : value;
@@ -7453,15 +7457,21 @@ window.__workloadChart = (function () {
     return `${Math.round(v)} / ${threshold.value}`;
   }
 
-  // Normalize a point to "% of threshold" — for multi-line view so all
-  // workloads are on the same y-axis even with different scales.
+  // Normalize a point to "% of threshold" — same defensive ratio clamp.
   function normalizedY(point, threshold) {
     if (!threshold) return null;
     let raw;
-    if (threshold.scale === "ratio") raw = point.value;
-    else raw = (point.mau != null ? point.mau : point.value);
+    if (threshold.scale === "ratio") {
+      raw = point.value;
+      // Defensive: if a "ratio" workload's value is already in percent
+      // (>5), treat as percent and convert back to ratio for consistency
+      // with the threshold value (which is always 0..1 for ratio scale).
+      if (raw != null && Math.abs(raw) > 5) raw = raw / 100;
+    } else {
+      raw = (point.mau != null ? point.mau : point.value);
+    }
     if (raw == null || isNaN(raw)) return null;
-    return (raw / threshold.value) * 100;  // returns % of threshold (100 = met)
+    return (raw / threshold.value) * 100;  // % of threshold (100 = met)
   }
 
   function renderChart() {
@@ -7491,7 +7501,11 @@ window.__workloadChart = (function () {
       // Collect actual values (ratio % or absolute MAU)
       const vals = onlyKr.points.map(p => {
         if (!t) return p.mau || 0;
-        if (t.scale === "ratio") return (p.value || 0) * 100;
+        if (t.scale === "ratio") {
+          // Defensive: if value is already in percent (>5), use as-is
+          const raw = p.value || 0;
+          return Math.abs(raw) > 5 ? raw : raw * 100;
+        }
         return p.mau != null ? p.mau : (p.value || 0);
       });
       const tval = t ? (t.scale === "ratio" ? t.value * 100 : t.value) : 0;
@@ -7562,7 +7576,10 @@ window.__workloadChart = (function () {
         if (singleMode) {
           const t = onlyKr.threshold;
           if (!t) v = p.mau || 0;
-          else if (t.scale === "ratio") v = (p.value || 0) * 100;
+          else if (t.scale === "ratio") {
+            const raw = p.value || 0;
+            v = Math.abs(raw) > 5 ? raw : raw * 100;
+          }
           else v = p.mau != null ? p.mau : (p.value || 0);
         } else {
           v = normalizedY(p, s.threshold);
@@ -7624,12 +7641,12 @@ document.addEventListener("click", (e) => {
   if (window.__workloadChart) window.__workloadChart.open(btn.dataset.cust || window.activeCust);
 });
 
-// ---------- PEC Disengage modal ----------
-// Shown when the FTA clicks a `● Yes` PEC pill that has a Disengage
-// affordance (or via a context action). Captures reason + handshake from
-// the FTOP-required picklists, POSTs to /pec-disengage which queues a
-// /manage-pecs disengage bridge row.
-window.__pecDisengageModal = (function () {
+// ---------- PEC Advance modal ----------
+// Shown when the FTA clicks a `● Yes` PEC pill. Captures target stage
+// (Engage or Disengage) — for Disengage, also captures the FTOP-required
+// reason + handshake picklists. POSTs to /pec-advance which queues a
+// /manage-pecs (engage|disengage) bridge row.
+window.__pecAdvanceModal = (function () {
   let modal = null;
   let ctx = null;
   let opts = null;
@@ -7644,41 +7661,70 @@ window.__pecDisengageModal = (function () {
   }
 
   function build(o) {
-    if (document.getElementById("pecDisBackdrop")) return;
+    if (document.getElementById("pecAdvBackdrop")) return;
     modal = document.createElement("div");
-    modal.id = "pecDisBackdrop";
+    modal.id = "pecAdvBackdrop";
     modal.className = "sp-draft-backdrop";
     const reasonOpts = (o.reasons || []).map(r => `<option value="${r}">${r}</option>`).join("");
     const hsOpts = (o.handshakes || []).map(r => `<option value="${r}">${r}</option>`).join("");
     modal.innerHTML = `
       <div class="sp-draft-modal" role="dialog" aria-modal="true" style="max-width:520px;">
         <div class="sp-draft-head">
-          <h3 id="pecDisTitle">Advance PEC → Disengage</h3>
-          <span class="sp-kind-badge" style="background:#D83B01;color:#fff;">↓ Disengage</span>
+          <h3 id="pecAdvTitle">Advance PEC</h3>
+          <span class="sp-kind-badge" id="pecAdvBadge" style="background:#0078D4;color:#fff;">→ Engage</span>
           <button class="sp-draft-close" type="button" aria-label="Close">×</button>
         </div>
-        <div id="pecDisInfoBar"></div>
+        <div id="pecAdvInfoBar"></div>
         <div class="sp-draft-body">
-          <p class="sp-hint" style="margin:0 0 8px;">This will move the PEC for <strong id="pecDisCustKr"></strong> through FTOP's 4-step disengage recipe: PATCH fields → CloseIncident → advance BPF → finalize.</p>
-          <label class="fld">Reason <span class="req">*</span></label>
-          <select id="pecDisReason"><option value="" disabled selected>Choose…</option>${reasonOpts}</select>
-          <label class="fld">Handshake <span class="req">*</span></label>
-          <select id="pecDisHandshake"><option value="" disabled selected>Choose…</option>${hsOpts}</select>
+          <p class="sp-hint" style="margin:0 0 8px;">PEC for <strong id="pecAdvCustKr"></strong></p>
+          <label class="fld">Target stage <span class="req">*</span></label>
+          <select id="pecAdvStage">
+            <option value="engage">→ Engage (Triage → Engage)</option>
+            <option value="disengage">↓ Disengage (close out)</option>
+          </select>
+          <div id="pecAdvDisFields" style="display:none;">
+            <label class="fld">Reason <span class="req">*</span></label>
+            <select id="pecAdvReason"><option value="" disabled selected>Choose…</option>${reasonOpts}</select>
+            <label class="fld">Handshake <span class="req">*</span></label>
+            <select id="pecAdvHandshake"><option value="" disabled selected>Choose…</option>${hsOpts}</select>
+          </div>
           <label class="fld">Ticket <span class="opt">(optional — skill resolves from customer if blank)</span></label>
-          <input type="text" id="pecDisTicket" placeholder="REQ-XXXXXX-XX" />
-          <div class="sp-draft-status" id="pecDisStatus"></div>
+          <input type="text" id="pecAdvTicket" placeholder="REQ-XXXXXX-XX" />
+          <div class="sp-draft-status" id="pecAdvStatus"></div>
         </div>
         <div class="sp-draft-foot">
-          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Queue runs the disengage recipe — FTOP write. Reversible only by re-opening from FTOP.</span>
-          <button type="button" id="pecDisCancel">Cancel</button>
-          <button type="button" id="pecDisQueue" class="primary">⚡ Queue Disengage</button>
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);" id="pecAdvFootHint">Queue runs the advance — FTOP write.</span>
+          <button type="button" id="pecAdvCancel">Cancel</button>
+          <button type="button" id="pecAdvQueue" class="primary">⚡ Queue</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
     modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
     modal.querySelector(".sp-draft-close").addEventListener("click", close);
-    modal.querySelector("#pecDisCancel").addEventListener("click", close);
-    modal.querySelector("#pecDisQueue").addEventListener("click", submit);
+    modal.querySelector("#pecAdvCancel").addEventListener("click", close);
+    modal.querySelector("#pecAdvQueue").addEventListener("click", submit);
+    modal.querySelector("#pecAdvStage").addEventListener("change", syncStage);
+  }
+
+  function syncStage() {
+    const stage = modal.querySelector("#pecAdvStage").value;
+    const badge = modal.querySelector("#pecAdvBadge");
+    const disFields = modal.querySelector("#pecAdvDisFields");
+    const btn = modal.querySelector("#pecAdvQueue");
+    const foot = modal.querySelector("#pecAdvFootHint");
+    if (stage === "disengage") {
+      badge.textContent = "↓ Disengage";
+      badge.style.background = "#D83B01";
+      disFields.style.display = "";
+      btn.textContent = "⚡ Queue Disengage";
+      foot.textContent = "Runs FTOP's 4-step disengage recipe: PATCH fields → CloseIncident → advance BPF → finalize.";
+    } else {
+      badge.textContent = "→ Engage";
+      badge.style.background = "#0078D4";
+      disFields.style.display = "none";
+      btn.textContent = "⚡ Queue Engage";
+      foot.textContent = "Advances the BPF stage from Triage → Engage.";
+    }
   }
 
   function close() { if (modal) modal.classList.remove("show"); ctx = null; }
@@ -7687,34 +7733,38 @@ window.__pecDisengageModal = (function () {
     const o = await ensureOpts();
     build(o);
     ctx = c;
-    modal.querySelector("#pecDisCustKr").textContent = `${c.cust} · ${c.kr_label}`;
-    modal.querySelector("#pecDisReason").value = "";
-    modal.querySelector("#pecDisHandshake").value = "";
-    modal.querySelector("#pecDisTicket").value = "";
-    modal.querySelector("#pecDisStatus").textContent = "";
+    modal.querySelector("#pecAdvCustKr").textContent = `${c.cust} · ${c.kr_label}`;
+    modal.querySelector("#pecAdvStage").value = "engage";
+    modal.querySelector("#pecAdvReason").value = "";
+    modal.querySelector("#pecAdvHandshake").value = "";
+    modal.querySelector("#pecAdvTicket").value = "";
+    modal.querySelector("#pecAdvStatus").textContent = "";
+    syncStage();
     modal.classList.add("show");
   }
 
   async function submit() {
     if (!ctx) return;
-    const reason = modal.querySelector("#pecDisReason").value;
-    const handshake = modal.querySelector("#pecDisHandshake").value;
-    const ticket = modal.querySelector("#pecDisTicket").value.trim();
-    const status = modal.querySelector("#pecDisStatus");
-    if (!reason || !handshake) {
-      status.textContent = "Reason and handshake are required.";
+    const stage = modal.querySelector("#pecAdvStage").value;
+    const reason = modal.querySelector("#pecAdvReason").value;
+    const handshake = modal.querySelector("#pecAdvHandshake").value;
+    const ticket = modal.querySelector("#pecAdvTicket").value.trim();
+    const status = modal.querySelector("#pecAdvStatus");
+    if (stage === "disengage" && (!reason || !handshake)) {
+      status.textContent = "Reason and handshake are required for Disengage.";
       status.classList.add("err"); return;
     }
     status.classList.remove("err");
-    status.textContent = "Queuing disengage…";
+    status.textContent = `Queuing ${stage}…`;
+    const body = { target_stage: stage, ticket: ticket || undefined };
+    if (stage === "disengage") { body.reason = reason; body.handshake = handshake; }
     try {
-      const r = await fetch(`/api/customer/${encodeURIComponent(ctx.cust)}/kr/${encodeURIComponent(ctx.kr_label)}/pec-disengage`,
-        { method: "POST", headers: {"content-type":"application/json"},
-          body: JSON.stringify({ reason, handshake, ticket: ticket || undefined }) });
+      const r = await fetch(`/api/customer/${encodeURIComponent(ctx.cust)}/kr/${encodeURIComponent(ctx.kr_label)}/pec-advance`,
+        { method: "POST", headers: {"content-type":"application/json"}, body: JSON.stringify(body) });
       const data = await r.json();
       if (!data.ok) { status.textContent = `Failed: ${data.error || 'unknown'}`; status.classList.add("err"); return; }
-      status.textContent = `✓ Disengage queued — heartbeat will run within 30 min (cart id ${data.id}).`;
-      if (typeof toast === "function") toast(`PEC disengage queued — cart id ${data.id}`, "ok");
+      status.textContent = `✓ ${stage} queued — heartbeat will run within 30 min (cart id ${data.id}).`;
+      if (typeof toast === "function") toast(`PEC ${stage} queued — cart id ${data.id}`, "ok");
       if (typeof refreshCartBadge === "function") refreshCartBadge();
       setTimeout(close, 1500);
     } catch (e) {
@@ -7724,19 +7774,17 @@ window.__pecDisengageModal = (function () {
 
   return { open, close };
 })();
+// Backwards-compat alias for any callers that still reference the old name
+window.__pecDisengageModal = window.__pecAdvanceModal;
 
 // Wire up: clicking a `● Yes` PEC pill (FTOP-confirmed) opens the
-// Disengage modal. Skip the manual variant (those don't yet correspond
+// Advance modal. Skip the manual variant (those don't yet correspond
 // to a real FTOP ticket).
 document.addEventListener("click", (e) => {
   const pill = e.target.closest(".pec.yes:not(.pec-manual)");
   if (!pill) return;
-  // The pill in the KR table sits inside a td — extract cust + kr from
-  // the data-* attributes on the row's ancestor.
   const row = pill.closest("tr");
   if (!row) return;
-  // KR table rows have a kr-name td with editable notes carrying data-cust;
-  // we can also grab from any data-cust descendant.
   const cust = pill.dataset.cust ||
                (row.querySelector("[data-cust]") || {}).dataset?.cust ||
                window.activeCust;
@@ -7746,7 +7794,7 @@ document.addEventListener("click", (e) => {
                (row.querySelector(".kr-name") ? row.querySelector(".kr-name").firstChild.textContent.trim() : null);
   if (!cust || !kr) return;
   e.preventDefault(); e.stopPropagation();
-  if (window.__pecDisengageModal) window.__pecDisengageModal.open({ cust, kr_label: kr });
+  if (window.__pecAdvanceModal) window.__pecAdvanceModal.open({ cust, kr_label: kr });
 });
 
 // ---------- Help / Info modal ("i" pill in topbar) ----------
