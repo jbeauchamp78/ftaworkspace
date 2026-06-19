@@ -138,6 +138,42 @@
     nonKrByCust: {},   // populated lazily by GET /non-krs
   };
 
+  // ---------- Copilot Ideal Config defaults (DEMO) ----------
+  // Mirror Lynx's 10-setting Copilot Ideal Config. Each customer gets a
+  // deterministic mix based on a hash of their nickname so the same demo
+  // visitor sees the same posture per customer between page loads.
+  const IC_CATALOG = [
+    { setting_id: "WebSearch",             label: "Web Search",                 workload: "M365 Copilot",   spec: "Web grounding enabled for all users",       good: "100%",       bad: "Disabled" },
+    { setting_id: "ChannelReadiness",      label: "Channel Readiness",          workload: "M365 Apps",      spec: ">=50% on Current or Monthly Enterprise",    good: "98%",        bad: "32%" },
+    { setting_id: "CopilotFrontier",       label: "Frontier features",          workload: "M365 Copilot",   spec: "Frontier opt-in enabled",                   good: "Enabled",    bad: "Disabled" },
+    { setting_id: "CopilotConnectors",     label: "Copilot Connectors",         workload: "Graph",          spec: "At least one connector enabled",            good: "5 connectors", bad: "Disabled" },
+    { setting_id: "AnthropicSubProcessor", label: "Anthropic Sub-Processor",    workload: "M365 Copilot",   spec: "Sub-processor approval enabled",            good: "Enabled",    bad: "Not Approved" },
+    { setting_id: "AnthropicWXP",          label: "Multimodal (WXP)",           workload: "M365 Apps",      spec: ">=95% multimodal coverage",                 good: "100%",       bad: "62%" },
+    { setting_id: "ResearcherNotBlocked",  label: "Copilot App Unblocked",      workload: "Integrated Apps", spec: "Copilot app status = Unblocked",           good: "Unblocked",  bad: "Blocked" },
+    { setting_id: "TaskbarPin",            label: "Windows Taskbar Pin",        workload: "Windows",        spec: "Copilot pinned to taskbar (all users)",     good: "Pinned",     bad: "Not Pinned" },
+    { setting_id: "FeedbackAndLog",        label: "Feedback + Log Collection",  workload: "M365 Copilot",   spec: ">=95% feedback w/ log enabled",             good: "100%",       bad: "44%" },
+    { setting_id: "AIAdminAssigned",       label: "AI Administrator Assigned",  workload: "Entra",          spec: "AI Administrator role assigned",            good: "Assigned",   bad: "Not Assigned" },
+  ];
+  function _hash(s) { let h = 0; for (let i = 0; i < (s||"").length; i++) h = ((h<<5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); }
+  function IC_DEFAULT(custNick) {
+    const seed = _hash(custNick || "anon");
+    return IC_CATALOG.map((s, i) => {
+      // Deterministic per (customer, setting) status — most green, some yellow/red.
+      const mix = (seed + i * 31) % 10;
+      let status;
+      if (mix < 6) status = "green";
+      else if (mix < 8) status = "yellow";
+      else status = "red";
+      const value = status === "green" ? s.good
+                   : status === "red"   ? s.bad
+                   : "Partially Enabled";
+      return {
+        setting_id: s.setting_id, label: s.label, workload: s.workload,
+        spec: s.spec, status, value, notes: null,
+      };
+    });
+  }
+
   // ---------- Non-KR defaults (DEMO) ----------
   // Mirror app/non_krs.py NON_KR_WORKLOADS + STATUS_OPTIONS.
   const NONKR_WORKLOADS = [
@@ -317,6 +353,48 @@
         result: { ok: true, customers_evaluated: 1, krs_updated: 12,
                   snapshot_iso: STATE.meta.snapshot_iso, duration_seconds: 0.2 },
       });
+    }],
+
+    // ----- Copilot Ideal Config (per-customer, 10 admin settings) -----
+    ["GET", /^\/api\/customer\/([^/?]+)\/ideal-config$/, (m) => {
+      const cust = decodeURIComponent(m[1]);
+      STATE.icByCust = STATE.icByCust || {};
+      if (!STATE.icByCust[cust]) STATE.icByCust[cust] = IC_DEFAULT(cust);
+      const settings = STATE.icByCust[cust];
+      const green = settings.filter(s => s.status === "green").length;
+      const yellow = settings.filter(s => s.status === "yellow").length;
+      const red = settings.filter(s => s.status === "red").length;
+      const overall = red >= 3 ? "red" : (yellow + red >= 3 ? "yellow" : "green");
+      return jsonResp({
+        nickname: cust,
+        overall_health: overall,
+        green_count: green, total_count: settings.length,
+        settings,
+        data_source: "lynx (demo)",
+        snapshot_date: (STATE.meta.snapshot_iso || "").slice(0, 10),
+      });
+    }],
+    ["GET", /^\/api\/ideal-config\/rollup$/, () => {
+      // Portfolio rollup used by counter tile + recs pipeline
+      let wins = 0;
+      STATE.customers.forEach((c) => {
+        const k = c.nickname || c.display_nickname;
+        STATE.icByCust = STATE.icByCust || {};
+        if (!STATE.icByCust[k]) STATE.icByCust[k] = IC_DEFAULT(k);
+        const reds = STATE.icByCust[k].filter(s => s.status === "red").length;
+        const yels = STATE.icByCust[k].filter(s => s.status === "yellow").length;
+        if (reds === 0 && yels < 3) wins += 1;
+      });
+      return jsonResp({ wins, total: STATE.customers.length });
+    }],
+    ["PATCH", /^\/api\/customer\/([^/?]+)\/ideal-config\/notes$/, (m, opts) => {
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      const cust = decodeURIComponent(m[1]);
+      STATE.icByCust = STATE.icByCust || {};
+      const arr = STATE.icByCust[cust] || [];
+      const row = arr.find(r => r.setting_id === body.setting_id);
+      if (row) row.notes = body.notes || "";
+      return jsonResp({ ok: true });
     }],
 
     // ----- Customer detail + recommendations -----
