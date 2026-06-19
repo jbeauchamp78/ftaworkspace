@@ -2655,7 +2655,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.47 locked 2026-06-19 (PEC pill final design — inline-baseline 4-cell pill (Miss · Triage · Engage · Total) with bold tabular numbers + tiny uppercase labels, dot separators between cells, matches height + visual weight of neighboring chips; v0.46 stacked-cells design was rendering as an empty circle when hydration hadn't completed)">v0.47 · Stable</span>
+      <span class="version-tag" title="Build version: v0.48 locked 2026-06-19 (PEC pill collision fix — removed legacy .pec-info-pill class from the combined chip; that class forced 16x16 circular shape + italic which was overlaying the new pill on top of the KPI regressions chip. Click handler now binds to .csl-pec-combined directly, retains back-compat for any stragglers)">v0.48 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -3276,7 +3276,7 @@ function renderContent() {
               <span class="csl-chip csl-met"   title="KRs at KPI WIN or KPI MET">✓ ${kpiWins} KPI wins</span>
               <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${c.n.replace(/[^a-z0-9]/gi,'_')}" data-cust="${c.n}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
               <span class="csl-chip csl-regr ${kpiRegr ? '' : 'csl-zero'}" title="KRs at REGRESSION">▼ ${kpiRegr} KPI regressions</span>
-              <span class="csl-chip csl-pec-combined pec-info-pill" data-cust="${c.n}"
+              <span class="csl-chip csl-pec-combined" data-cust="${c.n}"
                     title="${pecActive} active · ${pecClosed} closed · ${missPec} missing — click for details">
                 <span class="pec-combo-cell pec-combo-miss"><span class="pec-combo-num">${missPec}</span><span class="pec-combo-tag">miss</span></span>
                 <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="triage">—</span><span class="pec-combo-tag">triage</span></span>
@@ -5421,8 +5421,8 @@ document.addEventListener("click", (e) => {
   function activeCustomerNick() {
     // The current customer is whatever block is currently rendered. The
     // app's block_index drives the URL hash on selection. Easiest source
-    // of truth: the data-cust attribute on the PEC info pill we just rendered.
-    const pill = document.querySelector(".pec-info-pill");
+    // of truth: data-cust attribute on the combined PEC pill on the page.
+    const pill = document.querySelector(".csl-pec-combined[data-cust]");
     return pill ? pill.dataset.cust : null;
   }
 
@@ -5508,8 +5508,8 @@ document.addEventListener("click", (e) => {
     }
   }
   document.addEventListener("click", (e) => {
-    const pill = e.target.closest(".pec-info-pill");
-    if (pill) { openPecPopover(pill.dataset.cust); }
+    const pill = e.target.closest(".csl-pec-combined, .pec-info-pill");
+    if (pill && pill.dataset.cust) { openPecPopover(pill.dataset.cust); }
   });
 
   // ---------- Heatmap render ----------
