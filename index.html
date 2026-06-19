@@ -320,7 +320,9 @@ html[data-theme="win98"] .info-pill {
   background: var(--cp-surface); border: 1px solid var(--cp-border);
   border-radius: 16px; padding: 14px 18px; min-width: 140px;
   box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+  position: relative;
 }
+.counter-sync-btn:hover { background: var(--cp-accent-soft) !important; color: var(--cp-accent) !important; border-color: var(--cp-accent) !important; }
 .counter.clickable { cursor: pointer; transition: transform 100ms, box-shadow 100ms, border-color 100ms; }
 .counter.clickable:hover { transform: translateY(-1px); border-color: var(--cp-border-strong); }
 .counter.active { border-color: var(--cp-accent); box-shadow: 0 0 0 2px var(--cp-accent-soft), 0 0 2px rgba(0,0,0,0.12); }
@@ -2397,6 +2399,52 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 .sp-draft-status { font-size: 11px; color: var(--cp-text-muted); margin-top: 6px; }
 .sp-draft-status.err { color: #c0392b; }
 
+/* Reusable "Clawpilot prompt info bar" — used at the top of any modal
+   that queues a Clawpilot skill (spotlight draft, future modals, etc.).
+   Same visual language as the queue-confirm dialog. */
+.skill-info-bar {
+  padding: 12px 18px 14px;
+  background: var(--cp-surface-soft);
+  border-bottom: 1px solid var(--cp-border);
+  font-size: 12px;
+}
+.skill-info-bar .skill-info-row1 {
+  display: flex; align-items: center; gap: 10px;
+}
+.skill-info-bar .skill-info-title {
+  font-size: 13px; font-weight: 600; color: var(--cp-text); flex: 1;
+}
+.skill-info-bar .skill-info-badge {
+  font-size: 10.5px; font-weight: 600; padding: 3px 8px;
+  border-radius: 3px; border: 1px solid var(--cp-border);
+  background: var(--cp-surface); color: var(--cp-text-muted);
+  white-space: nowrap;
+}
+.skill-info-bar .skill-info-badge.skill-installed-ok {
+  background: rgba(46,133,64,0.12); color: #1f5f2c; border-color: #2e8540;
+}
+.skill-info-bar .skill-info-badge.skill-installed-missing {
+  background: rgba(185,28,28,0.10); color: #7a0000; border-color: #b91c1c;
+}
+.skill-info-bar .skill-info-short {
+  color: var(--cp-text-muted); margin: 6px 0 8px; line-height: 1.4;
+}
+.skill-info-bar .skill-info-se {
+  font-size: 11px; color: var(--cp-text-muted); margin-bottom: 8px;
+}
+.skill-info-bar .skill-info-prompt-label {
+  font-size: 10px; font-weight: 700; color: var(--cp-text-muted);
+  text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px;
+}
+.skill-info-bar .skill-info-prompt {
+  display: block; padding: 7px 10px; border-radius: 5px;
+  background: var(--cp-bg-elevated, var(--cp-surface));
+  border: 1px solid var(--cp-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px; color: var(--cp-text);
+  white-space: pre-wrap; word-break: break-all;
+}
+
 /* ===== KR / Non-KR toggle slider in KR card header ===== */
 .kr-mode-toggle {
   display: inline-flex; align-items: center; gap: 0;
@@ -2468,7 +2516,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.36 locked 2026-06-19 (Manual marks for PECs + Spotlights — ✓ already link below + Open PEC sets pec_flag=Yes locally with source=manual; + Log existing spotlight button in popover inserts spotlight_index row with source=manual; pec_flag_source + source columns lazy-added; manual entries get distinct outlined-dashed pill styling; click manual pill to clear; PATCH /api/customer/{nick}/kr/{kr_label}/pec-flag + POST /api/spotlights/manual endpoints; demo handlers + manual badge in popover)">v0.36 · Stable</span>
+      <span class="version-tag" title="Build version: v0.37 locked 2026-06-19 (Build B — /spotlight-sync helper skill at ~/.copilot/skills/spotlight-sync/ — pulls FTA's spotlights from FTOP via ftop_my_spotlights MCP and bulk-POSTs to /api/spotlights/bulk with source='ftop'; new ⟳ sync button on the Spotlights counter tile queues it through queue-confirm; spotlight-sync added to SKILL_REGISTRY; SHARED Clawpilot prompt info bar — render with __queueSkill.renderSkillInfoBar(kind, ctx) — restored at the top of the Spotlight draft modal with title + side effects + skill-installed badge + prompt preview)">v0.37 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -2534,6 +2582,9 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
         <div class="hint">KPI WIN rows earned this FY</div>
       </div>
       <div class="counter accent clickable" data-tile="spotlights" title="✨ Spotlights — count of published spotlights this FY. Click to drill into per-customer spotlight state.">
+        <button type="button" class="counter-sync-btn" id="btnSyncSpotlights"
+                title="Pull spotlights from FTOP via ftop-mcp (read-only). Populates spotlight_index with source='ftop'. Click stops propagation so the tile drill-in doesn't fire."
+                style="position:absolute;top:4px;right:4px;background:transparent;border:1px solid var(--cp-border);border-radius:3px;font-size:10px;padding:1px 5px;color:var(--cp-text-muted);cursor:pointer;line-height:1.1;">⟳ sync</button>
         <div class="label">Spotlights</div>
         <div class="value" id="ct-sp-wins">—</div>
         <div class="hint" id="ct-sp-hint">published this FY</div>
@@ -5847,6 +5898,24 @@ window.__queueSkill = (function () {
       cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/refresh`,
       cart_body: () => ({}),
     },
+    "spotlight-sync": {
+      title: "Sync spotlights from FTOP?",
+      short: "Pulls every spotlight you own from FTOP via ftop-mcp and populates the workspace's spotlight_index so ★ icons + customer chips light up.",
+      sideEffects: [
+        { kind: "read", label: "Read-only on FTOP (ftop_my_spotlights MCP)" },
+        { kind: "write", label: "Writes only to local spotlight_index — tagged source='ftop'" },
+        { kind: "preserve", label: "Manual marks get reconciled — upgraded to 'ftop' if FTOP confirms" },
+      ],
+      requires_user_confirm: 0,
+      skill_path: "spotlight-sync",
+      cart_endpoint: () => "/api/clawpilot/queue",
+      cart_body: (ctx) => ({
+        kind: "spotlight-sync",
+        label: ctx.cust ? `Spotlight sync - ${ctx.cust}` : "Spotlight sync (portfolio)",
+        prompt: ctx.cust ? `/spotlight-sync ${ctx.cust}` : "/spotlight-sync",
+        requires_user_confirm: 0,
+      }),
+    },
   };
 
   const SE_ICONS = { read: "👁", preview: "📋", write: "✏", preserve: "🛡" };
@@ -5997,7 +6066,52 @@ window.__queueSkill = (function () {
     }
   }
 
-  return { queueSkill, REGISTRY, ensureInstalled };
+  // Reusable helper — renders an HTML "skill info bar" that any modal
+  // queueing a Clawpilot skill can drop in. Same visual language as the
+  // queue-confirm dialog: title + side-effect icons + skill-installed
+  // badge + prompt preview. Caller passes the kind + ctx.
+  function renderSkillInfoBar(kind, ctx) {
+    const reg = REGISTRY[kind];
+    if (!reg) return "";
+    const seHtml = (reg.sideEffects || []).map((s) =>
+      `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;">
+         <span style="font-size:13px;color:${SE_COLORS[s.kind]||'#666'};">${SE_ICONS[s.kind]||'•'}</span>
+         <span>${s.label}</span>
+       </span>`
+    ).join("");
+    const promptText = previewPrompt(reg, ctx || {});
+    return `
+      <div class="skill-info-bar">
+        <div class="skill-info-row1">
+          <span class="skill-info-title">${reg.title || kind}</span>
+          <span class="skill-info-badge" data-skill-path="${reg.skill_path || kind}">checking…</span>
+        </div>
+        <div class="skill-info-short">${reg.short || ""}</div>
+        <div class="skill-info-se">${seHtml}</div>
+        <div class="skill-info-prompt-label">Clawpilot prompt</div>
+        <code class="skill-info-prompt">${promptText.replace(/</g, '&lt;')}</code>
+      </div>`;
+  }
+
+  // After injecting the bar into a host modal, call hydrateSkillInfoBar(rootEl)
+  // to populate the installed badge asynchronously.
+  async function hydrateSkillInfoBar(rootEl) {
+    if (!rootEl) return;
+    const badge = rootEl.querySelector(".skill-info-badge");
+    if (!badge) return;
+    const skillPath = badge.dataset.skillPath;
+    const installed = await ensureInstalled();
+    const ok = installed.includes(skillPath) || installed.includes("/" + skillPath);
+    if (ok) {
+      badge.textContent = `✓ /${skillPath} installed`;
+      badge.classList.add("skill-installed-ok");
+    } else {
+      badge.textContent = `⚠ /${skillPath} not found`;
+      badge.classList.add("skill-installed-missing");
+    }
+  }
+
+  return { queueSkill, REGISTRY, ensureInstalled, renderSkillInfoBar, hydrateSkillInfoBar };
 })();
 
 // ---------- Spotlights: per-KR icon + customer chip + popover + queue ----------
@@ -6373,6 +6487,19 @@ window.__queueSkill = (function () {
   loadDefinitions();
 })();
 
+// ---------- Spotlight sync button (counter row tile) ----------
+// Click → queues /spotlight-sync via the shared queue-confirm modal so
+// the FTA sees the prompt before it fires. After completion, the
+// spotlight_index populates with source='ftop' rows.
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("#btnSyncSpotlights");
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  if (!window.__queueSkill) return;
+  const result = await window.__queueSkill.queueSkill("spotlight-sync", {});
+  if (result.ok && typeof refreshCartBadge === "function") refreshCartBadge();
+});
+
 // ---------- Non-KR table — toggle slider + fetch + edit ----------
 // Wires up the [Key Results | Non-KR] toggle in the Workloads card header.
 // When Non-KR is selected, hides the KR table, shows the Non-KR table, and
@@ -6609,6 +6736,7 @@ window.__spotlightDraftForm = (function () {
           <span class="sp-kind-badge" id="spKindBadge"></span>
           <button class="sp-draft-close" type="button" aria-label="Close">×</button>
         </div>
+        <div id="spDraftInfoBar"></div>
         <div class="sp-draft-body">
           <div class="sp-row">
             <div>
@@ -6691,6 +6819,14 @@ window.__spotlightDraftForm = (function () {
     modal.querySelector("#spKindBadge").textContent = lowlight ? "⚠ LOWLIGHT" : "✨ HIGHLIGHT";
     modal.querySelector("#spKindBadge").className = "sp-kind-badge " + (lowlight ? "lowlight" : "highlight");
     modal.querySelector("#spDraftTitle").textContent = `Draft Spotlight — ${cust}${kr_label ? " · " + kr_label : ""}`;
+    // Render the shared "Clawpilot prompt info bar" — same visual language
+    // as the queue-confirm modal. Title/short/side-effects/installed/badge/prompt.
+    const infoBar = modal.querySelector("#spDraftInfoBar");
+    if (infoBar && window.__queueSkill && window.__queueSkill.renderSkillInfoBar) {
+      const kind = lowlight ? "spotlight-lowlight" : "spotlight";
+      infoBar.innerHTML = window.__queueSkill.renderSkillInfoBar(kind, { cust, kr_label, lowlight });
+      window.__queueSkill.hydrateSkillInfoBar(infoBar);
+    }
     modal.classList.add("show");
 
     try {
