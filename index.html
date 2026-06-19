@@ -2660,7 +2660,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.49 locked 2026-06-19 (PEC pill label — added bold PECs label at the front of the combined chip with a thin divider, so the four numbers read clearly as PEC counts)">v0.49 · Stable</span>
+      <span class="version-tag" title="Build version: v0.50 locked 2026-06-19 (Field Guide refresh — UI Tour section updated to cover everything shipped in v0.39-v0.49: the combined PECs pill (Miss/Triage/Engage/Total) with click-to-popover, the ● Yes PEC pill opening the Advance PEC modal (Engage or Disengage), the 2-click Spotlight + PEC draft modals, the 📈 Workloads chart with KR/Non-KR toggle + per-workload threshold overlay, FTOP account link in the header subline. Example version pill bumped to v0.49)">v0.50 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -8009,7 +8009,7 @@ document.addEventListener("click", (e) => {
         <table class="help-table">
           <tr><th>Element</th><th>What it does</th></tr>
           <tr><td><span class="pill">i</span></td><td>This help screen.</td></tr>
-          <tr><td><span class="pill">v0.24 · Stable</span></td><td>Build version. Hover for what shipped.</td></tr>
+          <tr><td><span class="pill">v0.49 · Stable</span></td><td>Build version. Hover for what shipped.</td></tr>
           <tr><td><span class="pill">📋 KR Rules · FY26 H2</span></td><td>The active fiscal epoch's KR scoring rules. Click for full scope + changelog.</td></tr>
           <tr><td><span class="pill">⚙️ Copilot IC Rules · FY26 H2</span></td><td>The 10-setting Copilot Ideal Config rules currently being evaluated.</td></tr>
           <tr><td><strong>MIDAS snapshot</strong></td><td>Latest MIDAS publish date. Shows "(in progress)" when current month bucket isn't closed.</td></tr>
@@ -8025,10 +8025,12 @@ document.addEventListener("click", (e) => {
         </ul>
         <h5>Right panel (per customer)</h5>
         <ul>
-          <li><strong>Header</strong> — Display name (editable), full FTOP name, TPID (editable), MIDAS link, expand button.</li>
-          <li><strong>Workloads section</strong> — Toggle <strong>[Key Results | Non-KR]</strong>. KR mode shows the 12 OKR-scored workloads; Non-KR mode shows 12 additional workloads (Exchange, SharePoint, OneDrive, Teams, etc.) with FTA-managed status + notes.</li>
-          <li><strong>Key Results table (KR mode)</strong> — One row per KR. Columns: KR/Workload, Status, Jun 30, Current, FY Growth, MoM, PEC, Notes. Each Status cell shows a small spotlight icon (✨/⚠/⏳/★) when relevant. All sortable.</li>
-          <li><strong>Spotlight chip</strong> on the customer header — count of published spotlights for this customer this FY.</li>
+          <li><strong>Header</strong> — Display name (editable), full FTOP name, editable TPID pill, and an <code>FTOP account ↗</code> link straight to the customer's Dataverse record.</li>
+          <li><strong>Status chips</strong> — KR Wins · KPI Wins · Spotlights · KPI Regressions · and the combined <strong>PECs</strong> pill showing <em>Miss · Triage · Engage · Total</em> at a glance. Click the PECs pill to open the per-customer popover with active/closed PEC details and stage breakdown.</li>
+          <li><strong>● Yes PEC pill</strong> (in the KR table) — Click to open the <strong>Advance PEC</strong> modal: pick <em>Engage</em> (Triage → Engage) or <em>Disengage</em> (close out with reason + handshake picklists). Both paths queue <code>/manage-pecs</code> to the bridge.</li>
+          <li><strong>Workloads section</strong> — Toggle <strong>[Key Results | Non-KR]</strong>. KR mode shows the 15 OKR-scored workloads; Non-KR mode shows the additional workloads (Exchange, SharePoint, OneDrive, Teams, etc.) with FTA-managed status + notes. <strong>📈 Chart</strong> button next to the title opens the MoM Workloads chart — multi-line view normalizes everything to "% of threshold" so workloads on different scales are comparable; click ONE workload for absolute MAU + dashed KPI reference line. The chart has its own <strong>KR / Non-KR</strong> toggle in the modal header.</li>
+          <li><strong>Key Results table (KR mode)</strong> — One row per KR. Columns: KR/Workload, Status, Jun 30, Current, FY Growth, MoM, PEC, Notes. Each Status cell shows a small spotlight icon (✨/⚠/⏳/★) when relevant. Click ✨/⚠ to open the <strong>Spotlight draft</strong> modal — pre-filled from MIDAS + FTOP context, edit and submit in 2 clicks.</li>
+          <li><strong>+ Open PEC</strong> (Missing PEC cell) — Opens the <strong>PEC draft</strong> modal: single-workload lock (the row you clicked), Stage picker (Triage / Engage), Deploy lead dropdown. Submits to <code>/manage-pecs</code> via the bridge.</li>
           <li><strong>M365 Adoption Heatmap</strong> — Toggle to view all OKR workloads color-coded by adoption stage (ONBOARDED / IN_PROGRESS / INTENT / NO_INTENT / NOT_LICENSED). Three layouts: Compact, Standard, Detailed. Per-tile override + FTBI sync supported. Export PNG/PPTX.</li>
           <li><strong>Copilot Ideal Config</strong> — 10 settings from Lynx. Click to flag overrides.</li>
           <li><strong>To Dos</strong> — Your personal scratchpad for this customer.</li>
