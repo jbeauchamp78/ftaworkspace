@@ -787,6 +787,11 @@ html[data-theme="win98"] .info-pill {
 .pec-combo-cell {
   display: inline-flex; align-items: baseline; gap: 3px;
 }
+.pec-combo-label {
+  font-weight: 700; font-size: 11px; color: var(--cp-text);
+  letter-spacing: 0.04em; padding-right: 4px;
+  border-right: 1px solid var(--cp-border); margin-right: 2px;
+}
 .pec-combo-cell + .pec-combo-cell::before {
   content: "·"; color: var(--cp-text-muted); opacity: 0.5;
   margin-right: 3px; font-weight: 400;
@@ -2655,7 +2660,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.48 locked 2026-06-19 (PEC pill collision fix — removed legacy .pec-info-pill class from the combined chip; that class forced 16x16 circular shape + italic which was overlaying the new pill on top of the KPI regressions chip. Click handler now binds to .csl-pec-combined directly, retains back-compat for any stragglers)">v0.48 · Stable</span>
+      <span class="version-tag" title="Build version: v0.49 locked 2026-06-19 (PEC pill label — added bold PECs label at the front of the combined chip with a thin divider, so the four numbers read clearly as PEC counts)">v0.49 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -3278,6 +3283,7 @@ function renderContent() {
               <span class="csl-chip csl-regr ${kpiRegr ? '' : 'csl-zero'}" title="KRs at REGRESSION">▼ ${kpiRegr} KPI regressions</span>
               <span class="csl-chip csl-pec-combined" data-cust="${c.n}"
                     title="${pecActive} active · ${pecClosed} closed · ${missPec} missing — click for details">
+                <span class="pec-combo-label">PECs</span>
                 <span class="pec-combo-cell pec-combo-miss"><span class="pec-combo-num">${missPec}</span><span class="pec-combo-tag">miss</span></span>
                 <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="triage">—</span><span class="pec-combo-tag">triage</span></span>
                 <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="engage">—</span><span class="pec-combo-tag">engage</span></span>
