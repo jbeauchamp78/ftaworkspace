@@ -625,7 +625,10 @@ html[data-theme="win98"] .info-pill {
   background: var(--cp-bg);
 }
 .cust-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 6px; }
-.cust-header-names { display: flex; flex-direction: column; gap: 0; }
+.cust-header-names { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.cust-header-names .cust-subline { margin-bottom: 8px; }
+.cust-header-names .cust-statusline { margin: 4px 0 6px 0; }
+.cust-header-names .cust-subhdr { margin-bottom: 0; }
 .cust-header h2.cust-display-name {
   font-size: 24px; font-weight: 600; margin: 0;
   letter-spacing: -0.5px;
@@ -2295,28 +2298,32 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 }
 .nonkr-table td {
   padding: 10px 8px; border-bottom: 1px solid var(--cp-border);
-  vertical-align: top; box-sizing: border-box;
+  vertical-align: middle; box-sizing: border-box;
 }
-.nonkr-table td.workload { font-weight: 600; color: var(--cp-text); padding-top: 14px; }
-.nonkr-table td.mom { text-align: right; font-variant-numeric: tabular-nums; color: var(--cp-text-muted); padding-top: 14px; }
-.nonkr-table td.status-cell { padding-top: 10px; }
-.nonkr-table td.pec { width: 80px; padding-top: 10px; }
+.nonkr-table td.workload { font-weight: 600; color: var(--cp-text); }
+.nonkr-table td.mom { text-align: right; font-variant-numeric: tabular-nums; color: var(--cp-text-muted); }
+.nonkr-table td.status-cell { }
+.nonkr-table td.pec { width: 80px; text-align: center; }
 .nonkr-table .nonkr-notes-input {
-  width: 100%; box-sizing: border-box; padding: 6px 8px;
+  width: 100%; box-sizing: border-box; padding: 5px 8px;
   border: 1px solid transparent; border-radius: 4px;
   background: transparent; color: var(--cp-text); font-size: 12px;
-  font-family: inherit; line-height: 1.4; resize: vertical; min-height: 58px;
+  font-family: inherit; line-height: 1.4; resize: none;
+  display: block; vertical-align: middle;
 }
 .nonkr-table .nonkr-notes-input:focus {
   outline: none; border-color: var(--cp-accent);
   background: var(--cp-bg-elevated, var(--cp-surface));
 }
 .nonkr-pec-btn {
-  background: var(--cp-surface-soft); border: 1px solid var(--cp-border);
-  border-radius: 4px; padding: 4px 10px; font-size: 11px;
+  background: transparent; border: 1px dashed var(--cp-border);
+  border-radius: 4px; padding: 3px 8px; font-size: 11px;
   color: var(--cp-text-muted); cursor: pointer; line-height: 1.2;
 }
-.nonkr-pec-btn:hover { color: var(--cp-text); background: var(--cp-accent-soft); }
+.nonkr-pec-btn:hover {
+  color: var(--cp-accent); border-color: var(--cp-accent);
+  border-style: solid; background: var(--cp-accent-soft);
+}
 </style>
 </head>
 <body>
@@ -2927,6 +2934,32 @@ function renderContent() {
                   data-placeholder="—">${c.tpid || ''}</span>
           </span>
         </div>
+        <div class="cust-statusline">
+          ${(() => {
+            const krWins  = customerKrWins(c).length;
+            const kpiWins = c.krs.filter(k => k.s === 'KPI WIN').length;
+            const kpiRegr = c.krs.filter(k => k.s === 'REGRESSION').length;
+            const missPec = c.krs.filter((k, i) => {
+              const lbl = KR_LABELS[i][0];
+              if (lbl.includes('Admin Days')) return false;
+              if (!(k.s === 'KPI WIN' || k.s === 'IN PROGRESS')) return false;
+              return k.p !== 'Yes' && k.p !== 'N/A';
+            }).length;
+            return `
+              <span class="csl-chip csl-win"   title="KRs at KPI WIN">★ ${krWins} KR wins</span>
+              <span class="csl-chip csl-met"   title="KRs at KPI WIN or KPI MET">✓ ${kpiWins} KPI wins</span>
+              <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${c.n.replace(/[^a-z0-9]/gi,'_')}" data-cust="${c.n}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
+              <span class="csl-chip csl-regr ${kpiRegr ? '' : 'csl-zero'}" title="KRs at REGRESSION">▼ ${kpiRegr} KPI regressions</span>
+              <span class="csl-chip csl-pec  ${missPec ? '' : 'csl-zero'}" title="Active KRs without an FTOP PEC">⚑ ${missPec} missing PECs</span>
+            `;
+          })()}
+        </div>
+        <div class="cust-subhdr">
+          ${c.tpid ? `TPID ${c.tpid} ·` : ''}
+          ${c.ftop_account_id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=account&id=${c.ftop_account_id}" target="_blank">FTOP account</a> ·` : ''}
+          <span class="muted" title="${c.pec_active} active, ${c.pec_closed} closed">${c.pec_total} active/closed PECs</span>
+          <button class="pec-info-pill" data-cust="${c.n}" title="See PEC details (ticket, workload, stage)">i</button>
+        </div>
       </div>
       <span style="flex:1"></span>
       <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; margin-left:auto;">
@@ -2939,32 +2972,6 @@ function renderContent() {
         <span class="customer-refresh-stamp" id="customerRefreshStamp" data-cust="${c.n}"
               style="font-size:10.5px;color:var(--cp-text-muted);margin-top:-2px;text-align:right;line-height:1.2;min-height:14px;">${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}</span>
       </div>
-    </div>
-    <div class="cust-statusline">
-      ${(() => {
-        const krWins  = customerKrWins(c).length;
-        const kpiWins = c.krs.filter(k => k.s === 'KPI WIN').length;
-        const kpiRegr = c.krs.filter(k => k.s === 'REGRESSION').length;
-        const missPec = c.krs.filter((k, i) => {
-          const lbl = KR_LABELS[i][0];
-          if (lbl.includes('Admin Days')) return false;
-          if (!(k.s === 'KPI WIN' || k.s === 'IN PROGRESS')) return false;
-          return k.p !== 'Yes' && k.p !== 'N/A';
-        }).length;
-        return `
-          <span class="csl-chip csl-win"   title="KRs at KPI WIN">★ ${krWins} KR wins</span>
-          <span class="csl-chip csl-met"   title="KRs at KPI WIN or KPI MET">✓ ${kpiWins} KPI wins</span>
-          <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${c.n.replace(/[^a-z0-9]/gi,'_')}" data-cust="${c.n}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
-          <span class="csl-chip csl-regr ${kpiRegr ? '' : 'csl-zero'}" title="KRs at REGRESSION">▼ ${kpiRegr} KPI regressions</span>
-          <span class="csl-chip csl-pec  ${missPec ? '' : 'csl-zero'}" title="Active KRs without an FTOP PEC">⚑ ${missPec} missing PECs</span>
-        `;
-      })()}
-    </div>
-    <div class="cust-subhdr">
-      ${c.tpid ? `TPID ${c.tpid} ·` : ''}
-      ${c.ftop_account_id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=account&id=${c.ftop_account_id}" target="_blank">FTOP account</a> ·` : ''}
-      <span class="muted" title="${c.pec_active} active, ${c.pec_closed} closed">${c.pec_total} active/closed PECs</span>
-      <button class="pec-info-pill" data-cust="${c.n}" title="See PEC details (ticket, workload, stage)">i</button>
     </div>
 
     <!-- Heatmap card (hidden unless body.heatmap-view is active) -->
@@ -6139,7 +6146,7 @@ window.__queueSkill = (function () {
         const opts = NONKR_OPTIONS.map(o =>
           `<option value="${o}"${o === w.status ? ' selected' : ''}>${o}</option>`
         ).join("");
-        const noteHtml = `<textarea class="nonkr-notes-input" rows="3"
+        const noteHtml = `<textarea class="nonkr-notes-input" rows="2"
             data-cust="${cust}" data-wl="${w.workload}" data-field="notes"
             placeholder="Add a note…">${(w.notes || '').replace(/</g, '&lt;')}</textarea>`;
         return `<tr>
