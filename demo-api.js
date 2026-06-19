@@ -687,15 +687,27 @@
     ["GET", /^\/api\/customer\/([^/?]+)\/pecs$/, (m) => {
       const c = customerByNick(m[1]);
       if (!c) return jsonResp({ error: "not found" }, 404);
+      const pecs = c.pecs || [];
+      let triage = 0, engage = 0, disengage = 0, other = 0;
+      pecs.forEach(p => {
+        const st = (p.state || "").toLowerCase();
+        if (st && st !== "active") return;
+        const stg = (p.stage || "").toLowerCase();
+        if (stg.includes("triage")) triage++;
+        else if (stg.includes("engage") && !stg.includes("dis")) engage++;
+        else if (stg.includes("disengage")) disengage++;
+        else other++;
+      });
       return jsonResp({
         nickname: c.nickname,
         summary: {
           active: c.pec_active_count || 0,
           closed: c.pec_closed_count || 0,
           total:  c.pec_total_count  || 0,
+          triage, engage, disengage, other_active: other,
         },
-        pecs: c.pecs || [],
-        detail_source: (c.pecs && c.pecs.length) ? "demo" : "empty",
+        pecs,
+        detail_source: pecs.length ? "demo" : "empty",
       });
     }],
 
