@@ -2315,15 +2315,6 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   outline: none; border-color: var(--cp-accent);
   background: var(--cp-bg-elevated, var(--cp-surface));
 }
-.nonkr-pec-btn {
-  background: transparent; border: 1px dashed var(--cp-border);
-  border-radius: 4px; padding: 3px 8px; font-size: 11px;
-  color: var(--cp-text-muted); cursor: pointer; line-height: 1.2;
-}
-.nonkr-pec-btn:hover {
-  color: var(--cp-accent); border-color: var(--cp-accent);
-  border-style: solid; background: var(--cp-accent-soft);
-}
 </style>
 </head>
 <body>
@@ -6149,6 +6140,18 @@ window.__queueSkill = (function () {
         const noteHtml = `<textarea class="nonkr-notes-input" rows="2"
             data-cust="${cust}" data-wl="${w.workload}" data-field="notes"
             placeholder="Add a note…">${(w.notes || '').replace(/</g, '&lt;')}</textarea>`;
+        // PEC column — match the KR table styling:
+        //   - ONBOARDED → ● Yes pill (success)
+        //   - DEFERRED  → — placeholder
+        //   - else      → + Open PEC button (red), queues manage-pecs-create
+        let pecHtml;
+        if (w.status === "ONBOARDED") {
+          pecHtml = `<span class="pec yes">● Yes</span>`;
+        } else if (w.status === "DEFERRED") {
+          pecHtml = `<span class="pec na">—</span>`;
+        } else {
+          pecHtml = `<button class="pec missing pec-open-btn" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button>`;
+        }
         return `<tr>
           <td class="workload">${w.workload}</td>
           <td class="status-cell"><select class="nonkr-status ${sc}"
@@ -6157,9 +6160,7 @@ window.__queueSkill = (function () {
               </select></td>
           <td class="mom">${fmtMau(w.current_mau)}</td>
           <td class="mom">${fmtMoM(w.mom_pct)}</td>
-          <td class="pec"><button type="button" class="nonkr-pec-btn"
-                      data-cust="${cust}" data-wl="${w.workload}"
-                      title="Open a new PEC for this workload">+ PEC</button></td>
+          <td class="pec">${pecHtml}</td>
           <td>${noteHtml}</td>
         </tr>`;
       }).join("");
@@ -6230,14 +6231,9 @@ window.__queueSkill = (function () {
       setMode(btn.dataset.mode);
       return;
     }
-    const pecBtn = e.target.closest(".nonkr-pec-btn");
+    const pecBtn = e.target.closest("#krModeToggle .nonkr-pec-btn-removed-placeholder");
     if (pecBtn) {
-      const cust = pecBtn.dataset.cust;
-      const wl = pecBtn.dataset.wl;
-      if (window.__queueSkill && cust) {
-        window.__queueSkill.queueSkill("manage-pecs-create", { cust, kr_label: wl });
-      }
-      return;
+      // No-op — Non-KR PEC now uses the shared .pec-open-btn handler at line ~3989
     }
     // Customer-header "🔄 Refresh This Customer" button — pulls KR + Non-KR
     // + heatmap fresh via the queue-confirm flow.
