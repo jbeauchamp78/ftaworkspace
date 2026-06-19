@@ -398,6 +398,78 @@
       });
     }],
 
+    // ----- PEC draft form (v0.39) -----
+    ["GET", /^\/api\/customer\/([^/?]+)\/pec-draft$/, (m, opts, search) => {
+      const cust = decodeURIComponent(m[1]);
+      const params = new URLSearchParams(search || "");
+      const krLabel = params.get("kr_label") || "";
+      const c = customerByNick(cust);
+      const full = c ? (c.full_name || cust) : cust;
+      const today = new Date().toISOString().slice(0, 10);
+      const KR_LABELS_DEMO = [
+        {label:"M365 Copilot", code:963720010},
+        {label:"Copilot Chat", code:963720011},
+        {label:"Copilot Agents", code:963720012},
+        {label:"MDE Usage", code:963720021},
+        {label:"MDO", code:963720022},
+        {label:"MDI", code:963720023},
+        {label:"MDA", code:963720024},
+        {label:"Insider Risk Management", code:963720031},
+        {label:"Information Protection", code:963720032},
+        {label:"DLP", code:963720033},
+        {label:"Windows 365 POC", code:963720040},
+        {label:"Admin Days", code:963720001},
+      ];
+      const krCat = KR_LABELS_DEMO.map(w => ({...w, category:"kr"}));
+      const nonKrCat = NONKR_WORKLOADS.map(w => ({label:w, code:null, category:"non-kr"}));
+      const ticked = [];
+      if (krLabel) {
+        const match = [...krCat, ...nonKrCat].find(w => w.label.toLowerCase() === krLabel.toLowerCase());
+        if (match) ticked.push({...match, deploy_lead:"FastTrack"});
+      }
+      return jsonResp({
+        draft: {
+          customer_nickname: cust, customer_full_name: full,
+          tpid: c ? c.tpid : null,
+          tpid_account_id: c ? c.tpid_account_id : null,
+          tenant_account_id: c ? c.ftop_account_id : null,
+          title: `${full} — ${krLabel || "Engagement"} — ${today}`.slice(0, 120),
+          workloads: ticked,
+          area_manager_email: null,
+          specialist_email: "",
+          notes: `(Demo pre-fill — backend pulls KR status + MIDAS context here.)`,
+          stage: "triage", fy: 26,
+          domain: c ? c.ftop_defaultdomain : null,
+        },
+        workload_catalog: [...krCat, ...nonKrCat],
+        deploy_leads: ["FastTrack","Unified/CSA","ISD","Partner","Customer","No Deployment Lead"],
+      });
+    }],
+    ["POST", /^\/api\/customer\/([^/?]+)\/pec-draft\/queue$/, (m, opts) => {
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      if (!body.title) return jsonResp({ ok: false, error: "title is required" });
+      if (!body.workloads || body.workloads.length === 0) return jsonResp({ ok: false, error: "at least one workload is required" });
+      const cust = decodeURIComponent(m[1]);
+      STATE.queue.pending = STATE.queue.pending || [];
+      const id = STATE.nextQueueId++;
+      const wl0 = body.workloads[0];
+      const more = body.workloads.length > 1 ? ` (+${body.workloads.length - 1} more)` : "";
+      STATE.queue.pending.push({
+        id, kind: "pec-draft-create",
+        label: `PEC create - ${cust} - ${wl0.label}${more}`,
+        prompt: `/manage-pecs create "${cust}" --payload "[demo-staged]/pec-${cust}-${id}.json"`,
+        cust, status: "pending", requires_user_confirm: 0,
+        trigger: "ui_pec_draft", created_at: new Date().toISOString(),
+      });
+      STATE.queue.count = (STATE.queue.count || 0) + 1;
+      return jsonResp({
+        ok: true, id,
+        staged_path: `[demo-staged]/pec-${cust}-${id}.json`,
+        prompt: `/manage-pecs create "${cust}" ...`,
+        requires_user_confirm: 0, auto_submit_enabled: false,
+      });
+    }],
+
     // ----- Single-customer refresh (demo: instant success) -----
     ["POST", /^\/api\/customer\/([^/?]+)\/refresh$/, (m) => {
       const cust = decodeURIComponent(m[1]);

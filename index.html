@@ -2391,6 +2391,29 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   border-style: solid; border-color: #00B050;
   color: #00B050; background: rgba(0,176,80,0.10);
 }
+
+/* PEC draft form — workload picker */
+.pec-wl-picker {
+  border: 1px solid var(--cp-border); border-radius: 6px;
+  padding: 10px 12px; background: var(--cp-surface-soft);
+}
+.pec-wl-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0;
+  font-size: 12px; cursor: pointer;
+}
+.pec-wl-row .pec-wl-chk { margin: 0; cursor: pointer; }
+.pec-wl-row .pec-wl-label { flex: 1; color: var(--cp-text); }
+.pec-wl-row .pec-wl-lead {
+  width: 160px; padding: 3px 6px; font-size: 11px;
+  border: 1px solid var(--cp-border); border-radius: 4px;
+  background: var(--cp-surface); color: var(--cp-text);
+}
+.pec-wl-row .pec-wl-lead:disabled { opacity: 0.4; cursor: not-allowed; }
+.pec-wl-picker details summary {
+  cursor: pointer; font-size: 11px; color: var(--cp-text-muted);
+  font-weight: 600; padding: 2px 0;
+}
 .sp-draft-foot button:hover { filter: brightness(1.05); }
 .sp-draft-foot button:disabled { opacity: 0.5; cursor: not-allowed; }
 .sp-draft-status { font-size: 11px; color: var(--cp-text-muted); margin-top: 6px; }
@@ -2513,7 +2536,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.38 locked 2026-06-19 (Removed Spotlights-tile sync button — spotlight-sync now auto-queued by Refresh Now + single-customer refresh; ✓ Already created button added to BOTH the Spotlight draft modal footer and the PEC queue-confirm modal — single consistent affordance per modal; inline ✓ already link next to PEC button removed as redundant; spotlight-sync auto-queue inserted into _auto_queue_maintenance with requires_user_confirm=0 so heartbeat drains automatically)">v0.38 · Stable</span>
+      <span class="version-tag" title="Build version: v0.39 locked 2026-06-19 (2-click flow — Spotlight + PEC: modal IS the review gate. Spotlight draft modal flips requires_user_confirm to 0 — heartbeat fires Draft within 30 min, no separate cart Approve. NEW PEC draft form mirrors Spotlight — title + workloads multi-select (12 KR + 49 Non-KR) + per-workload deploy lead + area manager + notes; clicking + Open PEC now opens this form instead of the legacy queue-confirm; ✓ Already created bulk-marks all picked workloads; stage locked to Triage server-side. New module pec_draft.py + endpoints GET/POST /api/customer/{nick}/pec-draft.)">v0.39 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -5858,6 +5881,19 @@ window.__queueSkill = (function () {
         requires_user_confirm: 1,
       }),
     },
+    "pec-draft-create": {
+      title: "Create PEC from staged payload?",
+      short: "Creates a new FTOP PEC (Prioritized Engagement Case) using the full payload you reviewed in the draft form — workloads, deploy leads, area manager, notes.",
+      sideEffects: [
+        { kind: "read", label: "Read FTOP account roster, workload catalog" },
+        { kind: "preview", label: "Form was the review gate — heartbeat will fire" },
+        { kind: "write", label: "Creates a new FTOP incident in Triage stage" },
+      ],
+      requires_user_confirm: 0,
+      skill_path: "manage-pecs",
+      cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/pec-draft/queue`,
+      cart_body: (ctx) => ctx.payload || {},
+    },
     "single-customer-refresh": {
       title: "Refresh this customer?",
       short: "Pulls fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config — scoped to one customer.",
@@ -6791,10 +6827,7 @@ window.__spotlightDraftForm = (function () {
           <div class="sp-draft-status" id="spfStatus"></div>
         </div>
         <div class="sp-draft-foot">
-          <label class="sp-auto-toggle" id="spfAutoLabel" title="If checked, the 30-min heartbeat will fire this spotlight as a Draft to FTOP automatically. If unchecked, it waits in the cart for your ✓ Approve click.">
-            <input type="checkbox" id="spfAuto" />
-            <span id="spfAutoText">Auto-submit on heartbeat (skip cart Approve)</span>
-          </label>
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Heartbeat will fire this Draft within 30 min. You can DELETE the cart row before then to cancel.</span>
           <button type="button" id="spfAlready" class="sp-already-btn"
                   title="Already created this spotlight in FTOP? Log it locally with source='manual' instead of queueing a new one.">✓ Already created</button>
           <button type="button" id="spfCancel">Cancel</button>
@@ -6859,9 +6892,6 @@ window.__spotlightDraftForm = (function () {
       modal.querySelector("#spfQuoteAttr").value = draft.quote_attribution || "";
       modal.querySelector("#spfRefLink").value   = draft.reference_link || "";
       currentCtx._draft = draft;
-      // Auto-submit checkbox state — global preference per skill kind
-      const auto = localStorage.getItem("fta-workspace-spotlight-auto") === "1";
-      modal.querySelector("#spfAuto").checked = auto;
       setStatus("Pre-filled from MIDAS + FTOP context. Review and edit before queueing.", false);
     } catch (e) {
       setStatus(`Failed to load draft: ${e.message}`, true);
@@ -6912,8 +6942,6 @@ window.__spotlightDraftForm = (function () {
     btn.disabled = true; cancel.disabled = true;
     setStatus("Staging payload + queuing…", false);
     try {
-      const auto = modal.querySelector("#spfAuto").checked;
-      localStorage.setItem("fta-workspace-spotlight-auto", auto ? "1" : "0");
       const payload = Object.assign({}, currentCtx._draft || {}, {
         title:               modal.querySelector("#spfTitle").value.trim(),
         background:          modal.querySelector("#spfBackground").value,
@@ -6943,10 +6971,7 @@ window.__spotlightDraftForm = (function () {
         btn.disabled = false; cancel.disabled = false;
         return;
       }
-      const msg = data.auto_submit_enabled
-        ? `✓ Queued — heartbeat will fire as Draft within 30 min (cart id ${data.id}).`
-        : `✓ Queued — waiting in cart for your ✓ Approve (cart id ${data.id}).`;
-      setStatus(msg, false);
+      setStatus(`✓ Queued — heartbeat will fire as Draft within 30 min (cart id ${data.id}).`, false);
       if (typeof toast === "function") {
         toast(`Spotlight queued — cart id ${data.id}`, "ok");
       }
@@ -6960,6 +6985,259 @@ window.__spotlightDraftForm = (function () {
 
   return { open, close };
 })();
+
+// ---------- PEC draft form modal ----------
+// Opens when the user clicks + Open PEC on a KR or Non-KR row. Fetches
+// pre-filled payload (title, workloads, deploy leads, notes) from the
+// workspace, lets the FTA edit, then stages JSON + queues a bridge cart
+// row with requires_user_confirm=0. The modal IS the review gate — no
+// separate cart Approve click needed.
+window.__pecDraftForm = (function () {
+  let modal = null;
+  let currentCtx = null;
+
+  function build() {
+    if (document.getElementById("pecDraftBackdrop")) return;
+    modal = document.createElement("div");
+    modal.id = "pecDraftBackdrop";
+    modal.className = "sp-draft-backdrop";   // reuse spotlight backdrop styles
+    modal.innerHTML = `
+      <div class="sp-draft-modal" role="dialog" aria-modal="true" aria-labelledby="pecDraftTitle">
+        <div class="sp-draft-head">
+          <h3 id="pecDraftTitle">Create PEC</h3>
+          <span class="sp-kind-badge" style="background:#b91c1c;color:#fff;">+ PEC</span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="pecDraftInfoBar"></div>
+        <div class="sp-draft-body">
+          <label class="fld">Title <span class="req">*</span></label>
+          <input type="text" id="pecfTitle" maxlength="120" />
+          <div class="sp-hint">Readable: Customer — Workload — Date. FTOP convention is flexible.</div>
+
+          <label class="fld">Workloads <span class="req">*</span></label>
+          <div class="pec-wl-picker" id="pecfWorkloads">
+            <div class="sp-hint" style="margin-bottom:6px;">Tick one or more. Deploy lead defaults to FastTrack.</div>
+            <div id="pecfWlList"></div>
+            <details style="margin-top:6px;">
+              <summary>▸ Show Non-KR workloads (49)</summary>
+              <div id="pecfWlListNonKr" style="margin-top:6px;"></div>
+            </details>
+          </div>
+
+          <div class="sp-row">
+            <div>
+              <label class="fld">FTA Area Manager <span class="opt">— from customer record</span></label>
+              <input type="text" id="pecfAM" placeholder="(local cache — refreshes on next Refresh Now)" />
+            </div>
+            <div>
+              <label class="fld">Specialist <span class="opt">— optional email</span></label>
+              <input type="text" id="pecfSpec" placeholder="alias@microsoft.com" />
+            </div>
+          </div>
+
+          <label class="fld">Notes <span class="opt">— from KR + free text</span></label>
+          <textarea id="pecfNotes" rows="3"></textarea>
+
+          <div style="margin-top:14px;font-size:11px;color:var(--cp-text-muted);padding:8px 12px;background:var(--cp-surface-soft);border:1px solid var(--cp-border);border-radius:6px;">
+            <strong>Stage:</strong> Triage <em>(locked — PECs always land in Triage; advance via FTOP)</em>
+          </div>
+
+          <div class="sp-draft-status" id="pecfStatus"></div>
+        </div>
+        <div class="sp-draft-foot">
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Heartbeat will fire this PEC within 30 min. You can DELETE the cart row before then to cancel.</span>
+          <button type="button" id="pecfAlready" class="sp-already-btn"
+                  title="Already created this PEC in FTOP? Mark it locally as 'Yes · manual' instead of queueing a new one.">✓ Already created</button>
+          <button type="button" id="pecfCancel">Cancel</button>
+          <button type="button" id="pecfQueue" class="primary">⚡ Queue PEC</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#pecfCancel").addEventListener("click", close);
+    modal.querySelector("#pecfQueue").addEventListener("click", submit);
+    modal.querySelector("#pecfAlready").addEventListener("click", submitAlreadyCreated);
+  }
+
+  function close() {
+    if (modal) modal.classList.remove("show");
+    currentCtx = null;
+  }
+
+  function setStatus(msg, isError) {
+    const el = modal.querySelector("#pecfStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("err", !!isError);
+  }
+
+  function renderWorkloadList(catalog, ticked, container, leads) {
+    const tickedLabels = new Set(ticked.map(w => w.label));
+    container.innerHTML = catalog.map((w) => {
+      const isOn = tickedLabels.has(w.label);
+      const current = ticked.find(t => t.label === w.label) || {};
+      const safeId = w.label.replace(/[^a-z0-9]+/gi, "_");
+      const leadOpts = leads.map(l =>
+        `<option value="${l}"${l === (current.deploy_lead || "FastTrack") ? ' selected' : ''}>${l}</option>`
+      ).join("");
+      return `<label class="pec-wl-row" data-wl="${w.label.replace(/"/g, '&quot;')}" data-code="${w.code || ''}" data-category="${w.category}">
+        <input type="checkbox" id="pecf-wl-${safeId}" ${isOn ? "checked" : ""} class="pec-wl-chk" />
+        <span class="pec-wl-label">${w.label}</span>
+        <select class="pec-wl-lead" ${isOn ? "" : "disabled"}>${leadOpts}</select>
+      </label>`;
+    }).join("");
+  }
+
+  async function open(ctx) {
+    build();
+    currentCtx = ctx;
+    const { cust, kr_label } = ctx;
+    modal.querySelectorAll("input[type='text'], textarea").forEach(el => el.value = "");
+    setStatus("Loading suggested PEC payload…", false);
+    modal.querySelector("#pecDraftTitle").textContent = `Create PEC — ${cust}${kr_label ? " · " + kr_label : ""}`;
+    // Skill info bar
+    const infoBar = modal.querySelector("#pecDraftInfoBar");
+    if (infoBar && window.__queueSkill && window.__queueSkill.renderSkillInfoBar) {
+      infoBar.innerHTML = window.__queueSkill.renderSkillInfoBar("pec-draft-create", { cust, kr_label });
+      window.__queueSkill.hydrateSkillInfoBar(infoBar);
+    }
+    modal.classList.add("show");
+
+    try {
+      const r = await fetch(`/api/customer/${encodeURIComponent(cust)}/pec-draft?kr_label=${encodeURIComponent(kr_label || "")}`);
+      const data = await r.json();
+      const draft = data.draft || {};
+      currentCtx._draft = draft;
+      currentCtx._catalog = data.workload_catalog || [];
+      currentCtx._leads = data.deploy_leads || ["FastTrack"];
+
+      modal.querySelector("#pecfTitle").value = draft.title || "";
+      modal.querySelector("#pecfAM").value    = draft.area_manager_email || "";
+      modal.querySelector("#pecfSpec").value  = draft.specialist_email || "";
+      modal.querySelector("#pecfNotes").value = draft.notes || "";
+
+      // Split catalog into KR + Non-KR
+      const krCatalog    = currentCtx._catalog.filter(w => w.category === "kr");
+      const nonKrCatalog = currentCtx._catalog.filter(w => w.category === "non-kr");
+      renderWorkloadList(krCatalog,    draft.workloads || [], modal.querySelector("#pecfWlList"),      currentCtx._leads);
+      renderWorkloadList(nonKrCatalog, draft.workloads || [], modal.querySelector("#pecfWlListNonKr"), currentCtx._leads);
+
+      // Wire workload checkbox toggle to enable/disable deploy-lead dropdown
+      modal.querySelectorAll(".pec-wl-row .pec-wl-chk").forEach(cb => {
+        cb.addEventListener("change", () => {
+          const row = cb.closest(".pec-wl-row");
+          const lead = row.querySelector(".pec-wl-lead");
+          lead.disabled = !cb.checked;
+        });
+      });
+
+      setStatus("Pre-filled from MIDAS + FTOP context. Review and edit before queueing.", false);
+    } catch (e) {
+      setStatus(`Failed to load draft: ${e.message}`, true);
+    }
+  }
+
+  function collectWorkloads() {
+    return Array.from(modal.querySelectorAll(".pec-wl-row")).flatMap(row => {
+      const cb = row.querySelector(".pec-wl-chk");
+      if (!cb || !cb.checked) return [];
+      return [{
+        label:       row.dataset.wl,
+        code:        row.dataset.code ? Number(row.dataset.code) || null : null,
+        category:    row.dataset.category,
+        deploy_lead: row.querySelector(".pec-wl-lead").value,
+      }];
+    });
+  }
+
+  async function submitAlreadyCreated() {
+    if (!currentCtx) return;
+    const cust = currentCtx.cust;
+    const wls = collectWorkloads();
+    if (wls.length === 0) {
+      setStatus("Pick at least one workload to mark its PEC as already created.", true);
+      return;
+    }
+    if (!confirm(`Mark PECs for ${wls.length} workload(s) on ${cust} as already created in FTOP?\n\nThey'll be verified against FTOP on the next refresh.`)) return;
+    const all = ["#pecfAlready", "#pecfQueue", "#pecfCancel"].map(s => modal.querySelector(s));
+    all.forEach(b => b && (b.disabled = true));
+    setStatus("Marking PECs as already created…", false);
+    let ok = 0, fail = 0;
+    for (const wl of wls) {
+      try {
+        const r = await fetch(`/api/customer/${encodeURIComponent(cust)}/kr/${encodeURIComponent(wl.label)}/pec-flag`,
+          { method: "PATCH", headers: {"content-type":"application/json"},
+            body: JSON.stringify({ flag: "Yes" }) });
+        const d = await r.json();
+        if (d.ok) ok++; else fail++;
+      } catch { fail++; }
+    }
+    setStatus(`✓ ${ok} marked manual${fail ? `, ${fail} failed` : ""}. Closing…`, false);
+    if (typeof toast === "function") toast(`PEC(s) marked as already created: ${ok}`, "ok");
+    if (typeof load === "function") setTimeout(load, 400);
+    setTimeout(close, 1400);
+  }
+
+  async function submit() {
+    if (!currentCtx) return;
+    const btn = modal.querySelector("#pecfQueue");
+    const cancel = modal.querySelector("#pecfCancel");
+    btn.disabled = true; cancel.disabled = true;
+    setStatus("Staging PEC payload + queuing…", false);
+    try {
+      const payload = Object.assign({}, currentCtx._draft || {}, {
+        title:               modal.querySelector("#pecfTitle").value.trim(),
+        area_manager_email:  modal.querySelector("#pecfAM").value.trim() || null,
+        specialist_email:    modal.querySelector("#pecfSpec").value.trim() || null,
+        notes:               modal.querySelector("#pecfNotes").value,
+        workloads:           collectWorkloads(),
+      });
+      if (!payload.title) {
+        setStatus("Title is required.", true);
+        btn.disabled = false; cancel.disabled = false; return;
+      }
+      if (!payload.workloads || payload.workloads.length === 0) {
+        setStatus("Pick at least one workload.", true);
+        btn.disabled = false; cancel.disabled = false; return;
+      }
+      const r = await fetch(`/api/customer/${encodeURIComponent(currentCtx.cust)}/pec-draft/queue`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setStatus(`Queue failed: ${data.error || 'unknown'}`, true);
+        btn.disabled = false; cancel.disabled = false; return;
+      }
+      setStatus(`✓ Queued — heartbeat will fire within 30 min (cart id ${data.id}).`, false);
+      if (typeof toast === "function") toast(`PEC queued — cart id ${data.id}`, "ok");
+      if (typeof refreshCartBadge === "function") refreshCartBadge();
+      setTimeout(close, 1500);
+    } catch (e) {
+      setStatus(`Error: ${e.message}`, true);
+      btn.disabled = false; cancel.disabled = false;
+    }
+  }
+
+  return { open, close };
+})();
+
+// Redirect the "+ Open PEC" button from the legacy queue-confirm modal to
+// the new draft form. Single click → form opens with pre-filled fields.
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".pec-open-btn");
+  if (!btn) return;
+  if (btn.classList.contains("queued")) return;
+  // Stop the legacy handler (queueSkill manage-pecs-create) from also firing.
+  e.preventDefault(); e.stopImmediatePropagation();
+  const cust = btn.dataset.cust;
+  const kr   = btn.dataset.kr;
+  if (window.__pecDraftForm) {
+    window.__pecDraftForm.open({ cust, kr_label: kr });
+  }
+}, true);  // CAPTURE phase so it runs BEFORE the legacy bubble-phase listener
 
 // ---------- Help / Info modal ("i" pill in topbar) ----------
 (function setupHelpModal() {
