@@ -2409,6 +2409,82 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   border: 1px solid var(--cp-border); border-radius: 4px;
   background: var(--cp-surface); color: var(--cp-text);
 }
+
+/* ===== Workloads MoM chart modal ===== */
+.wl-chart-btn {
+  background: transparent; border: 1px solid var(--cp-border);
+  border-radius: 6px; padding: 4px 10px; font-size: 12px;
+  color: var(--cp-text); cursor: pointer; margin-left: 10px;
+  font-weight: 500;
+}
+.wl-chart-btn:hover {
+  border-color: var(--cp-accent); color: var(--cp-accent);
+  background: var(--cp-accent-soft);
+}
+.wl-chart-modal {
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: 12px; box-shadow: 0 24px 56px rgba(0,0,0,0.32);
+  width: 100%; max-width: 1100px; max-height: 92vh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.wl-chart-body {
+  flex: 1; display: grid; grid-template-columns: 280px 1fr;
+  min-height: 460px; overflow: hidden;
+}
+.wl-chart-side {
+  border-right: 1px solid var(--cp-border);
+  background: var(--cp-surface-soft);
+  padding: 14px; overflow-y: auto;
+}
+.wl-chart-side-hdr {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--cp-text-muted);
+  text-transform: uppercase; letter-spacing: 0.4px;
+  margin-bottom: 10px;
+}
+.wl-chart-side-hdr strong { flex: 1; color: var(--cp-text); }
+.wl-side-btn {
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: 4px; padding: 2px 8px; font-size: 11px;
+  cursor: pointer; color: var(--cp-text);
+}
+.wl-side-btn:hover { border-color: var(--cp-accent); color: var(--cp-accent); }
+.wl-leg-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 4px; cursor: pointer; font-size: 12px;
+  border-radius: 4px;
+}
+.wl-leg-row:hover { background: var(--cp-surface); }
+.wl-leg-row .wl-leg-chk { margin: 0; cursor: pointer; }
+.wl-leg-row .wl-leg-swatch {
+  width: 14px; height: 3px; border-radius: 2px; flex-shrink: 0;
+}
+.wl-leg-row .wl-leg-label { flex: 1; color: var(--cp-text); }
+.wl-leg-row .wl-leg-val { color: var(--cp-text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.wl-chart-hint {
+  margin-top: 14px; padding: 10px; border-radius: 6px;
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  font-size: 11px; line-height: 1.5; color: var(--cp-text-muted);
+}
+.wl-side-loading { padding: 14px; color: var(--cp-text-muted); font-size: 13px; }
+.wl-chart-main {
+  position: relative; padding: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--cp-bg-elevated, var(--cp-surface));
+}
+.wl-chart-main svg {
+  width: 100%; height: auto; max-height: 480px;
+  background: transparent;
+}
+.wl-chart-tooltip {
+  position: absolute; pointer-events: none;
+  background: var(--cp-text); color: var(--cp-surface);
+  padding: 6px 10px; border-radius: 4px;
+  font-size: 11px; line-height: 1.4; white-space: nowrap;
+  z-index: 10; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+.wl-pt { cursor: pointer; }
+.wl-pt:hover { r: 5; }
 .sp-draft-foot button:hover { filter: brightness(1.05); }
 .sp-draft-foot button:disabled { opacity: 0.5; cursor: not-allowed; }
 .sp-draft-status { font-size: 11px; color: var(--cp-text-muted); margin-top: 6px; }
@@ -2531,7 +2607,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.41 locked 2026-06-19 (PEC stage dropdown — Triage (default) or Engage; backend clamps to that set server-side so a buggy caller can't auto-Disengage; --stage flag added to /manage-pecs prompt; Disengage stays out of create flow and will live in a future Close PEC motion)">v0.41 · Stable</span>
+      <span class="version-tag" title="Build version: v0.42 locked 2026-06-19 (Workloads MoM chart — 📈 button on Workloads header opens SVG line chart with 12-workload overlay (% of threshold y-axis, comparable scales) + per-workload checkbox toggle + single-workload zoom with dashed KPI threshold line; PEC Disengage motion — click any FTOP-confirmed ● Yes pill opens reason+handshake picklist mini-modal, queues /manage-pecs disengage to the bridge; new endpoints GET /api/customer/{nick}/kr-history + GET /api/pec/disengage-options + POST /api/customer/{nick}/kr/{kr}/pec-disengage)">v0.42 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -3272,6 +3348,8 @@ function renderContent() {
     <div class="kr-card">
       <div class="kr-card-hdr">
         <h3>Workloads</h3>
+        <button type="button" class="wl-chart-btn" id="btnWlChart" data-cust="${c.n}"
+                title="MoM progress chart for all workloads — multi-line view with per-workload KPI threshold overlay">📈 Chart</button>
         <div class="kr-mode-toggle" id="krModeToggle" role="tablist" aria-label="Switch between KR and Non-KR workload tracking">
           <button type="button" data-mode="kr" class="active" role="tab" aria-selected="true">Key Results</button>
           <button type="button" data-mode="nonkr" role="tab" aria-selected="false">Non-KR</button>
@@ -7227,6 +7305,449 @@ document.addEventListener("click", (e) => {
     window.__pecDraftForm.open({ cust, kr_label: kr });
   }
 }, true);  // CAPTURE phase so it runs BEFORE the legacy bubble-phase listener
+
+// ---------- Workloads MoM chart modal ----------
+// 📈 Chart button on the Workloads card header opens this. Renders an
+// SVG line chart with all KR workloads on a normalized "% of threshold"
+// y-axis (so all 12 are visually comparable). Checkbox per workload to
+// toggle visibility — picking just one switches the chart to absolute
+// MAU with a horizontal KPI threshold reference line. Pure SVG, no
+// external chart library — keeps the demo bundle small.
+window.__workloadChart = (function () {
+  let modal = null;
+  let state = { cust: null, data: null, selected: new Set() };
+
+  // Workload color palette — same hues as KR table chips for continuity
+  const COLORS = [
+    "#0078D4", "#107C10", "#D83B01", "#8764B8", "#E81123",
+    "#038387", "#BAD80A", "#FF8C00", "#5C2D91", "#0099BC",
+    "#498205", "#C239B3",
+  ];
+
+  function build() {
+    if (document.getElementById("wlChartBackdrop")) return;
+    modal = document.createElement("div");
+    modal.id = "wlChartBackdrop";
+    modal.className = "sp-draft-backdrop";  // reuse backdrop styles
+    modal.innerHTML = `
+      <div class="wl-chart-modal" role="dialog" aria-modal="true" aria-labelledby="wlChartTitle">
+        <div class="sp-draft-head">
+          <h3 id="wlChartTitle">Workload MoM Progress</h3>
+          <span class="sp-kind-badge" id="wlChartScope">All workloads</span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="wl-chart-body">
+          <div class="wl-chart-side">
+            <div class="wl-chart-side-hdr">
+              <strong>Show</strong>
+              <button class="wl-side-btn" id="wlAllBtn">All</button>
+              <button class="wl-side-btn" id="wlNoneBtn">None</button>
+            </div>
+            <div id="wlChartLegend"></div>
+            <div class="wl-chart-hint">
+              Pick ONE workload to see absolute MAU + a dashed KPI threshold reference line.
+              Default multi-line view normalizes everything to "% of threshold" so workloads with
+              different scales (ratio vs absolute) are comparable on the same axis.
+            </div>
+          </div>
+          <div class="wl-chart-main">
+            <svg id="wlChartSvg" viewBox="0 0 760 420" preserveAspectRatio="xMidYMid meet"></svg>
+            <div class="wl-chart-tooltip" id="wlChartTip" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="sp-draft-foot">
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Data: kr_status_history rolled up to one row per month (latest snapshot). Hover a point for value details.</span>
+          <button type="button" id="wlChartClose">Close</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#wlChartClose").addEventListener("click", close);
+    modal.querySelector("#wlAllBtn").addEventListener("click", () => {
+      state.data.series.forEach(s => state.selected.add(s.kr_label));
+      renderLegend(); renderChart();
+    });
+    modal.querySelector("#wlNoneBtn").addEventListener("click", () => {
+      state.selected.clear();
+      renderLegend(); renderChart();
+    });
+  }
+
+  function close() { if (modal) modal.classList.remove("show"); }
+
+  async function open(cust) {
+    build();
+    state.cust = cust;
+    state.selected.clear();
+    modal.querySelector("#wlChartTitle").textContent = `Workload MoM Progress — ${cust}`;
+    modal.querySelector("#wlChartLegend").innerHTML = `<div class="wl-side-loading">loading…</div>`;
+    modal.querySelector("#wlChartSvg").innerHTML = "";
+    modal.classList.add("show");
+    try {
+      const r = await fetch(`/api/customer/${encodeURIComponent(cust)}/kr-history?months=12`);
+      const data = await r.json();
+      state.data = data;
+      // Default: select all workloads with a threshold (the KR set)
+      data.series.forEach(s => state.selected.add(s.kr_label));
+      renderLegend(); renderChart();
+    } catch (e) {
+      modal.querySelector("#wlChartLegend").innerHTML = `<div class="wl-side-loading" style="color:#c0392b">Failed: ${e.message}</div>`;
+    }
+  }
+
+  function renderLegend() {
+    const host = modal.querySelector("#wlChartLegend");
+    if (!state.data) return;
+    host.innerHTML = state.data.series.map((s, i) => {
+      const color = COLORS[i % COLORS.length];
+      const checked = state.selected.has(s.kr_label) ? "checked" : "";
+      const last = s.points[s.points.length - 1];
+      const valStr = formatValue(last && last.value, last && last.mau, s.threshold);
+      return `<label class="wl-leg-row" data-kr="${s.kr_label.replace(/"/g, '&quot;')}">
+        <input type="checkbox" class="wl-leg-chk" ${checked} />
+        <span class="wl-leg-swatch" style="background:${color}"></span>
+        <span class="wl-leg-label">${s.kr_label}</span>
+        <span class="wl-leg-val">${valStr}</span>
+      </label>`;
+    }).join("");
+    host.querySelectorAll(".wl-leg-row").forEach(row => {
+      const cb = row.querySelector(".wl-leg-chk");
+      cb.addEventListener("change", () => {
+        const kr = row.dataset.kr;
+        if (cb.checked) state.selected.add(kr); else state.selected.delete(kr);
+        renderChart();
+      });
+    });
+    updateScopeBadge();
+  }
+
+  function updateScopeBadge() {
+    const badge = modal.querySelector("#wlChartScope");
+    const n = state.selected.size;
+    const total = state.data ? state.data.series.length : 0;
+    if (n === 1) {
+      const only = [...state.selected][0];
+      badge.textContent = only;
+      badge.style.background = "#0078D4";
+    } else if (n === 0) {
+      badge.textContent = "(none)";
+      badge.style.background = "#9CA3AF";
+    } else {
+      badge.textContent = `${n}/${total} workloads`;
+      badge.style.background = "#0078D4";
+    }
+    badge.style.color = "#fff";
+  }
+
+  // Format the legend "current value" cell
+  function formatValue(value, mau, threshold) {
+    if (!threshold) return "—";
+    if (threshold.scale === "ratio") {
+      if (value == null) return "—";
+      return `${Math.round(value * 100)}% / ${Math.round(threshold.value * 100)}%`;
+    }
+    // absolute
+    const v = mau != null ? mau : value;
+    if (v == null) return "—";
+    return `${Math.round(v)} / ${threshold.value}`;
+  }
+
+  // Normalize a point to "% of threshold" — for multi-line view so all
+  // workloads are on the same y-axis even with different scales.
+  function normalizedY(point, threshold) {
+    if (!threshold) return null;
+    let raw;
+    if (threshold.scale === "ratio") raw = point.value;
+    else raw = (point.mau != null ? point.mau : point.value);
+    if (raw == null || isNaN(raw)) return null;
+    return (raw / threshold.value) * 100;  // returns % of threshold (100 = met)
+  }
+
+  function renderChart() {
+    updateScopeBadge();
+    const svg = modal.querySelector("#wlChartSvg");
+    const data = state.data;
+    if (!data) return;
+    const months = data.months || [];
+    const selected = data.series.filter(s => state.selected.has(s.kr_label));
+    if (selected.length === 0 || months.length === 0) {
+      svg.innerHTML = `<text x="380" y="210" text-anchor="middle" fill="var(--cp-text-muted)" font-size="14">No workloads selected.</text>`;
+      return;
+    }
+
+    const W = 760, H = 420;
+    const PAD = { top: 30, right: 30, bottom: 50, left: 60 };
+    const innerW = W - PAD.left - PAD.right;
+    const innerH = H - PAD.top - PAD.bottom;
+
+    // Determine y-axis mode: single = absolute (with threshold line),
+    // multi = normalized % of threshold
+    const singleMode = selected.length === 1;
+    const onlyKr = singleMode ? selected[0] : null;
+    let yMin = 0, yMax, yLabel;
+    if (singleMode) {
+      const t = onlyKr.threshold;
+      // Collect actual values (ratio % or absolute MAU)
+      const vals = onlyKr.points.map(p => {
+        if (!t) return p.mau || 0;
+        if (t.scale === "ratio") return (p.value || 0) * 100;
+        return p.mau != null ? p.mau : (p.value || 0);
+      });
+      const tval = t ? (t.scale === "ratio" ? t.value * 100 : t.value) : 0;
+      yMax = Math.max(...vals, tval, 1) * 1.15;
+      yLabel = t ? (t.scale === "ratio" ? "% MAU/PAU" : (t.unit || "MAU")) : "value";
+    } else {
+      // Normalized: compute max % of threshold across all selected series
+      let maxPct = 100;
+      selected.forEach(s => {
+        s.points.forEach(p => {
+          const n = normalizedY(p, s.threshold);
+          if (n != null && n > maxPct) maxPct = n;
+        });
+      });
+      yMax = Math.ceil(maxPct * 1.10);
+      yLabel = "% of KPI threshold";
+    }
+
+    const x = (i) => PAD.left + (months.length <= 1 ? innerW / 2 : (i / (months.length - 1)) * innerW);
+    const y = (v) => PAD.top + innerH - ((v - yMin) / (yMax - yMin)) * innerH;
+
+    // Build SVG content
+    const parts = [];
+    // Grid + y labels (5 gridlines)
+    for (let i = 0; i <= 5; i++) {
+      const v = yMin + (i / 5) * (yMax - yMin);
+      const yy = y(v);
+      parts.push(`<line x1="${PAD.left}" y1="${yy}" x2="${PAD.left + innerW}" y2="${yy}" stroke="var(--cp-border)" stroke-width="0.5"/>`);
+      parts.push(`<text x="${PAD.left - 8}" y="${yy + 4}" text-anchor="end" fill="var(--cp-text-muted)" font-size="10">${formatTick(v, yLabel)}</text>`);
+    }
+    // X labels (month axis)
+    months.forEach((m, i) => {
+      const xx = x(i);
+      parts.push(`<line x1="${xx}" y1="${PAD.top + innerH}" x2="${xx}" y2="${PAD.top + innerH + 4}" stroke="var(--cp-border)" stroke-width="0.5"/>`);
+      parts.push(`<text x="${xx}" y="${PAD.top + innerH + 18}" text-anchor="middle" fill="var(--cp-text-muted)" font-size="10">${m}</text>`);
+    });
+    // Y axis label
+    parts.push(`<text x="${PAD.left - 50}" y="${PAD.top + innerH / 2}" transform="rotate(-90 ${PAD.left - 50} ${PAD.top + innerH / 2})" text-anchor="middle" fill="var(--cp-text-muted)" font-size="11">${yLabel}</text>`);
+
+    // Threshold reference line — in single mode (KPI line at the threshold)
+    if (singleMode && onlyKr.threshold) {
+      const t = onlyKr.threshold;
+      const tval = t.scale === "ratio" ? t.value * 100 : t.value;
+      if (tval >= yMin && tval <= yMax) {
+        const yy = y(tval);
+        parts.push(`<line x1="${PAD.left}" y1="${yy}" x2="${PAD.left + innerW}" y2="${yy}" stroke="#D83B01" stroke-width="1.5" stroke-dasharray="6 4"/>`);
+        parts.push(`<text x="${PAD.left + innerW - 4}" y="${yy - 4}" text-anchor="end" fill="#D83B01" font-size="10" font-weight="600">KPI threshold (${formatTick(tval, yLabel)})</text>`);
+      }
+    }
+    // Multi-line mode: draw a "100%" reference line if axis spans it
+    if (!singleMode && yMax >= 100) {
+      const yy = y(100);
+      parts.push(`<line x1="${PAD.left}" y1="${yy}" x2="${PAD.left + innerW}" y2="${yy}" stroke="#D83B01" stroke-width="1.5" stroke-dasharray="6 4"/>`);
+      parts.push(`<text x="${PAD.left + innerW - 4}" y="${yy - 4}" text-anchor="end" fill="#D83B01" font-size="10" font-weight="600">KPI threshold (100%)</text>`);
+    }
+
+    // Series lines
+    selected.forEach((s) => {
+      const idx = state.data.series.indexOf(s);
+      const color = COLORS[idx % COLORS.length];
+      const monthMap = Object.fromEntries(s.points.map(p => [p.month, p]));
+      // Build path from points that exist for this series
+      const segPts = [];
+      months.forEach((m, i) => {
+        const p = monthMap[m];
+        if (!p) return;
+        let v;
+        if (singleMode) {
+          const t = onlyKr.threshold;
+          if (!t) v = p.mau || 0;
+          else if (t.scale === "ratio") v = (p.value || 0) * 100;
+          else v = p.mau != null ? p.mau : (p.value || 0);
+        } else {
+          v = normalizedY(p, s.threshold);
+        }
+        if (v == null) return;
+        segPts.push({ i, x: x(i), y: y(v), v, raw: p });
+      });
+      if (segPts.length < 1) return;
+      const d = segPts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+      parts.push(`<path d="${d}" stroke="${color}" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`);
+      segPts.forEach((p) => {
+        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.5" class="wl-pt" data-kr="${s.kr_label.replace(/"/g, '&quot;')}" data-month="${p.raw.month}" data-val="${p.v}" data-raw-value="${p.raw.value || ''}" data-raw-mau="${p.raw.mau || ''}"/>`);
+      });
+    });
+
+    svg.innerHTML = parts.join("");
+
+    // Tooltip wire-up
+    const tip = modal.querySelector("#wlChartTip");
+    svg.querySelectorAll(".wl-pt").forEach(el => {
+      el.addEventListener("mouseenter", (e) => {
+        const kr = el.dataset.kr, m = el.dataset.month;
+        const v = parseFloat(el.dataset.val);
+        const rawV = el.dataset.rawValue ? parseFloat(el.dataset.rawValue) : null;
+        const rawM = el.dataset.rawMau ? parseFloat(el.dataset.rawMau) : null;
+        let detail;
+        if (singleMode) {
+          detail = `${Math.round(v * 10) / 10}${yLabel.startsWith("%") ? "%" : ""}`;
+        } else {
+          detail = `${Math.round(v)}% of threshold`;
+          if (rawV != null) detail += ` (${Math.round(rawV * 100)}% raw)`;
+          else if (rawM != null) detail += ` (${Math.round(rawM)} MAU)`;
+        }
+        tip.innerHTML = `<strong>${kr}</strong><br/>${m} · ${detail}`;
+        tip.style.display = "block";
+        const rect = svg.getBoundingClientRect();
+        const ptRect = el.getBoundingClientRect();
+        tip.style.left = (ptRect.left - rect.left + 12) + "px";
+        tip.style.top  = (ptRect.top  - rect.top  - 8) + "px";
+      });
+      el.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+    });
+  }
+
+  function formatTick(v, label) {
+    if (label.startsWith("%")) return `${Math.round(v)}%`;
+    if (label.includes("of KPI threshold")) return `${Math.round(v)}%`;
+    if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+    return String(Math.round(v));
+  }
+
+  return { open, close };
+})();
+
+// Wire up the Chart button on Workloads card
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("#btnWlChart");
+  if (!btn) return;
+  if (window.__workloadChart) window.__workloadChart.open(btn.dataset.cust || window.activeCust);
+});
+
+// ---------- PEC Disengage modal ----------
+// Shown when the FTA clicks a `● Yes` PEC pill that has a Disengage
+// affordance (or via a context action). Captures reason + handshake from
+// the FTOP-required picklists, POSTs to /pec-disengage which queues a
+// /manage-pecs disengage bridge row.
+window.__pecDisengageModal = (function () {
+  let modal = null;
+  let ctx = null;
+  let opts = null;
+
+  async function ensureOpts() {
+    if (opts) return opts;
+    try {
+      const r = await fetch("/api/pec/disengage-options");
+      opts = await r.json();
+    } catch { opts = { reasons: [], handshakes: [] }; }
+    return opts;
+  }
+
+  function build(o) {
+    if (document.getElementById("pecDisBackdrop")) return;
+    modal = document.createElement("div");
+    modal.id = "pecDisBackdrop";
+    modal.className = "sp-draft-backdrop";
+    const reasonOpts = (o.reasons || []).map(r => `<option value="${r}">${r}</option>`).join("");
+    const hsOpts = (o.handshakes || []).map(r => `<option value="${r}">${r}</option>`).join("");
+    modal.innerHTML = `
+      <div class="sp-draft-modal" role="dialog" aria-modal="true" style="max-width:520px;">
+        <div class="sp-draft-head">
+          <h3 id="pecDisTitle">Advance PEC → Disengage</h3>
+          <span class="sp-kind-badge" style="background:#D83B01;color:#fff;">↓ Disengage</span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="pecDisInfoBar"></div>
+        <div class="sp-draft-body">
+          <p class="sp-hint" style="margin:0 0 8px;">This will move the PEC for <strong id="pecDisCustKr"></strong> through FTOP's 4-step disengage recipe: PATCH fields → CloseIncident → advance BPF → finalize.</p>
+          <label class="fld">Reason <span class="req">*</span></label>
+          <select id="pecDisReason"><option value="" disabled selected>Choose…</option>${reasonOpts}</select>
+          <label class="fld">Handshake <span class="req">*</span></label>
+          <select id="pecDisHandshake"><option value="" disabled selected>Choose…</option>${hsOpts}</select>
+          <label class="fld">Ticket <span class="opt">(optional — skill resolves from customer if blank)</span></label>
+          <input type="text" id="pecDisTicket" placeholder="REQ-XXXXXX-XX" />
+          <div class="sp-draft-status" id="pecDisStatus"></div>
+        </div>
+        <div class="sp-draft-foot">
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Queue runs the disengage recipe — FTOP write. Reversible only by re-opening from FTOP.</span>
+          <button type="button" id="pecDisCancel">Cancel</button>
+          <button type="button" id="pecDisQueue" class="primary">⚡ Queue Disengage</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#pecDisCancel").addEventListener("click", close);
+    modal.querySelector("#pecDisQueue").addEventListener("click", submit);
+  }
+
+  function close() { if (modal) modal.classList.remove("show"); ctx = null; }
+
+  async function open(c) {
+    const o = await ensureOpts();
+    build(o);
+    ctx = c;
+    modal.querySelector("#pecDisCustKr").textContent = `${c.cust} · ${c.kr_label}`;
+    modal.querySelector("#pecDisReason").value = "";
+    modal.querySelector("#pecDisHandshake").value = "";
+    modal.querySelector("#pecDisTicket").value = "";
+    modal.querySelector("#pecDisStatus").textContent = "";
+    modal.classList.add("show");
+  }
+
+  async function submit() {
+    if (!ctx) return;
+    const reason = modal.querySelector("#pecDisReason").value;
+    const handshake = modal.querySelector("#pecDisHandshake").value;
+    const ticket = modal.querySelector("#pecDisTicket").value.trim();
+    const status = modal.querySelector("#pecDisStatus");
+    if (!reason || !handshake) {
+      status.textContent = "Reason and handshake are required.";
+      status.classList.add("err"); return;
+    }
+    status.classList.remove("err");
+    status.textContent = "Queuing disengage…";
+    try {
+      const r = await fetch(`/api/customer/${encodeURIComponent(ctx.cust)}/kr/${encodeURIComponent(ctx.kr_label)}/pec-disengage`,
+        { method: "POST", headers: {"content-type":"application/json"},
+          body: JSON.stringify({ reason, handshake, ticket: ticket || undefined }) });
+      const data = await r.json();
+      if (!data.ok) { status.textContent = `Failed: ${data.error || 'unknown'}`; status.classList.add("err"); return; }
+      status.textContent = `✓ Disengage queued — heartbeat will run within 30 min (cart id ${data.id}).`;
+      if (typeof toast === "function") toast(`PEC disengage queued — cart id ${data.id}`, "ok");
+      if (typeof refreshCartBadge === "function") refreshCartBadge();
+      setTimeout(close, 1500);
+    } catch (e) {
+      status.textContent = `Error: ${e.message}`; status.classList.add("err");
+    }
+  }
+
+  return { open, close };
+})();
+
+// Wire up: clicking a `● Yes` PEC pill (FTOP-confirmed) opens the
+// Disengage modal. Skip the manual variant (those don't yet correspond
+// to a real FTOP ticket).
+document.addEventListener("click", (e) => {
+  const pill = e.target.closest(".pec.yes:not(.pec-manual)");
+  if (!pill) return;
+  // The pill in the KR table sits inside a td — extract cust + kr from
+  // the data-* attributes on the row's ancestor.
+  const row = pill.closest("tr");
+  if (!row) return;
+  // KR table rows have a kr-name td with editable notes carrying data-cust;
+  // we can also grab from any data-cust descendant.
+  const cust = pill.dataset.cust ||
+               (row.querySelector("[data-cust]") || {}).dataset?.cust ||
+               window.activeCust;
+  const kr   = pill.dataset.kr ||
+               (row.querySelector("[data-kr-label]") || {}).dataset?.krLabel ||
+               (row.querySelector("[data-wl]") || {}).dataset?.wl ||
+               (row.querySelector(".kr-name") ? row.querySelector(".kr-name").firstChild.textContent.trim() : null);
+  if (!cust || !kr) return;
+  e.preventDefault(); e.stopPropagation();
+  if (window.__pecDisengageModal) window.__pecDisengageModal.open({ cust, kr_label: kr });
+});
 
 // ---------- Help / Info modal ("i" pill in topbar) ----------
 (function setupHelpModal() {

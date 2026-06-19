@@ -470,6 +470,100 @@
       });
     }],
 
+    // ----- KR history chart (v0.42) -----
+    ["GET", /^\/api\/customer\/([^/?]+)\/kr-history$/, (m, opts, search) => {
+      const cust = decodeURIComponent(m[1]);
+      const c = customerByNick(cust);
+      if (!c) return jsonResp({ nickname: cust, months: [], series: [], thresholds: {} });
+      // Synthesize 12 months of monthly history from the customer's current
+      // kr_status rows. Walk linearly from baseline → current.
+      const THRESHOLDS = {
+        "M365 Copilot":   { value: 0.40, scale: "ratio",    unit: "% MAU/PAU" },
+        "Copilot Chat":   { value: 0.20, scale: "ratio",    unit: "% MAU/PAU" },
+        "Copilot Agents": { value: 750,  scale: "absolute", unit: "agent MAU" },
+        "MDA Usage":      { value: 0.20, scale: "ratio",    unit: "% coverage" },
+        "MDA Admin Days": { value: 10,   scale: "absolute", unit: "admin days" },
+        "MDI Usage":      { value: 0.20, scale: "ratio",    unit: "% coverage" },
+        "MDI Admin Days": { value: 10,   scale: "absolute", unit: "admin days" },
+        "MDE Usage":      { value: 0.20, scale: "ratio",    unit: "% coverage" },
+        "MDE Admin Days": { value: 10,   scale: "absolute", unit: "admin days" },
+        "MDO Usage":      { value: 0.20, scale: "ratio",    unit: "% coverage" },
+        "MDO Admin Days": { value: 10,   scale: "absolute", unit: "admin days" },
+        "IP P2":          { value: 0.20, scale: "ratio",    unit: "% labeled" },
+        "IRM":            { value: 0.20, scale: "ratio",    unit: "% MAU/PAU" },
+        "Win365 Paid":    { value: 0.40, scale: "ratio",    unit: "% MAU/PAU" },
+        "Win365 POC":     { value: 25,   scale: "absolute", unit: "seat growth" },
+      };
+      const now = new Date("2026-06-30");
+      const months = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+      const series = (c.kr_status || []).map((kr) => {
+        const t = THRESHOLDS[kr.kr_label];
+        if (!t) return null;
+        // Normalize all numerics safely — kr_status uses ratio (0..1) for
+        // most workloads and absolute for Agents / Win365 POC / Admin Days.
+        const cv = kr.current_value;
+        const bv = kr.baseline_value;
+        const mc = kr.mau_curr || kr.current_mau || null;
+        const current  = (typeof cv === "number" && !isNaN(cv)) ? cv : (t.scale === "ratio" ? 0.10 : 5);
+        const baseline = (typeof bv === "number" && !isNaN(bv)) ? bv : (t.scale === "ratio" ? Math.max(0, current * 0.3) : Math.max(0, current * 0.3));
+        const curMau   = (typeof mc === "number" && !isNaN(mc)) ? mc : (t.scale === "absolute" ? current : 200);
+        const baseMau  = Math.max(0, curMau * 0.4);
+        const points = months.map((m, i) => {
+          const frac = i / Math.max(1, months.length - 1);
+          const jitter = (Math.sin(i * 0.9 + kr.kr_label.length) + 1) * 0.04 - 0.04;
+          const val = baseline + (current - baseline) * frac + jitter * (t.scale === "ratio" ? 1 : 5);
+          const mau = Math.round(baseMau + (curMau - baseMau) * frac + jitter * 100);
+          return {
+            month: m,
+            iso: `${m}-${i === months.length - 1 ? "30" : "28"}`,
+            value: Math.max(0, val),
+            mau: Math.max(0, mau),
+          };
+        });
+        return { kr_label: kr.kr_label, points, threshold: t };
+      }).filter(Boolean);
+      return jsonResp({ nickname: cust, months, series, thresholds: THRESHOLDS });
+    }],
+
+    // ----- PEC Disengage (v0.42) -----
+    ["GET", /^\/api\/pec\/disengage-options$/, () => jsonResp({
+      reasons: [
+        "no intent or opportunity",
+        "intent & non-ft direct deployment lead",
+        "deployment completed by ft",
+        "customer disengaged",
+        "account team unresponsive",
+        "successful engagement",
+        "customer not ready",
+        "escalated engagement",
+      ],
+      handshakes: [
+        "discussion with account team",
+        "discussion account team + partner",
+        "account team unresponsive/email sent",
+      ],
+    })],
+    ["POST", /^\/api\/customer\/([^/?]+)\/kr\/([^/?]+)\/pec-disengage$/, (m, opts) => {
+      const cust = decodeURIComponent(m[1]);
+      const kr = decodeURIComponent(m[2]);
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      STATE.queue.pending = STATE.queue.pending || [];
+      const id = STATE.nextQueueId++;
+      STATE.queue.pending.push({
+        id, kind: "pec-disengage",
+        label: `Disengage PEC - ${cust} - ${kr}`,
+        prompt: `/manage-pecs disengage "${cust}" --kr "${kr}" --reason "${body.reason}" --handshake "${body.handshake}"`,
+        cust, status: "pending", requires_user_confirm: 0,
+        trigger: "ui_pec_disengage", created_at: new Date().toISOString(),
+      });
+      STATE.queue.count = (STATE.queue.count || 0) + 1;
+      return jsonResp({ ok: true, id, prompt: `/manage-pecs disengage ...` });
+    }],
+
     // ----- Single-customer refresh (demo: instant success) -----
     ["POST", /^\/api\/customer\/([^/?]+)\/refresh$/, (m) => {
       const cust = decodeURIComponent(m[1]);
