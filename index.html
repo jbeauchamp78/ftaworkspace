@@ -699,10 +699,14 @@ html[data-theme="win98"] .info-pill {
 .cust-header .tpid-pill .tpid-value:empty::before {
   content: attr(data-placeholder); color: var(--cp-text-soft); font-weight: 400;
 }
+.cust-header .ftop-link {
+  font-size: 11px; color: var(--cp-link); text-decoration: none;
+  padding: 2px 4px; border-radius: 4px;
+}
+.cust-header .ftop-link:hover {
+  text-decoration: underline; background: var(--cp-surface-soft);
+}
 .cust-header .kr-expand-btn { align-self: flex-end; }
-.cust-subhdr { color: var(--cp-text-soft); font-size: 12px; margin-bottom: 20px; }
-.cust-subhdr a { color: var(--cp-link); text-decoration: none; }
-.cust-subhdr a:hover { text-decoration: underline; }
 
 .cust-statusline {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -773,18 +777,34 @@ html[data-theme="win98"] .info-pill {
 .csl-pec  { background: #FFC000; color: #1f1f1f; }
 .csl-pec-combined {
   background: var(--cp-surface-soft); color: var(--cp-text);
-  border-color: var(--cp-border-strong); cursor: pointer;
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 10px; font-weight: 500;
-  transition: background .15s, border-color .15s;
+  border: 1px solid var(--cp-border-strong); cursor: pointer;
+  display: inline-flex; align-items: stretch; gap: 0;
+  padding: 0; overflow: hidden; line-height: 1;
+  transition: border-color .15s, box-shadow .15s;
 }
-.csl-pec-combined:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent); }
-.pec-combo-divider { color: var(--cp-text-muted); opacity: 0.6; padding: 0 2px; }
-.pec-combo-miss { font-weight: 600; }
-.pec-combo-stage { font-variant-numeric: tabular-nums; }
+.csl-pec-combined:hover {
+  border-color: var(--cp-accent);
+  box-shadow: 0 0 0 2px var(--cp-accent-soft);
+}
+.pec-combo-cell {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 3px 8px; gap: 1px; min-width: 28px;
+  border-left: 1px solid var(--cp-border);
+}
+.pec-combo-cell:first-child { border-left: 0; }
+.pec-combo-num {
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  line-height: 1; color: var(--cp-text);
+}
+.pec-combo-tag {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--cp-text-muted); line-height: 1;
+}
 .pec-combo-stage[data-stage="triage"] { color: #B7791F; }
 .pec-combo-stage[data-stage="engage"] { color: #2C7BE5; }
-.pec-combo-total { color: var(--cp-text-muted); font-size: 11px; }
+.pec-combo-miss .pec-combo-num { color: #C0392B; }
+.pec-combo-total-cell { background: var(--cp-surface); }
+.pec-combo-total { color: var(--cp-text-muted); font-weight: 600; }
 .csl-zero { background: var(--cp-surface-soft); color: var(--cp-text-muted); border-color: var(--cp-border); }
 
 .kr-card {
@@ -2638,7 +2658,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.45 locked 2026-06-19 (Customer header rework — TPID + FTOP account link moved above the pill row for cleaner top-down information hierarchy; PEC pill consolidated — old ⚑ missing PECs + Active/Closed text + (i) info button merged into one richer pill showing missing + Triage count + Engage count + total, click opens existing PEC popover modal; PEC popover header now shows stage breakdown; backend /pecs summary now includes triage / engage / disengage / other_active counts derived from pec_details.stage; demo-api.js parity)">v0.45 · Stable</span>
+      <span class="version-tag" title="Build version: v0.46 locked 2026-06-19 (PEC pill redesign — switched from inline text to 4 stacked cells (Miss · T · E · Total) with big number above tiny uppercase tag, sized so it doesn't overflow neighboring chips; Subline cleanup — removed redundant TPID line below pills, FTOP account link now sits right of the editable TPID pill in the subline)">v0.46 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -3239,10 +3259,7 @@ function renderContent() {
                   data-cust="${c.n}"
                   data-placeholder="—">${c.tpid || ''}</span>
           </span>
-        </div>
-        <div class="cust-subhdr">
-          ${c.tpid ? `TPID ${c.tpid} ·` : ''}
-          ${c.ftop_account_id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=account&id=${c.ftop_account_id}" target="_blank">FTOP account</a>` : ''}
+          ${c.ftop_account_id ? `<a class="ftop-link" href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=account&id=${c.ftop_account_id}" target="_blank" title="Open this customer's account in FTOP">FTOP account ↗</a>` : ''}
         </div>
         <div class="cust-statusline">
           ${(() => {
@@ -3264,13 +3281,10 @@ function renderContent() {
               <span class="csl-chip csl-regr ${kpiRegr ? '' : 'csl-zero'}" title="KRs at REGRESSION">▼ ${kpiRegr} KPI regressions</span>
               <span class="csl-chip csl-pec-combined pec-info-pill" data-cust="${c.n}"
                     title="${pecActive} active · ${pecClosed} closed · ${missPec} missing — click for details">
-                ⚑ <span class="pec-combo-miss">${missPec}</span> missing
-                <span class="pec-combo-divider">·</span>
-                <span class="pec-combo-stage" data-stage="triage">— T</span>
-                <span class="pec-combo-divider">·</span>
-                <span class="pec-combo-stage" data-stage="engage">— E</span>
-                <span class="pec-combo-divider">·</span>
-                <span class="pec-combo-total">${pecActive + pecClosed} total</span>
+                <span class="pec-combo-cell pec-combo-miss"><span class="pec-combo-num">${missPec}</span><span class="pec-combo-tag">miss</span></span>
+                <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="triage">—</span><span class="pec-combo-tag">T</span></span>
+                <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="engage">—</span><span class="pec-combo-tag">E</span></span>
+                <span class="pec-combo-cell pec-combo-total-cell"><span class="pec-combo-num pec-combo-total">${pecActive + pecClosed}</span><span class="pec-combo-tag">total</span></span>
               </span>
             `;
           })()}
@@ -6367,10 +6381,10 @@ window.__queueSkill = (function () {
           const s = pd.summary || {};
           const t = pecChip.querySelector('.pec-combo-stage[data-stage="triage"]');
           const e = pecChip.querySelector('.pec-combo-stage[data-stage="engage"]');
-          if (t) t.textContent = `${s.triage ?? 0} T`;
-          if (e) e.textContent = `${s.engage ?? 0} E`;
+          if (t) t.textContent = `${s.triage ?? 0}`;
+          if (e) e.textContent = `${s.engage ?? 0}`;
           const tot = pecChip.querySelector('.pec-combo-total');
-          if (tot) tot.textContent = `${s.total ?? 0} total`;
+          if (tot) tot.textContent = `${s.total ?? 0}`;
           pecChip.title =
             `${s.active ?? 0} active (${s.triage ?? 0} Triage · ${s.engage ?? 0} Engage` +
             `${s.disengage ? ` · ${s.disengage} Disengage` : ""}` +
