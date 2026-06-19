@@ -624,7 +624,7 @@ html[data-theme="win98"] .info-pill {
   flex: 1; overflow-y: auto; padding: 24px;
   background: var(--cp-bg);
 }
-.cust-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 6px; }
+.cust-header { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
 .cust-header-names { display: flex; flex-direction: column; gap: 0; }
 .cust-header h2.cust-display-name {
   font-size: 24px; font-weight: 600; margin: 0;
@@ -2294,16 +2294,18 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   background: var(--cp-surface-soft);
 }
 .nonkr-table td {
-  padding: 8px 8px; border-bottom: 1px solid var(--cp-border);
-  vertical-align: middle;
+  padding: 10px 8px; border-bottom: 1px solid var(--cp-border);
+  vertical-align: top; box-sizing: border-box;
 }
-.nonkr-table td.workload { font-weight: 600; color: var(--cp-text); }
-.nonkr-table td.mom { text-align: right; font-variant-numeric: tabular-nums; color: var(--cp-text-muted); }
-.nonkr-table td.pec { width: 80px; }
+.nonkr-table td.workload { font-weight: 600; color: var(--cp-text); padding-top: 14px; }
+.nonkr-table td.mom { text-align: right; font-variant-numeric: tabular-nums; color: var(--cp-text-muted); padding-top: 14px; }
+.nonkr-table td.status-cell { padding-top: 10px; }
+.nonkr-table td.pec { width: 80px; padding-top: 10px; }
 .nonkr-table .nonkr-notes-input {
-  width: 100%; box-sizing: border-box; padding: 5px 8px;
+  width: 100%; box-sizing: border-box; padding: 6px 8px;
   border: 1px solid transparent; border-radius: 4px;
   background: transparent; color: var(--cp-text); font-size: 12px;
+  font-family: inherit; line-height: 1.4; resize: vertical; min-height: 58px;
 }
 .nonkr-table .nonkr-notes-input:focus {
   outline: none; border-color: var(--cp-accent);
@@ -2311,8 +2313,8 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 }
 .nonkr-pec-btn {
   background: var(--cp-surface-soft); border: 1px solid var(--cp-border);
-  border-radius: 4px; padding: 3px 8px; font-size: 11px;
-  color: var(--cp-text-muted); cursor: pointer;
+  border-radius: 4px; padding: 4px 10px; font-size: 11px;
+  color: var(--cp-text-muted); cursor: pointer; line-height: 1.2;
 }
 .nonkr-pec-btn:hover { color: var(--cp-text); background: var(--cp-accent-soft); }
 </style>
@@ -2927,7 +2929,7 @@ function renderContent() {
         </div>
       </div>
       <span style="flex:1"></span>
-      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; margin-left:auto;">
+      <div style="display:flex; flex-direction:row; gap:8px; align-items:center; margin-left:auto;">
         <button class="btn secondary kr-expand-btn" id="btnExpandKR"
                 title="Expand current view: hides sidebar">⛶ Expand</button>
         <button class="btn secondary" id="btnHeatmap"
@@ -6140,13 +6142,12 @@ window.__queueSkill = (function () {
         const opts = NONKR_OPTIONS.map(o =>
           `<option value="${o}"${o === w.status ? ' selected' : ''}>${o}</option>`
         ).join("");
-        const noteHtml = `<input type="text" class="nonkr-notes-input"
+        const noteHtml = `<textarea class="nonkr-notes-input" rows="3"
             data-cust="${cust}" data-wl="${w.workload}" data-field="notes"
-            value="${(w.notes || '').replace(/"/g, '&quot;')}"
-            placeholder="Add a note…" />`;
+            placeholder="Add a note…">${(w.notes || '').replace(/</g, '&lt;')}</textarea>`;
         return `<tr>
           <td class="workload">${w.workload}</td>
-          <td><select class="nonkr-status ${sc}"
+          <td class="status-cell"><select class="nonkr-status ${sc}"
                       data-cust="${cust}" data-wl="${w.workload}" data-field="status">
                 ${opts}
               </select></td>
