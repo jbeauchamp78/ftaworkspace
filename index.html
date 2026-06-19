@@ -2824,7 +2824,7 @@ function renderContent() {
     let pecCell = "";
     if (isAdmin) pecCell = `<span class="pec na">N/A</span>`;
     else if (k.p === "Yes") pecCell = `<span class="pec yes">● Yes</span>`;
-    else if ((k.s === "KPI WIN" || k.s === "IN PROGRESS")) pecCell = `<button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button>`;
+    else if ((k.s === "KPI WIN" || k.s === "KPI MET" || k.s === "IN PROGRESS")) pecCell = `<button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button>`;
     else pecCell = `<span class="pec na">—</span>`;
 
     // MoM cell — month-over-month growth derived by the backend from
