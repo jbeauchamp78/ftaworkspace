@@ -2531,7 +2531,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.40 locked 2026-06-19 (PEC draft modal simplified — workload picker removed; PEC is now scoped to the single workload that triggered the Open PEC click, with a deploy-lead dropdown next to it; cleaner UX, fewer accidental multi-workload PECs)">v0.40 · Stable</span>
+      <span class="version-tag" title="Build version: v0.41 locked 2026-06-19 (PEC stage dropdown — Triage (default) or Engage; backend clamps to that set server-side so a buggy caller can't auto-Disengage; --stage flag added to /manage-pecs prompt; Disengage stays out of create flow and will live in a future Close PEC motion)">v0.41 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -5878,11 +5878,11 @@ window.__queueSkill = (function () {
     },
     "pec-draft-create": {
       title: "Create PEC from staged payload?",
-      short: "Creates a new FTOP PEC (Prioritized Engagement Case) using the full payload you reviewed in the draft form — workloads, deploy leads, area manager, notes.",
+      short: "Creates a new FTOP PEC for the workload you triaged — Triage or Engage stage, your call. Form was the review gate; heartbeat fires within 30 min.",
       sideEffects: [
         { kind: "read", label: "Read FTOP account roster, workload catalog" },
         { kind: "preview", label: "Form was the review gate — heartbeat will fire" },
-        { kind: "write", label: "Creates a new FTOP incident in Triage stage" },
+        { kind: "write", label: "Creates a new FTOP incident in your selected stage (Triage or Engage)" },
       ],
       requires_user_confirm: 0,
       skill_path: "manage-pecs",
@@ -7039,9 +7039,12 @@ window.__pecDraftForm = (function () {
           <label class="fld">Notes <span class="opt">— from KR + free text</span></label>
           <textarea id="pecfNotes" rows="3"></textarea>
 
-          <div style="margin-top:14px;font-size:11px;color:var(--cp-text-muted);padding:8px 12px;background:var(--cp-surface-soft);border:1px solid var(--cp-border);border-radius:6px;">
-            <strong>Stage:</strong> Triage <em>(locked — PECs always land in Triage; advance via FTOP)</em>
-          </div>
+          <label class="fld">Stage</label>
+          <select id="pecfStage" style="width:280px;">
+            <option value="triage" selected>Triage — land here, advance later</option>
+            <option value="engage">Engage — work is already in flight</option>
+          </select>
+          <div class="sp-hint">Default Triage. Pick Engage if a workshop is already happening or the customer is mid-deployment. Disengage is a separate motion handled when closing.</div>
 
           <div class="sp-draft-status" id="pecfStatus"></div>
         </div>
@@ -7103,6 +7106,7 @@ window.__pecDraftForm = (function () {
       modal.querySelector("#pecfAM").value    = draft.area_manager_email || "";
       modal.querySelector("#pecfSpec").value  = draft.specialist_email || "";
       modal.querySelector("#pecfNotes").value = draft.notes || "";
+      modal.querySelector("#pecfStage").value = (draft.stage === "engage") ? "engage" : "triage";
 
       // Single workload — derived from kr_label that triggered the click.
       // Lookup workload code from catalog if available; otherwise leave null
@@ -7175,6 +7179,7 @@ window.__pecDraftForm = (function () {
         area_manager_email:  modal.querySelector("#pecfAM").value.trim() || null,
         specialist_email:    modal.querySelector("#pecfSpec").value.trim() || null,
         notes:               modal.querySelector("#pecfNotes").value,
+        stage:               modal.querySelector("#pecfStage").value || "triage",
         workloads:           collectWorkloads(),
       });
       if (!payload.title) {
