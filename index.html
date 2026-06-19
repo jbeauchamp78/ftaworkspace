@@ -322,7 +322,6 @@ html[data-theme="win98"] .info-pill {
   box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
   position: relative;
 }
-.counter-sync-btn:hover { background: var(--cp-accent-soft) !important; color: var(--cp-accent) !important; border-color: var(--cp-accent) !important; }
 .counter.clickable { cursor: pointer; transition: transform 100ms, box-shadow 100ms, border-color 100ms; }
 .counter.clickable:hover { transform: translateY(-1px); border-color: var(--cp-border-strong); }
 .counter.active { border-color: var(--cp-accent); box-shadow: 0 0 0 2px var(--cp-accent-soft), 0 0 2px rgba(0,0,0,0.12); }
@@ -382,17 +381,7 @@ html[data-theme="win98"] .info-pill {
 .pec-open-btn.queued { opacity: 0.55; cursor: default; }
 .pec-open-btn.queued::after { content: " ✓ queued"; font-size: 9px; font-weight: 500; }
 
-/* "I already created this in FTOP" inline mark — sits below Open PEC */
-.pec-cell-wrap {
-  display: flex; flex-direction: column; align-items: stretch; gap: 3px;
-}
-.pec-already-link {
-  background: transparent; border: 0; padding: 0; margin: 0;
-  font-family: inherit; font-size: 10px; color: var(--cp-text-muted);
-  text-decoration: underline; text-underline-offset: 2px;
-  cursor: pointer; line-height: 1.1; align-self: center;
-}
-.pec-already-link:hover { color: var(--cp-accent); }
+/* "✓ already" inline link removed in v0.38 — moved into queue-confirm modal */
 
 /* Manual-mark variant — visually distinct from a real ● Yes (FTOP-confirmed)
    so the FTA always knows whether the local DB has caught up with FTOP. */
@@ -2394,6 +2383,14 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   background: var(--cp-accent); color: var(--cp-accent-fg, #fff);
   border-color: var(--cp-accent);
 }
+.sp-draft-foot button.sp-already-btn {
+  border: 1px dashed var(--cp-border);
+  color: var(--cp-text-muted);
+}
+.sp-draft-foot button.sp-already-btn:hover {
+  border-style: solid; border-color: #00B050;
+  color: #00B050; background: rgba(0,176,80,0.10);
+}
 .sp-draft-foot button:hover { filter: brightness(1.05); }
 .sp-draft-foot button:disabled { opacity: 0.5; cursor: not-allowed; }
 .sp-draft-status { font-size: 11px; color: var(--cp-text-muted); margin-top: 6px; }
@@ -2516,7 +2513,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.37 locked 2026-06-19 (Build B — /spotlight-sync helper skill at ~/.copilot/skills/spotlight-sync/ — pulls FTA's spotlights from FTOP via ftop_my_spotlights MCP and bulk-POSTs to /api/spotlights/bulk with source='ftop'; new ⟳ sync button on the Spotlights counter tile queues it through queue-confirm; spotlight-sync added to SKILL_REGISTRY; SHARED Clawpilot prompt info bar — render with __queueSkill.renderSkillInfoBar(kind, ctx) — restored at the top of the Spotlight draft modal with title + side effects + skill-installed badge + prompt preview)">v0.37 · Stable</span>
+      <span class="version-tag" title="Build version: v0.38 locked 2026-06-19 (Removed Spotlights-tile sync button — spotlight-sync now auto-queued by Refresh Now + single-customer refresh; ✓ Already created button added to BOTH the Spotlight draft modal footer and the PEC queue-confirm modal — single consistent affordance per modal; inline ✓ already link next to PEC button removed as redundant; spotlight-sync auto-queue inserted into _auto_queue_maintenance with requires_user_confirm=0 so heartbeat drains automatically)">v0.38 · Stable</span>
     </div>
     <span class="def-strip">
       <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
@@ -2581,10 +2578,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
         <div class="value" id="ct-kpi-wins">—</div>
         <div class="hint">KPI WIN rows earned this FY</div>
       </div>
-      <div class="counter accent clickable" data-tile="spotlights" title="✨ Spotlights — count of published spotlights this FY. Click to drill into per-customer spotlight state.">
-        <button type="button" class="counter-sync-btn" id="btnSyncSpotlights"
-                title="Pull spotlights from FTOP via ftop-mcp (read-only). Populates spotlight_index with source='ftop'. Click stops propagation so the tile drill-in doesn't fire."
-                style="position:absolute;top:4px;right:4px;background:transparent;border:1px solid var(--cp-border);border-radius:3px;font-size:10px;padding:1px 5px;color:var(--cp-text-muted);cursor:pointer;line-height:1.1;">⟳ sync</button>
+      <div class="counter accent clickable" data-tile="spotlights" title="✨ Spotlights — count of published spotlights this FY. Auto-synced from FTOP on every Refresh Now. Click to drill into per-customer spotlight state.">
         <div class="label">Spotlights</div>
         <div class="value" id="ct-sp-wins">—</div>
         <div class="hint" id="ct-sp-hint">published this FY</div>
@@ -3020,7 +3014,7 @@ function renderContent() {
     if (isAdmin) pecCell = `<span class="pec na">N/A</span>`;
     else if (k.p === "Yes" && k.p_src === "manual") pecCell = `<span class="pec yes pec-manual" title="Marked manually by you — will be verified on next FTOP refresh. Click to clear." data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}">● Yes · manual</span>`;
     else if (k.p === "Yes") pecCell = `<span class="pec yes">● Yes</span>`;
-    else if ((k.s === "KPI WIN" || k.s === "KPI MET" || k.s === "IN PROGRESS")) pecCell = `<div class="pec-cell-wrap"><button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button><button class="pec-already-link" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="I already created this PEC in FTOP — mark it as Yes locally">✓ already</button></div>`;
+    else if ((k.s === "KPI WIN" || k.s === "KPI MET" || k.s === "IN PROGRESS")) pecCell = `<button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled — modal includes a ✓ Already created option">+ Open PEC</button>`;
     else pecCell = `<span class="pec na">—</span>`;
 
     // MoM cell — month-over-month growth derived by the backend from
@@ -4183,30 +4177,9 @@ document.addEventListener("click", async e => {
   if (result.ok) btn.classList.add("queued");
 });
 
-// ===== "✓ already" link: mark PEC as created manually (no Clawpilot run) =====
-document.addEventListener("click", async e => {
-  const link = e.target.closest(".pec-already-link");
-  if (!link) return;
-  e.preventDefault(); e.stopPropagation();
-  const cust = link.dataset.cust;
-  const kr   = link.dataset.kr;
-  if (!cust || !kr) return;
-  if (!confirm(`Mark "${kr}" PEC for ${cust} as already created in FTOP?\n\nIt will be verified against FTOP on the next refresh.`)) return;
-  try {
-    const r = await fetch(`/api/customer/${encodeURIComponent(cust)}/kr/${encodeURIComponent(kr)}/pec-flag`,
-      { method: "PATCH", headers: {"content-type": "application/json"},
-        body: JSON.stringify({ flag: "Yes" }) });
-    const data = await r.json();
-    if (!data.ok) {
-      if (typeof toast === "function") toast(`Mark failed: ${data.error || 'unknown'}`, "warn");
-      return;
-    }
-    if (typeof toast === "function") toast(`✓ marked PEC as already created (manual)`, "ok");
-    if (typeof load === "function") load();   // re-fetch tracker so UI updates
-  } catch (err) {
-    if (typeof toast === "function") toast(`Error: ${err.message}`, "warn");
-  }
-});
+// ===== "✓ already" inline link removed in v0.38 — replaced by the
+// ===== ✓ Already created button inside the queue-confirm modal.
+// (The manual-pill click-to-clear handler below remains active.)
 
 // ===== Manual-mark pill: click to CLEAR the manual mark =====
 document.addEventListener("click", async e => {
@@ -5952,6 +5925,7 @@ window.__queueSkill = (function () {
           <input type="checkbox" id="qsDontAsk" style="margin:0;"> Don't ask again for this skill
         </label>
         <div class="sp-confirm-actions">
+          <button class="btn secondary" id="qsAlready" style="display:none;border:1px dashed var(--cp-border);" title="Already done in FTOP? Mark it locally as manual without queueing a Clawpilot run.">✓ Already created</button>
           <button class="btn secondary" id="qsCancel">Cancel</button>
           <button class="btn" id="qsOk">Queue ⚡</button>
         </div>
@@ -6026,6 +6000,15 @@ window.__queueSkill = (function () {
     const dontAsk = document.getElementById("qsDontAsk");
     dontAsk.checked = false;
 
+    // Show "✓ Already created" only for kinds that support local manual-mark
+    // (PEC create + spotlight + spotlight-lowlight). For everything else
+    // (single-customer-refresh, sync skills, etc.) the button stays hidden.
+    const ALREADY_KINDS = new Set(["manage-pecs-create", "spotlight", "spotlight-lowlight"]);
+    const alreadyBtn = document.getElementById("qsAlready");
+    if (alreadyBtn) {
+      alreadyBtn.style.display = ALREADY_KINDS.has(kind) ? "" : "none";
+    }
+
     back.classList.add("show");
 
     return new Promise((resolve) => {
@@ -6036,8 +6019,50 @@ window.__queueSkill = (function () {
         const result = await doQueue(reg, ctx);
         resolve(result);
       };
+      const already = async () => {
+        // No-queue path — mark the underlying artifact as manually-created
+        // in the local DB instead of running a Clawpilot skill.
+        let r, label;
+        if (kind === "manage-pecs-create") {
+          if (!ctx.cust || !ctx.kr_label) {
+            alert("Customer + KR label required to mark a PEC as already created.");
+            return;
+          }
+          if (!confirm(`Mark "${ctx.kr_label}" PEC for ${ctx.cust} as already created in FTOP?\n\nIt will be verified against FTOP on the next refresh.`)) return;
+          r = await fetch(`/api/customer/${encodeURIComponent(ctx.cust)}/kr/${encodeURIComponent(ctx.kr_label)}/pec-flag`,
+            { method: "PATCH", headers: {"content-type":"application/json"},
+              body: JSON.stringify({ flag: "Yes" }) });
+          label = "PEC marked as already created (manual)";
+        } else {
+          // spotlight / spotlight-lowlight — log via /api/spotlights/manual
+          const titleSuggest = `${ctx.cust}${ctx.kr_label ? " — " + ctx.kr_label : ""} — ${kind === "spotlight-lowlight" ? "Lowlight" : "Spotlight"}`;
+          const userTitle = prompt(`Log existing spotlight for ${ctx.cust}.\n\nTitle:`, titleSuggest);
+          if (!userTitle) return;
+          r = await fetch(`/api/spotlights/manual`,
+            { method: "POST", headers: {"content-type":"application/json"},
+              body: JSON.stringify({
+                cust_nickname: ctx.cust,
+                title: userTitle.trim(),
+                kr_label: ctx.kr_label || null,
+                stage: "Publish",
+                kind: kind === "spotlight-lowlight" ? "lowlight" : "highlight",
+              }) });
+          label = "Spotlight logged as already created (manual)";
+        }
+        let data = {};
+        try { data = await r.json(); } catch {}
+        if (data.ok === false) {
+          alert(`Failed: ${data.error || 'unknown'}`);
+          return;
+        }
+        back.classList.remove("show");
+        if (typeof toast === "function") toast(`✓ ${label}`, "ok");
+        if (typeof load === "function") load();
+        resolve({ ok: true, already: true });
+      };
       document.getElementById("qsCancel").onclick = cancel;
       document.getElementById("qsOk").onclick = ok;
+      if (alreadyBtn) alreadyBtn.onclick = already;
     });
   }
 
@@ -6487,19 +6512,6 @@ window.__queueSkill = (function () {
   loadDefinitions();
 })();
 
-// ---------- Spotlight sync button (counter row tile) ----------
-// Click → queues /spotlight-sync via the shared queue-confirm modal so
-// the FTA sees the prompt before it fires. After completion, the
-// spotlight_index populates with source='ftop' rows.
-document.addEventListener("click", async (e) => {
-  const btn = e.target.closest("#btnSyncSpotlights");
-  if (!btn) return;
-  e.preventDefault(); e.stopPropagation();
-  if (!window.__queueSkill) return;
-  const result = await window.__queueSkill.queueSkill("spotlight-sync", {});
-  if (result.ok && typeof refreshCartBadge === "function") refreshCartBadge();
-});
-
 // ---------- Non-KR table — toggle slider + fetch + edit ----------
 // Wires up the [Key Results | Non-KR] toggle in the Workloads card header.
 // When Non-KR is selected, hides the KR table, shows the Non-KR table, and
@@ -6574,7 +6586,7 @@ document.addEventListener("click", async (e) => {
         } else if (w.status === "DEFERRED") {
           pecHtml = `<span class="pec na">—</span>`;
         } else {
-          pecHtml = `<div class="pec-cell-wrap"><button class="pec missing pec-open-btn" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled">+ Open PEC</button><button class="pec-already-link" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="I already created this PEC in FTOP — mark it as Yes locally">✓ already</button></div>`;
+          pecHtml = `<button class="pec missing pec-open-btn" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled — modal includes a ✓ Already created option">+ Open PEC</button>`;
         }
         return `<tr>
           <td class="workload">${w.workload}</td>
@@ -6783,6 +6795,8 @@ window.__spotlightDraftForm = (function () {
             <input type="checkbox" id="spfAuto" />
             <span id="spfAutoText">Auto-submit on heartbeat (skip cart Approve)</span>
           </label>
+          <button type="button" id="spfAlready" class="sp-already-btn"
+                  title="Already created this spotlight in FTOP? Log it locally with source='manual' instead of queueing a new one.">✓ Already created</button>
           <button type="button" id="spfCancel">Cancel</button>
           <button type="button" id="spfQueue" class="primary">⚡ Queue as Draft</button>
         </div>
@@ -6795,6 +6809,7 @@ window.__spotlightDraftForm = (function () {
     modal.querySelector(".sp-draft-close").addEventListener("click", close);
     modal.querySelector("#spfCancel").addEventListener("click", close);
     modal.querySelector("#spfQueue").addEventListener("click", submit);
+    modal.querySelector("#spfAlready").addEventListener("click", submitAlreadyCreated);
   }
 
   function close() {
@@ -6850,6 +6865,43 @@ window.__spotlightDraftForm = (function () {
       setStatus("Pre-filled from MIDAS + FTOP context. Review and edit before queueing.", false);
     } catch (e) {
       setStatus(`Failed to load draft: ${e.message}`, true);
+    }
+  }
+
+  // "✓ Already created" — POSTs to /api/spotlights/manual so the row lands
+  // in spotlight_index with source='manual'. Pulls title/kr/stage/kind from
+  // whatever the FTA has filled in so far.
+  async function submitAlreadyCreated() {
+    if (!currentCtx) return;
+    const cust = currentCtx.cust;
+    const title = (modal.querySelector("#spfTitle").value || "").trim();
+    if (!title) { setStatus("Title is required to log an existing spotlight.", true); return; }
+    if (!confirm(`Log "${title}" as an existing spotlight in FTOP for ${cust}?\n\nThis does NOT queue a Clawpilot run — it just records that you already created the spotlight directly in FTOP. The row will be marked source='manual' until the next sync confirms it from FTOP.`)) return;
+    const all = ["#spfAlready", "#spfQueue", "#spfCancel"].map(s => modal.querySelector(s));
+    all.forEach(b => b && (b.disabled = true));
+    setStatus("Logging existing spotlight…", false);
+    try {
+      const payload = {
+        cust_nickname: cust,
+        title,
+        kr_label: currentCtx.kr_label || null,
+        stage: "Publish",
+        kind: currentCtx.lowlight ? "lowlight" : "highlight",
+        url: (modal.querySelector("#spfRefLink").value || "").trim() || null,
+      };
+      const r = await fetch("/api/spotlights/manual", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!data.ok) { setStatus(`Failed: ${data.error || 'unknown'}`, true); all.forEach(b => b && (b.disabled = false)); return; }
+      setStatus(`✓ logged as existing (manual). Closing…`, false);
+      if (typeof toast === "function") toast(`Spotlight marked as already created (manual)`, "ok");
+      setTimeout(close, 1200);
+    } catch (e) {
+      setStatus(`Error: ${e.message}`, true);
+      all.forEach(b => b && (b.disabled = false));
     }
   }
 
