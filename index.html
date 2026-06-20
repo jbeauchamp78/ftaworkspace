@@ -2700,7 +2700,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.53 locked 2026-06-20 (Epoch picker on KR Rules + Copilot IC Rules topbar pills — each pill is now [label · epoch <select> · info-btn]; choices: FY26 H2 (live, default) or FY27 Q1 (scaffold for the upcoming cycle, opens an empty-state placeholder explaining the rules ship Jul 1); Workloads + Copilot Ideal Config card titles show the matching epoch badge; chart button + KR/Non-KR toggle slide right of the title; switching to FY27 Q1 hides the data tables and chart and shows the empty state; switching back to FY26 H2 restores everything. Also includes v0.52 Non-KR table layout fix from prior cart processor run)">v0.53 · Stable</span>
+      <span class="version-tag" title="Build version: v0.54 locked 2026-06-20 (Hotfixes for v0.53 — (1) Ideal Config card stuck on 'loading' because the epoch-sync MutationObserver was firing on every body subtree mutation (every textarea keypress, every IC table update) and racing with the IC fetch. Replaced with a focused window.renderContent hook that only re-syncs after a customer block is rendered. (2) Workloads chart Non-KR mode now shows an honest empty-state explaining that Non-KR history isn't backfilled to the database yet — non_kr_status only stores current month MAU. Backlog item mvp2-nonkr-history queued.)">v0.54 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -6867,31 +6867,40 @@ window.__queueSkill = (function () {
 
   loadDefinitions();
   // After every customer-block re-render, re-apply the active epoch UI.
-  // CRITICAL: must be debounced — a naive MutationObserver on the whole
-  // body fires for EVERY child mutation and we mutate the DOM inside
-  // syncEpochUI (style changes count), so a tight loop would freeze the
-  // page. Coalesce to a single rAF + only sync when the relevant target
-  // elements exist and the active epoch differs from the rendered one.
-  let _scheduled = false;
-  const obs = new MutationObserver(() => {
-    if (_scheduled || !window.__epochs) return;
-    _scheduled = true;
-    requestAnimationFrame(() => {
-      _scheduled = false;
+  // Hook into window.renderContent instead of MutationObserver — observer
+  // on body { subtree: true } fires on every typed character in notes,
+  // every IC table update, etc. Was racing with the IC fetch and causing
+  // layout thrash.
+  const _origRender = window.renderContent;
+  if (typeof _origRender === "function") {
+    window.renderContent = function () {
+      const r = _origRender.apply(this, arguments);
       try {
-        // Only sync if the section badges exist and haven't been written yet
-        const wlBadge = document.getElementById("wlSectionEpoch");
-        const icBadge = document.getElementById("icSectionEpoch");
-        if (wlBadge && wlBadge.textContent !== window.__epochs.get("kr")) {
+        if (window.__epochs) {
           window.__epochs.sync("kr");
-        }
-        if (icBadge && icBadge.textContent !== window.__epochs.get("ideal_config")) {
           window.__epochs.sync("ideal_config");
         }
       } catch {}
-    });
-  });
-  obs.observe(document.body, { childList: true, subtree: true });
+      return r;
+    };
+  } else {
+    // renderContent not defined yet — defer one tick
+    setTimeout(() => {
+      const r2 = window.renderContent;
+      if (typeof r2 === "function") {
+        window.renderContent = function () {
+          const out = r2.apply(this, arguments);
+          try {
+            if (window.__epochs) {
+              window.__epochs.sync("kr");
+              window.__epochs.sync("ideal_config");
+            }
+          } catch {}
+          return out;
+        };
+      }
+    }, 0);
+  }
 })();
 
 // ---------- Non-KR table — toggle slider + fetch + edit ----------
@@ -7732,7 +7741,19 @@ window.__workloadChart = (function () {
     if (!state.data) return;
     const visible = state.data.series.filter(inMode);
     if (visible.length === 0) {
-      host.innerHTML = `<div class="wl-side-loading">No ${state.mode === "kr" ? "KR" : "Non-KR"} workloads with history.</div>`;
+      // For non-KR, explain the limitation explicitly — there's no
+      // non_kr_status_history table yet so MoM lines can't be drawn even
+      // when the Non-KR table itself has data. Backlog item: mvp2-nonkr-history.
+      if (state.mode === "nonkr") {
+        host.innerHTML = `<div class="wl-side-loading" style="line-height:1.5">
+          <strong style="display:block;color:var(--cp-text);margin-bottom:6px;">Non-KR MoM not yet tracked</strong>
+          Non-KR workload history isn't backfilled to the local database yet — only the current month's MAU is stored.
+          Switch to <strong>KR</strong> mode to chart the 15 OKR workloads.
+          <em style="display:block;margin-top:8px;font-size:11px;color:var(--cp-text-muted);">Backlog: per-month Non-KR history (mvp2)</em>
+        </div>`;
+      } else {
+        host.innerHTML = `<div class="wl-side-loading">No KR workloads with history.</div>`;
+      }
       updateScopeBadge();
       return;
     }
