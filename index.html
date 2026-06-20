@@ -2735,7 +2735,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.57 locked 2026-06-20 (Demo bundle DEMO MODE banner restored — bundle builder's step 6 was string-replacing data-demo-mode=&quot;1&quot; which only appeared in the CSS selector, corrupting it to invalid CSS so the yellow banner never rendered on GitHub Pages. Removed the redundant replace step. Banner now sticky at top with z-index 10000 so it stays visible while scrolling. CSS rule unchanged — html[data-demo-mode='1'] body::before continues to fire when the bootstrap sets the attribute.)">v0.57 · Stable</span>
+      <span class="version-tag" title="Build version: v0.58 locked 2026-06-20 (Clear pending fix — demo-api.js was missing a handler for POST /api/clawpilot/queue/clear so the GitHub Pages demo silently 404'd on click and the panel never re-rendered. Added the shim handler (resets STATE.queue.pending to []), and made the live click-handler surface a toast + handle errors gracefully on either path.)">v0.58 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4742,9 +4742,16 @@ async function renderCartInline() {
   });
   const clr = panel.querySelector("#cartClear");
   if (clr) clr.onclick = async () => {
-    await fetch("/api/clawpilot/queue/clear", { method: "POST" });
-    refreshCartBadge();
-    renderCartInline();
+    try {
+      const r = await fetch("/api/clawpilot/queue/clear", { method: "POST" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const data = await r.json().catch(() => ({}));
+      if (window.__api && window.__api.toast) window.__api.toast("🗑️ Pending queue cleared", "ok");
+      refreshCartBadge();
+      renderCartInline();
+    } catch (e) {
+      if (window.__api && window.__api.toast) window.__api.toast("Clear failed: " + e.message, "err");
+    }
   };
   // Copy-only path: clipboard fill but don't focus Clawpilot.
   const cpy = panel.querySelector("#cartCopy");

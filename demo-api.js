@@ -1105,6 +1105,14 @@
       STATE.queue.needs_user_count = STATE.queue.pending.filter((p) => p.requires_user_confirm).length;
       return emptyOk();
     }],
+    // Clear all pending items (used by the cart panel's "Clear pending"
+    // button). Mirrors the live backend's DELETE-where-status=pending.
+    ["POST", /^\/api\/clawpilot\/queue\/clear$/, async () => {
+      STATE.queue.pending = [];
+      STATE.queue.count = 0;
+      STATE.queue.needs_user_count = 0;
+      return jsonResp({ ok: true, count: 0 });
+    }],
     ["POST", /^\/api\/clawpilot\/queue\/(\d+)\/(start|complete|fail)$/, () => emptyOk()],
 
     // ----- Telemetry POST is a no-op -----
