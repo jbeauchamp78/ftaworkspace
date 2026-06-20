@@ -2339,6 +2339,9 @@ body.heatmap-view.kr-expanded .content { margin-left: 24px !important; }
 .ic-health-yellow  { background: #FFFF00; color: #1f1f1f; }
 .ic-health-red     { background: #FF0000; color: #ffffff; }
 .ic-health-unknown { background: var(--cp-surface-soft); color: var(--cp-text-muted); border: 1px solid var(--cp-border); }
+/* v0.55: IC health chip lives in cust-statusline. Make it interactive — click jumps to the IC card */
+.csl-chip.ic-health { cursor: pointer; transition: opacity .15s; }
+.csl-chip.ic-health:hover { opacity: 0.85; }
 
 .ic-body { padding: 8px 16px 14px; }
 .ic-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -2700,7 +2703,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.54 locked 2026-06-20 (Hotfixes for v0.53 — (1) Ideal Config card stuck on 'loading' because the epoch-sync MutationObserver was firing on every body subtree mutation (every textarea keypress, every IC table update) and racing with the IC fetch. Replaced with a focused window.renderContent hook that only re-syncs after a customer block is rendered. (2) Workloads chart Non-KR mode now shows an honest empty-state explaining that Non-KR history isn't backfilled to the database yet — non_kr_status only stores current month MAU. Backlog item mvp2-nonkr-history queued.)">v0.54 · Stable</span>
+      <span class="version-tag" title="Build version: v0.55 locked 2026-06-20 (IC Health chip moved up to the customer-statusline next to PECs pill — pre-formatted as 'IC 7/10 · RED'; click expands the IC card below and scrolls into view; chip color stays tied to overall_health (green/yellow/red). Old in-card health badge removed (kept the source: lynx pill underneath the title). Also fixed IC loader losing .csl-chip class on hydration)">v0.55 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3339,6 +3342,8 @@ function renderContent() {
                 <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="engage">—</span><span class="pec-combo-tag">engage</span></span>
                 <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-total">${pecActive + pecClosed}</span><span class="pec-combo-tag">total</span></span>
               </span>
+              <span class="csl-chip ic-health ic-health-unknown" id="icHealthBadge"
+                    title="Copilot Ideal Config health — click to expand the IC card below for details">— loading IC</span>
             `;
           })()}
         </div>
@@ -3436,7 +3441,6 @@ function renderContent() {
         <span class="chev">▼</span>
         <h3>Copilot Ideal Config <span class="section-epoch-badge" id="icSectionEpoch">FY26 H2</span></h3>
         <span class="spacer"></span>
-        <span class="ic-health ic-health-unknown" id="icHealthBadge">— loading</span>
         <span class="ic-source muted" id="icSourceBadge"></span>
       </div>
       <div class="ic-body">
@@ -5408,8 +5412,8 @@ window.__api = (function() {
     if (!body || !badge) return ret;
 
     body.innerHTML = `<tr><td colspan="4" style="padding:14px;color:var(--cp-text-muted)">loading Ideal Config…</td></tr>`;
-    badge.textContent = '— loading';
-    badge.className = 'ic-health ic-health-unknown';
+    badge.textContent = '— loading IC';
+    badge.className = 'csl-chip ic-health ic-health-unknown';
 
     fetch('/api/customer/' + encodeURIComponent(cust) + '/ideal-config')
       .then(r => r.json())
@@ -5417,10 +5421,11 @@ window.__api = (function() {
         // Title pill
         const h = d.overall_health || 'unknown';
         const label = h === 'unknown'
-          ? `${d.green_count}/${d.total_count} · data not yet wired`
-          : `${d.green_count}/${d.total_count} healthy · ${h.toUpperCase()}`;
+          ? `IC ${d.green_count}/${d.total_count}`
+          : `IC ${d.green_count}/${d.total_count} · ${h.toUpperCase()}`;
         badge.textContent = label;
-        badge.className = 'ic-health ic-health-' + h;
+        badge.className = 'csl-chip ic-health ic-health-' + h;
+        badge.title = `Copilot Ideal Config: ${d.green_count}/${d.total_count} healthy (${h.toUpperCase()}) — click to expand the IC card`;
         if (source) source.textContent = 'source: ' + (d.data_source || 'unknown');
 
         body.innerHTML = d.settings.map(s => `
@@ -5575,6 +5580,15 @@ document.addEventListener("click", (e) => {
   document.addEventListener("click", (e) => {
     const pill = e.target.closest(".csl-pec-combined, .pec-info-pill");
     if (pill && pill.dataset.cust) { openPecPopover(pill.dataset.cust); }
+  });
+  // v0.55: IC health chip click → expand IC card + scroll into view
+  document.addEventListener("click", (e) => {
+    const chip = e.target.closest("#icHealthBadge.csl-chip");
+    if (!chip) return;
+    const icCard = document.getElementById("icCard");
+    if (!icCard) return;
+    icCard.classList.remove("collapsed");
+    icCard.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   // ---------- Heatmap render ----------
