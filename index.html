@@ -2339,9 +2339,40 @@ body.heatmap-view.kr-expanded .content { margin-left: 24px !important; }
 .ic-health-yellow  { background: #FFFF00; color: #1f1f1f; }
 .ic-health-red     { background: #FF0000; color: #ffffff; }
 .ic-health-unknown { background: var(--cp-surface-soft); color: var(--cp-text-muted); border: 1px solid var(--cp-border); }
-/* v0.55: IC health chip lives in cust-statusline. Make it interactive — click jumps to the IC card */
-.csl-chip.ic-health { cursor: pointer; transition: opacity .15s; }
-.csl-chip.ic-health:hover { opacity: 0.85; }
+/* v0.56: IC chip color scheme normalized — plain white background for all
+ * states (green/yellow/red/unknown) so the chip blends with siblings.
+ * Status is communicated by the small dot prefix + text. When the FTA hits
+ * perfect 10/10, the chip flashes blue until clicked or the IC card opens.
+ */
+.csl-chip.ic-health {
+  background: var(--cp-surface) !important;
+  color: var(--cp-text) !important;
+  border: 1px solid var(--cp-border) !important;
+  cursor: pointer; transition: opacity .15s, background .15s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.csl-chip.ic-health:hover { background: var(--cp-surface-soft) !important; }
+.csl-chip.ic-health::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: var(--cp-text-muted);
+}
+.csl-chip.ic-health-green::before  { background: #92D050; }
+.csl-chip.ic-health-yellow::before { background: #FFFF00; border: 1px solid #B7791F; }
+.csl-chip.ic-health-red::before    { background: #FF0000; }
+.csl-chip.ic-health-unknown::before { background: var(--cp-text-muted); opacity: 0.5; }
+
+/* Perfect 10/10 — celebrate with a soft pulse + accent until acknowledged */
+@keyframes icPerfectPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0,120,212,0.55); background: #E6F2FB !important; }
+  50%  { box-shadow: 0 0 0 6px rgba(0,120,212,0.00); background: var(--cp-surface) !important; }
+  100% { box-shadow: 0 0 0 0 rgba(0,120,212,0.00); background: #E6F2FB !important; }
+}
+.csl-chip.ic-health-perfect {
+  border-color: #0078D4 !important;
+  font-weight: 700;
+  animation: icPerfectPulse 1.6s ease-in-out infinite;
+}
+.csl-chip.ic-health-perfect::before { background: #0078D4 !important; }
 
 .ic-body { padding: 8px 16px 14px; }
 .ic-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -2703,7 +2734,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.55 locked 2026-06-20 (IC Health chip moved up to the customer-statusline next to PECs pill — pre-formatted as 'IC 7/10 · RED'; click expands the IC card below and scrolls into view; chip color stays tied to overall_health (green/yellow/red). Old in-card health badge removed (kept the source: lynx pill underneath the title). Also fixed IC loader losing .csl-chip class on hydration)">v0.55 · Stable</span>
+      <span class="version-tag" title="Build version: v0.56 locked 2026-06-20 (IC Health chip — plain white background regardless of health (green/yellow/red), status communicated via a small colored dot prefix; when score hits perfect 10/10, the chip flashes blue with a soft accent pulse until acknowledged (click the chip OR open the IC card). Acknowledgement is per-snapshot via localStorage — re-flashes only if a new snapshot arrives still at 10/10 without prior ack.)">v0.56 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -5424,8 +5455,28 @@ window.__api = (function() {
           ? `IC ${d.green_count}/${d.total_count}`
           : `IC ${d.green_count}/${d.total_count} · ${h.toUpperCase()}`;
         badge.textContent = label;
-        badge.className = 'csl-chip ic-health ic-health-' + h;
-        badge.title = `Copilot Ideal Config: ${d.green_count}/${d.total_count} healthy (${h.toUpperCase()}) — click to expand the IC card`;
+        // v0.56: status is conveyed by the colored dot prefix; background
+        // stays plain white. Perfect 10/10 adds a flashing "perfect" class
+        // until the FTA clicks the chip or opens the IC card.
+        const classes = ['csl-chip', 'ic-health', 'ic-health-' + h];
+        const isPerfect = (d.green_count === d.total_count) && d.total_count > 0;
+        if (isPerfect) {
+          // Only flash if this perfect state hasn't been acknowledged for
+          // THIS snapshot date — re-flashes on the next refresh that
+          // happens to keep the perfect state, but only once per snapshot.
+          const ackKey = `fta-ws-ic-perfect-ack:${cust}`;
+          const acked = (() => {
+            try { return localStorage.getItem(ackKey); } catch { return null; }
+          })();
+          if (acked !== d.snapshot_date) {
+            classes.push('ic-health-perfect');
+            badge.dataset.snapshotDate = d.snapshot_date || '';
+          }
+        }
+        badge.className = classes.join(' ');
+        badge.title = isPerfect
+          ? `Copilot Ideal Config: all ${d.total_count}/${d.total_count} settings healthy 🎉 — click to acknowledge`
+          : `Copilot Ideal Config: ${d.green_count}/${d.total_count} healthy (${h.toUpperCase()}) — click to expand the IC card`;
         if (source) source.textContent = 'source: ' + (d.data_source || 'unknown');
 
         body.innerHTML = d.settings.map(s => `
@@ -5582,13 +5633,39 @@ document.addEventListener("click", (e) => {
     if (pill && pill.dataset.cust) { openPecPopover(pill.dataset.cust); }
   });
   // v0.55: IC health chip click → expand IC card + scroll into view
+  // v0.56: also acknowledges the "perfect 10/10" flash (clears it for the
+  // current snapshot via localStorage so it doesn't re-flash on re-render).
+  function _ackIcPerfect(chip) {
+    if (!chip) return;
+    chip.classList.remove("ic-health-perfect");
+    const cust = window.activeCust;
+    if (cust && chip.dataset.snapshotDate) {
+      try {
+        localStorage.setItem(`fta-ws-ic-perfect-ack:${cust}`, chip.dataset.snapshotDate);
+      } catch {}
+    }
+  }
   document.addEventListener("click", (e) => {
     const chip = e.target.closest("#icHealthBadge.csl-chip");
     if (!chip) return;
+    _ackIcPerfect(chip);
     const icCard = document.getElementById("icCard");
     if (!icCard) return;
     icCard.classList.remove("collapsed");
     icCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  // Also acknowledge the flash when the FTA opens the IC card directly
+  // (clicking its header bar) — same intent: "I've seen it."
+  document.addEventListener("click", (e) => {
+    const hdr = e.target.closest("#icCard .ic-hdr");
+    if (!hdr) return;
+    // Defer one tick so the collapsed-class toggle has applied
+    setTimeout(() => {
+      const icCard = document.getElementById("icCard");
+      if (icCard && !icCard.classList.contains("collapsed")) {
+        _ackIcPerfect(document.getElementById("icHealthBadge"));
+      }
+    }, 50);
   });
 
   // ---------- Heatmap render ----------
