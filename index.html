@@ -36,12 +36,13 @@
   }
 </script>
 <style>
-  html[data-demo-mode="1" data-demo-bundle="1"] body::before {
+  html[data-demo-mode="1"] body::before {
     content: "DEMO MODE — synthetic data, no backend writes, safe to share";
     display: block; background: #ffc83d; color: #422800;
     font: 600 11px/24px "Segoe UI", system-ui, sans-serif;
     text-align: center; letter-spacing: 0.4px;
     border-bottom: 1px solid #d99c1f;
+    position: sticky; top: 0; z-index: 10000;
   }
 </style>
 <style>
@@ -2734,7 +2735,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.56 locked 2026-06-20 (IC Health chip — plain white background regardless of health (green/yellow/red), status communicated via a small colored dot prefix; when score hits perfect 10/10, the chip flashes blue with a soft accent pulse until acknowledged (click the chip OR open the IC card). Acknowledgement is per-snapshot via localStorage — re-flashes only if a new snapshot arrives still at 10/10 without prior ack.)">v0.56 · Stable</span>
+      <span class="version-tag" title="Build version: v0.57 locked 2026-06-20 (Demo bundle DEMO MODE banner restored — bundle builder's step 6 was string-replacing data-demo-mode=&quot;1&quot; which only appeared in the CSS selector, corrupting it to invalid CSS so the yellow banner never rendered on GitHub Pages. Removed the redundant replace step. Banner now sticky at top with z-index 10000 so it stays visible while scrolling. CSS rule unchanged — html[data-demo-mode='1'] body::before continues to fire when the bootstrap sets the attribute.)">v0.57 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
