@@ -946,6 +946,14 @@ table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 }
 
 .pec { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 500; }
+.pec-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.pec-note-btn {
+  appearance: none; border: 1px solid var(--cp-border);
+  background: var(--cp-surface); cursor: pointer;
+  padding: 1px 5px; border-radius: 6px; font-size: 11px; line-height: 1.2;
+  transition: background .15s, border-color .15s;
+}
+.pec-note-btn:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent); }
 .pec.yes { background: var(--cp-accent-soft); color: var(--cp-accent); cursor: pointer; transition: opacity .15s; }
 .pec.yes:hover { opacity: 0.80; }
 .pec.na  { color: var(--cp-text-muted); }
@@ -2735,7 +2743,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.58 locked 2026-06-20 (Clear pending fix — demo-api.js was missing a handler for POST /api/clawpilot/queue/clear so the GitHub Pages demo silently 404'd on click and the panel never re-rendered. Added the shim handler (resets STATE.queue.pending to []), and made the live click-handler surface a toast + handle errors gracefully on either path.)">v0.58 · Stable</span>
+      <span class="version-tag" title="Build version: v0.59 locked 2026-06-20 (PEC Engagement Note modal — new 📝 button next to each ● Yes PEC pill opens a workload-locked modal: pre-resolves the target FTOP ticket via /pec-note/resolve (workload-hint match on cached pec_details, picks most recent active), shows it in a fixed badge so the FTA can't post against the wrong workload, body textarea (≤4000 chars), subject auto-defaults to 'FT Engagement Note — KR — date'. Queues a /manage-pecs add-note bridge cart row with JSON-encoded body so newlines survive. Override dropdown if multiple PECs match. Backlog: mvp2-manage-pecs-add-note to land the inner skill action.)">v0.59 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3245,7 +3253,10 @@ function renderContent() {
     let pecCell = "";
     if (isAdmin) pecCell = `<span class="pec na">N/A</span>`;
     else if (k.p === "Yes" && k.p_src === "manual") pecCell = `<span class="pec yes pec-manual" title="Marked manually by you — will be verified on next FTOP refresh. Click to clear." data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}">● Yes · manual</span>`;
-    else if (k.p === "Yes") pecCell = `<span class="pec yes">● Yes</span>`;
+    else if (k.p === "Yes") pecCell = `<span class="pec-wrap">
+        <span class="pec yes" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Click to advance this PEC (Engage / Disengage)">● Yes</span>
+        <button class="pec-note-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Post an engagement note to this PEC in FTOP">📝</button>
+      </span>`;
     else if ((k.s === "KPI WIN" || k.s === "KPI MET" || k.s === "IN PROGRESS")) pecCell = `<button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled — modal includes a ✓ Already created option">+ Open PEC</button>`;
     else pecCell = `<span class="pec na">—</span>`;
 
@@ -8271,6 +8282,143 @@ document.addEventListener("click", (e) => {
   e.preventDefault(); e.stopPropagation();
   if (window.__pecAdvanceModal) window.__pecAdvanceModal.open({ cust, kr_label: kr });
 });
+
+// ---------- PEC Engagement Note modal ----------
+// Triggered by the 📝 button on a ● Yes PEC pill in the KR table. Locked
+// to the row's KR — the modal pre-resolves the target ticket via the
+// /pec-note/resolve endpoint and shows it as a fixed badge so the FTA
+// can't accidentally post against the wrong workload. If no ticket
+// auto-resolves, surfaces a candidate dropdown.
+window.__pecNoteModal = (function () {
+  let modal = null;
+  let ctx = null;
+  let resolved = null;
+
+  function build() {
+    if (document.getElementById("pecNoteBackdrop")) { modal = document.getElementById("pecNoteBackdrop"); return; }
+    modal = document.createElement("div");
+    modal.id = "pecNoteBackdrop";
+    modal.className = "sp-draft-backdrop";
+    modal.innerHTML = `
+      <div class="sp-draft-modal" role="dialog" aria-modal="true" style="max-width:600px;">
+        <div class="sp-draft-head">
+          <h3 id="pecNoteTitle">PEC Engagement Note</h3>
+          <span class="sp-kind-badge" style="background:#5A2D82;color:#fff;">📝 Note</span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="sp-draft-body">
+          <div class="sp-hint" id="pecNoteTarget" style="margin:0 0 10px;padding:8px 10px;background:var(--cp-surface-soft);border-radius:6px;font-size:12px;">resolving target PEC…</div>
+          <label class="fld">Subject <span class="opt">(auto-defaults if blank)</span></label>
+          <input type="text" id="pecNoteSubject" placeholder='FT Engagement Note — <KR> — <date>' />
+          <label class="fld">Body <span class="req">*</span> <span class="opt">(plain text — newlines preserved; max 4000 chars)</span></label>
+          <textarea id="pecNoteBody" rows="8" placeholder="What changed on this workload? Decisions, blockers, next actions…"></textarea>
+          <div class="sp-draft-status" id="pecNoteStatus"></div>
+          <details id="pecNoteAdvanced" style="margin-top:10px;font-size:12px;">
+            <summary style="cursor:pointer;color:var(--cp-text-muted);">Override the target ticket</summary>
+            <div style="margin-top:8px;">
+              <label class="fld">Ticket</label>
+              <select id="pecNoteTicketSelect"><option value="">— use auto-resolved —</option></select>
+            </div>
+          </details>
+        </div>
+        <div class="sp-draft-foot">
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Posts to FTOP via ftop_post_pec_note. Cart processes in ≤30 min.</span>
+          <button type="button" id="pecNoteCancel">Cancel</button>
+          <button type="button" id="pecNoteQueue" class="primary">⚡ Queue Note</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#pecNoteCancel").addEventListener("click", close);
+    modal.querySelector("#pecNoteQueue").addEventListener("click", submit);
+  }
+
+  function close() { if (modal) modal.classList.remove("show"); ctx = null; resolved = null; }
+
+  async function open(c) {
+    build();
+    ctx = c;
+    resolved = null;
+    modal.querySelector("#pecNoteTitle").textContent = `PEC Engagement Note — ${c.cust} · ${c.kr_label}`;
+    modal.querySelector("#pecNoteSubject").value = "";
+    modal.querySelector("#pecNoteBody").value = "";
+    modal.querySelector("#pecNoteStatus").textContent = "";
+    modal.querySelector("#pecNoteTarget").textContent = "resolving target PEC…";
+    modal.querySelector("#pecNoteTicketSelect").innerHTML = '<option value="">— use auto-resolved —</option>';
+    modal.classList.add("show");
+    try {
+      const r = await fetch(`/api/customer/${encodeURIComponent(c.cust)}/kr/${encodeURIComponent(c.kr_label)}/pec-note/resolve`);
+      const data = await r.json();
+      const tgt = modal.querySelector("#pecNoteTarget");
+      const sel = modal.querySelector("#pecNoteTicketSelect");
+      // Always populate the candidate dropdown
+      (data.candidates || []).forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.ticket;
+        opt.textContent = `${p.ticket} · ${p.workload || '—'} · ${p.stage || '—'}`;
+        sel.appendChild(opt);
+      });
+      if (data.ok) {
+        resolved = data;
+        tgt.innerHTML = `<strong>Target PEC:</strong> <code style="font-size:11px">${data.ticket}</code> · ${data.workload || '—'} · ${data.stage || '—'}` +
+          (data.title ? `<div style="margin-top:4px;color:var(--cp-text-muted);">${data.title}</div>` : "");
+      } else {
+        tgt.innerHTML = `<strong style="color:#C0392B;">${data.error || 'no match'}</strong>` +
+          (data.candidates && data.candidates.length
+            ? `<div style="margin-top:4px;color:var(--cp-text-muted);">Pick a ticket below to override.</div>`
+            : `<div style="margin-top:4px;color:var(--cp-text-muted);">No active PECs cached. Try Refresh Now to pull FTOP, then re-open.</div>`);
+      }
+    } catch (e) {
+      modal.querySelector("#pecNoteTarget").innerHTML = `<strong style="color:#C0392B;">Resolve failed:</strong> ${e.message}`;
+    }
+  }
+
+  async function submit() {
+    if (!ctx) return;
+    const subj = modal.querySelector("#pecNoteSubject").value.trim();
+    const body = modal.querySelector("#pecNoteBody").value.trim();
+    const ticketOverride = modal.querySelector("#pecNoteTicketSelect").value.trim();
+    const status = modal.querySelector("#pecNoteStatus");
+    if (!body) { status.textContent = "Body is required."; status.classList.add("err"); return; }
+    if (body.length > 4000) { status.textContent = `Body too long (${body.length}/4000).`; status.classList.add("err"); return; }
+    if (!ticketOverride && (!resolved || !resolved.ticket)) {
+      status.textContent = "No target ticket resolved — pick one from the override dropdown.";
+      status.classList.add("err"); return;
+    }
+    status.classList.remove("err");
+    status.textContent = "Queuing engagement note…";
+    const payload = { body };
+    if (subj) payload.subject = subj;
+    if (ticketOverride) payload.ticket = ticketOverride;
+    try {
+      const r = await fetch(`/api/customer/${encodeURIComponent(ctx.cust)}/kr/${encodeURIComponent(ctx.kr_label)}/pec-note`,
+        { method: "POST", headers: {"content-type":"application/json"}, body: JSON.stringify(payload) });
+      const data = await r.json();
+      if (!data.ok) { status.textContent = `Failed: ${data.error || 'unknown'}`; status.classList.add("err"); return; }
+      status.textContent = `✓ Note queued for ${data.ticket} — cart id ${data.id}.`;
+      if (typeof toast === "function") toast(`📝 Note queued for ${data.ticket}`, "ok");
+      if (typeof refreshCartBadge === "function") refreshCartBadge();
+      setTimeout(close, 1500);
+    } catch (e) {
+      status.textContent = `Error: ${e.message}`; status.classList.add("err");
+    }
+  }
+
+  return { open, close };
+})();
+
+// Wire: 📝 button next to ● Yes pill opens the engagement-note modal.
+// Capture-phase so the click doesn't ALSO bubble to the pill's Advance handler.
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".pec-note-btn");
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  const cust = btn.dataset.cust || window.activeCust;
+  const kr   = btn.dataset.kr;
+  if (!cust || !kr) return;
+  if (window.__pecNoteModal) window.__pecNoteModal.open({ cust, kr_label: kr });
+}, true);
 
 // ---------- Help / Info modal ("i" pill in topbar) ----------
 (function setupHelpModal() {

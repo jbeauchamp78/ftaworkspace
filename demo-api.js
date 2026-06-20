@@ -563,8 +563,7 @@
       STATE.queue.count = (STATE.queue.count || 0) + 1;
       return jsonResp({ ok: true, id, prompt: `/manage-pecs disengage ...` });
     }],
-    ["POST", /^\/api\/customer\/([^/?]+)\/kr\/([^/?]+)\/pec-advance$/, (m, opts) => {
-      const cust = decodeURIComponent(m[1]);
+    ["POST", /^\/api\/customer\/([^/?]+)\/kr\/([^/?]+)\/pec-advance$/, (m, opts) => {      const cust = decodeURIComponent(m[1]);
       const kr = decodeURIComponent(m[2]);
       let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
       const stage = (body.target_stage || "").toLowerCase();
@@ -590,6 +589,50 @@
       });
       STATE.queue.count = (STATE.queue.count || 0) + 1;
       return jsonResp({ ok: true, id, prompt, target_stage: stage });
+    }],
+
+    // ----- PEC engagement note: resolve target ticket -----
+    ["GET", /^\/api\/customer\/([^/?]+)\/kr\/([^/?]+)\/pec-note\/resolve$/, (m) => {
+      const cust = decodeURIComponent(m[1]);
+      const kr = decodeURIComponent(m[2]);
+      const c = customerByNick(cust);
+      const pecs = (c && c.pecs) || [];
+      const active = pecs.filter(p => !(p.state || "").toLowerCase() || (p.state || "").toLowerCase() === "active");
+      // Crude workload-match for demo
+      const krLow = kr.toLowerCase();
+      let chosen = active.find(p =>
+        (p.workload || "").toLowerCase().split(/\W+/).some(w => w && krLow.includes(w))
+      ) || active[0] || null;
+      if (!chosen) return jsonResp({ ok: false, error: `no active PEC for ${kr}`, candidates: active });
+      return jsonResp({
+        ok: true,
+        ticket: chosen.ticket, incident_id: chosen.incident_id,
+        workload: chosen.workload, title: chosen.title, stage: chosen.stage,
+        last_modified: chosen.last_modified, candidates: active,
+      });
+    }],
+    // ----- PEC engagement note: queue the note -----
+    ["POST", /^\/api\/customer\/([^/?]+)\/kr\/([^/?]+)\/pec-note$/, (m, opts) => {
+      const cust = decodeURIComponent(m[1]);
+      const kr = decodeURIComponent(m[2]);
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      const note = (body.body || "").trim();
+      if (!note) return jsonResp({ ok: false, error: "body is required" });
+      if (note.length > 4000) return jsonResp({ ok: false, error: "body too long (max 4000)" });
+      const ticket = (body.ticket || "DEMO-PEC-0001").trim();
+      const today = new Date().toISOString().slice(0, 10);
+      const subj = (body.subject || `FT Engagement Note — ${kr} — ${today}`).trim();
+      STATE.queue.pending = STATE.queue.pending || [];
+      const id = STATE.nextQueueId++;
+      STATE.queue.pending.push({
+        id, kind: "pec-note",
+        label: `Engagement Note → ${ticket} (${cust} · ${kr})`,
+        prompt: `/manage-pecs add-note "${cust}" --kr "${kr}" --ticket ${ticket} --subject ${JSON.stringify(subj)} --body ${JSON.stringify(note)}`,
+        cust, status: "pending", requires_user_confirm: 0,
+        trigger: "ui_pec_note", created_at: new Date().toISOString(),
+      });
+      STATE.queue.count = (STATE.queue.count || 0) + 1;
+      return jsonResp({ ok: true, id, ticket, subject: subj, status_date: today });
     }],
 
     // ----- Single-customer refresh (demo: instant success) -----
