@@ -110,6 +110,29 @@ body {
 .def-pill:hover { background: rgba(0,120,212,0.18); border-color: rgba(0,120,212,0.55); transform: translateY(-1px); }
 .def-pill .def-icon { font-size: 10px; opacity: 0.85; }
 .def-pill .def-epoch { font-weight: 700; }
+/* v0.53: KR Rules + IC Rules pills are now compound — label + epoch <select> + small "i" info btn */
+.def-pill-group { padding: 1px 2px 1px 8px; gap: 4px; cursor: default; }
+.def-pill-group:hover { transform: none; }
+.def-pill .def-pill-label { font-weight: 600; }
+.def-pill .def-epoch-select {
+  appearance: none; -webkit-appearance: none;
+  background: rgba(255,255,255,0.7); color: #0078D4;
+  border: 1px solid rgba(0,120,212,0.40);
+  border-radius: 999px; padding: 1px 18px 1px 8px;
+  font: inherit; font-size: 10px; font-weight: 700;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M1 3.5 L5 7 L9 3.5' stroke='%230078D4' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat; background-position: right 4px center;
+}
+.def-pill .def-epoch-select:hover { background-color: #fff; }
+.def-pill .def-epoch-select:focus { outline: 1.5px solid #0078D4; outline-offset: 1px; }
+.def-pill .def-info-btn {
+  appearance: none; border: 0; background: transparent;
+  width: 18px; height: 18px; border-radius: 50%;
+  font: italic 700 11px/1 inherit; color: #0078D4;
+  cursor: pointer; padding: 0; line-height: 1;
+}
+.def-pill .def-info-btn:hover { background: rgba(0,120,212,0.18); }
 .def-modal-backdrop {
   position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
   display: none; align-items: center; justify-content: center; z-index: 9000;
@@ -1841,6 +1864,28 @@ html[data-theme="win98"] .def-modal-head .def-close {
   margin: 0; font-size: 13px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.5px; color: var(--cp-text-muted);
 }
+/* v0.53: epoch tag next to section titles ("Workloads · FY26 H2") */
+.section-epoch-badge {
+  display: inline-block;
+  margin-left: 6px; padding: 1px 7px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+  text-transform: none;
+  background: rgba(0,120,212,0.10); color: #0078D4;
+  border: 1px solid rgba(0,120,212,0.30);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.epoch-empty-state {
+  padding: 28px 24px; text-align: center;
+  color: var(--cp-text-muted); background: var(--cp-surface-soft);
+  border-radius: 8px; margin: 12px;
+}
+.epoch-empty-state h4 {
+  margin: 0 0 8px; font-size: 14px; color: var(--cp-text);
+}
+.epoch-empty-state p {
+  margin: 6px auto; font-size: 12px; line-height: 1.55; max-width: 520px;
+}
 .kr-expand-btn { padding: 4px 10px; font-size: 12px; }
 
 /* Expanded KR view: hide sidebar only. Keep To Do + Ideal Config + Recommended Actions visible. */
@@ -2605,18 +2650,27 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 }
 .kr-mode-toggle button:not(.active):hover { color: var(--cp-text); }
 
-/* Non-KR table — mirrors To Do palette */
+/* Non-KR table — shares the .kr-table base class so layout, padding, row
+   height, hover, and header styling are IDENTICAL to the KR view. Only the
+   status pill (4 Non-KR states) and the notes textarea need their own rules. */
+
+/* Status dropdown — same geometry as the KR .status-select pill. */
 .nonkr-status {
+  display: inline-block;
+  padding: 3px 24px 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  font-family: inherit;
+  border: 1px solid transparent;
+  cursor: pointer;
   appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  padding: 5px 10px; border-radius: 14px; border: 1px solid var(--cp-border);
-  font-size: 11px; font-weight: 600; text-align: center; min-width: 120px;
-  cursor: pointer; transition: box-shadow 120ms;
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
-                    linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 13px) calc(50% - 2px),
-                       calc(100% - 8px) calc(50% - 2px);
-  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
-  padding-right: 24px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='currentColor' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 8px 5px;
 }
 .nonkr-status:hover { box-shadow: 0 0 0 2px var(--cp-accent-soft); }
 .nonkr-status:focus { outline: none; box-shadow: 0 0 0 2px var(--cp-accent); }
@@ -2626,31 +2680,17 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 .nonkr-status.deferred    { background-color: #BFBFBF; color: #1f1f1f; }
 .nonkr-status option { background: var(--cp-surface); color: var(--cp-text); font-weight: 500; }
 
-.nonkr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.nonkr-table th {
-  text-align: left; padding: 8px 8px; font-weight: 600; color: var(--cp-text-muted);
-  font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--cp-border);
-  background: var(--cp-surface-soft);
+/* Notes textarea — styled to match the KR .notes contenteditable cell. */
+.kr-table .nonkr-notes-input {
+  width: 100%; box-sizing: border-box;
+  min-height: 40px; padding: 6px 8px;
+  border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--cp-text);
+  font-size: 12px; font-family: inherit; line-height: 1.4;
+  resize: none; display: block; vertical-align: middle;
 }
-.nonkr-table td {
-  padding: 10px 8px; border-bottom: 1px solid var(--cp-border);
-  vertical-align: middle; box-sizing: border-box;
-}
-.nonkr-table td.workload { font-weight: 600; color: var(--cp-text); }
-.nonkr-table td.mom { text-align: right; font-variant-numeric: tabular-nums; color: var(--cp-text-muted); }
-.nonkr-table td.status-cell { }
-.nonkr-table td.pec { width: 80px; text-align: center; }
-.nonkr-table .nonkr-notes-input {
-  width: 100%; box-sizing: border-box; padding: 5px 8px;
-  border: 1px solid transparent; border-radius: 4px;
-  background: transparent; color: var(--cp-text); font-size: 12px;
-  font-family: inherit; line-height: 1.4; resize: none;
-  display: block; vertical-align: middle;
-}
-.nonkr-table .nonkr-notes-input:focus {
-  outline: none; border-color: var(--cp-accent);
-  background: var(--cp-bg-elevated, var(--cp-surface));
-}
+.kr-table .nonkr-notes-input:hover { border-color: var(--cp-border); background: var(--cp-surface-soft); }
+.kr-table .nonkr-notes-input:focus { outline: none; border-color: var(--cp-accent); background: var(--cp-surface); }
 </style>
 </head>
 <body>
@@ -2660,15 +2700,25 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.51 locked 2026-06-19 (Demo bundle hardening — build_demo_bundle.py now rewrites manifest.webmanifest absolute /static/... paths to relative ./ so the PWA manifest works on GitHub Pages subpath deployment, eliminating the favicon-256.png 404 in the live demo console; UI smoke tests updated to target the new .csl-pec-combined selector after .pec-info-pill was removed in v0.48)">v0.51 · Stable</span>
+      <span class="version-tag" title="Build version: v0.53 locked 2026-06-20 (Epoch picker on KR Rules + Copilot IC Rules topbar pills — each pill is now [label · epoch <select> · info-btn]; choices: FY26 H2 (live, default) or FY27 Q1 (scaffold for the upcoming cycle, opens an empty-state placeholder explaining the rules ship Jul 1); Workloads + Copilot Ideal Config card titles show the matching epoch badge; chart button + KR/Non-KR toggle slide right of the title; switching to FY27 Q1 hides the data tables and chart and shows the empty state; switching back to FY26 H2 restores everything. Also includes v0.52 Non-KR table layout fix from prior cart processor run)">v0.53 · Stable</span>
     </div>
     <span class="def-strip">
-      <button type="button" class="def-pill" data-def="kr" title="Click for active KR rules">
-        <span class="def-icon">📋</span> KR Rules · <span class="def-epoch" id="krEpoch">—</span>
-      </button>
-      <button type="button" class="def-pill" data-def="ideal_config" title="Click for active Copilot Ideal Config rules">
-        <span class="def-icon">⚙️</span> Copilot IC Rules · <span class="def-epoch" id="cfgEpoch">—</span>
-      </button>
+      <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
+        <span class="def-icon">📋</span><span class="def-pill-label">KR Rules</span>
+        <select class="def-epoch-select" id="krEpochSelect" aria-label="KR rules epoch">
+          <option value="FY26 H2">FY26 H2</option>
+          <option value="FY27 Q1">FY27 Q1</option>
+        </select>
+        <button type="button" class="def-info-btn" data-def="kr" aria-label="Show KR rules" title="Show full rules + changelog">i</button>
+      </span>
+      <span class="def-pill def-pill-group" data-def="ideal_config" title="Active Copilot Ideal Config rules epoch — choose another to view its posture">
+        <span class="def-icon">⚙️</span><span class="def-pill-label">Copilot IC Rules</span>
+        <select class="def-epoch-select" id="cfgEpochSelect" aria-label="Copilot IC rules epoch">
+          <option value="FY26 H2">FY26 H2</option>
+          <option value="FY27 Q1">FY27 Q1</option>
+        </select>
+        <button type="button" class="def-info-btn" data-def="ideal_config" aria-label="Show Copilot IC rules" title="Show full rules + changelog">i</button>
+      </span>
     </span>
   </div>
   <span class="meta" id="topbarMeta">James A. Beauchamp · <span title="MIDAS labels each monthly snapshot with that month's end-of-month date. Today's reading sits in an in-progress bucket (e.g., June data is stamped 2026-06-30 throughout June, then finalizes on Jul 1). The data is current; only the date label is forward-dated.">MIDAS snapshot:</span> <strong id="midasSnap" title="MIDAS publishes one snapshot per month, labeled with the last day of that month. The label updates to (in progress) for the running month and switches to the literal date once that month closes.">—</strong> · Last refresh: <strong id="lastRefresh">—</strong></span>
@@ -3384,9 +3434,9 @@ function renderContent() {
     <div class="ic-card collapsed" id="icCard">
       <div class="ic-hdr" onclick="if (event.target.tagName !== 'BUTTON') document.getElementById('icCard').classList.toggle('collapsed')">
         <span class="chev">▼</span>
-        <h3>Copilot Ideal Config</h3>
-        <span class="ic-health ic-health-unknown" id="icHealthBadge">— loading</span>
+        <h3>Copilot Ideal Config <span class="section-epoch-badge" id="icSectionEpoch">FY26 H2</span></h3>
         <span class="spacer"></span>
+        <span class="ic-health ic-health-unknown" id="icHealthBadge">— loading</span>
         <span class="ic-source muted" id="icSourceBadge"></span>
       </div>
       <div class="ic-body">
@@ -3399,19 +3449,23 @@ function renderContent() {
           </tr></thead>
           <tbody id="icTableBody"></tbody>
         </table>
+        <div class="epoch-empty-state" id="icEpochEmpty" style="display:none;">
+          <h4>No FY27 Q1 data yet</h4>
+          <p>The FY27 Q1 Copilot Ideal Config rules ship on <strong>Jul 1, 2026</strong>. Once they land, this view will start tracking your customer's posture against the new ruleset. Until then, switch back to <strong>FY26 H2</strong> in the topbar to see the active scorecard.</p>
+        </div>
       </div>
     </div>
 
     <div class="kr-card">
       <div class="kr-card-hdr">
-        <h3>Workloads</h3>
-        <button type="button" class="wl-chart-btn" id="btnWlChart" data-cust="${c.n}"
-                title="MoM progress chart for all KR workloads — multi-line view with per-workload KPI threshold overlay">📈 Chart</button>
+        <h3>Workloads <span class="section-epoch-badge" id="wlSectionEpoch">FY26 H2</span></h3>
         <span style="flex:1"></span>
         <div class="kr-mode-toggle" id="krModeToggle" role="tablist" aria-label="Switch between KR and Non-KR workload tracking">
           <button type="button" data-mode="kr" class="active" role="tab" aria-selected="true">Key Results</button>
           <button type="button" data-mode="nonkr" role="tab" aria-selected="false">Non-KR</button>
         </div>
+        <button type="button" class="wl-chart-btn" id="btnWlChart" data-cust="${c.n}"
+                title="MoM progress chart for all KR workloads — multi-line view with per-workload KPI threshold overlay">📈 Chart</button>
       </div>
       <div id="krTableWrap">
         <table class="kr-table">
@@ -3429,11 +3483,11 @@ function renderContent() {
         </table>
       </div>
       <div id="nonkrTableWrap" style="display:none;">
-        <table class="nonkr-table" data-cust="${c.n}">
+        <table class="kr-table nonkr-table" data-cust="${c.n}">
           <thead><tr>
-            <th style="width: 240px">Workload</th>
-            <th style="width: 150px">Status</th>
-            <th style="width: 90px; text-align:right">Current</th>
+            <th style="width: 200px">Workload</th>
+            <th style="width: 130px">Status</th>
+            <th style="width: 70px; text-align:right">Current</th>
             <th style="width: 80px; text-align:right">MoM</th>
             <th style="width: 80px">PEC</th>
             <th>Notes</th>
@@ -3445,6 +3499,11 @@ function renderContent() {
         <div style="font-size:11px;color:var(--cp-text-muted);margin-top:8px;padding:0 4px">
           Non-KR workloads track adoption signal outside the FY26 H2 OKR scorecard. Status + notes are FTA-managed; Current MAU + MoM populate from MIDAS on Non-KR refresh.
         </div>
+      </div>
+      <div class="epoch-empty-state" id="wlEpochEmpty" style="display:none;">
+        <h4>No FY27 Q1 data yet</h4>
+        <p>The FY27 Q1 KR thresholds + workload list ship on <strong>Jul 1, 2026</strong>. Once they land, refresh will start populating this view with the new ruleset. Until then, switch back to <strong>FY26 H2</strong> in the topbar to see the active scorecard.</p>
+        <p style="margin-top:8px;">Historical FY26 H2 data is preserved — switching epochs back to FY26 H2 restores the full view including KR notes and PEC flags.</p>
       </div>
     </div>
   `;
@@ -6620,6 +6679,69 @@ window.__queueSkill = (function () {
 (function setupDefinitions() {
   let cached = null;
 
+  // v0.53: Per-epoch UI state. Default is "FY26 H2" (the live epoch);
+  // "FY27 Q1" is a scaffold — no data yet, shows empty-state placeholder.
+  // Persisted to localStorage so the FTA's choice survives reloads.
+  const EPOCHS = ["FY26 H2", "FY27 Q1"];
+  const LIVE_EPOCH = "FY26 H2";  // bump this when a new epoch goes live
+  const LS_KR  = "fta-ws-epoch-kr";
+  const LS_IC  = "fta-ws-epoch-ic";
+  function getEpoch(kind) {
+    const v = localStorage.getItem(kind === "kr" ? LS_KR : LS_IC);
+    return EPOCHS.includes(v) ? v : LIVE_EPOCH;
+  }
+  function setEpoch(kind, value) {
+    if (!EPOCHS.includes(value)) value = LIVE_EPOCH;
+    localStorage.setItem(kind === "kr" ? LS_KR : LS_IC, value);
+    syncEpochUI(kind);
+  }
+
+  function syncEpochUI(kind) {
+    const epoch = getEpoch(kind);
+    const isLive = epoch === LIVE_EPOCH;
+    if (kind === "kr") {
+      const badge = document.getElementById("wlSectionEpoch");
+      if (badge) badge.textContent = epoch;
+      // Toggle empty-state in the Workloads card
+      const krWrap = document.getElementById("krTableWrap");
+      const nkWrap = document.getElementById("nonkrTableWrap");
+      const empty  = document.getElementById("wlEpochEmpty");
+      const toggle = document.getElementById("krModeToggle");
+      const chart  = document.getElementById("btnWlChart");
+      if (empty) empty.style.display = isLive ? "none" : "";
+      if (toggle) toggle.style.visibility = isLive ? "" : "hidden";
+      if (chart) chart.style.visibility = isLive ? "" : "hidden";
+      if (krWrap && nkWrap) {
+        if (!isLive) {
+          krWrap.style.display = "none";
+          nkWrap.style.display = "none";
+        } else {
+          // Restore based on current KR-mode toggle
+          const active = toggle ? toggle.querySelector('button.active') : null;
+          const mode = active ? active.dataset.mode : "kr";
+          krWrap.style.display = (mode === "kr") ? "" : "none";
+          nkWrap.style.display = (mode === "kr") ? "none" : "";
+        }
+      }
+    } else {
+      const badge = document.getElementById("icSectionEpoch");
+      if (badge) badge.textContent = epoch;
+      const icBody = document.querySelector("#icCard .ic-body table");
+      const empty  = document.getElementById("icEpochEmpty");
+      const health = document.getElementById("icHealthBadge");
+      if (empty) empty.style.display = isLive ? "none" : "";
+      if (icBody) icBody.style.display = isLive ? "" : "none";
+      if (health) health.style.visibility = isLive ? "" : "hidden";
+    }
+    // Update topbar epoch select if present
+    const sel = document.getElementById(kind === "kr" ? "krEpochSelect" : "cfgEpochSelect");
+    if (sel && sel.value !== epoch) sel.value = epoch;
+  }
+
+  // Expose for the spotlights/hydrate cycle so a customer-block re-render
+  // can re-apply the active epoch's UI state.
+  window.__epochs = { get: getEpoch, set: setEpoch, sync: syncEpochUI, LIVE: LIVE_EPOCH };
+
   function fmtDate(iso) {
     if (!iso) return "—";
     try {
@@ -6659,8 +6781,26 @@ window.__queueSkill = (function () {
     const body = document.getElementById("defModalBody");
     const data = kind === "kr" ? cached.kr : cached.ideal_config;
     const headerTitle = kind === "kr" ? "KR Rules" : "Copilot Ideal Config Rules";
+    const selectedEpoch = window.__epochs ? window.__epochs.get(kind) : data.epoch;
     title.textContent = headerTitle;
-    epoch.textContent = data.epoch;
+    epoch.textContent = selectedEpoch;
+
+    // FY27 Q1 (scaffold-only) shows a placeholder body instead of the
+    // FY26 H2 ruleset. When real rules ship, this branch can be removed.
+    if (selectedEpoch !== (window.__epochs ? window.__epochs.LIVE : "FY26 H2")) {
+      body.innerHTML = `
+        <div class="def-sub">FY27 Q1 rules — pending publish</div>
+        <div class="def-section-title">Not yet defined</div>
+        <p style="font-size:13px;line-height:1.6;color:var(--cp-text-muted);">
+          The ${headerTitle.toLowerCase()} for FY27 Q1 will be published with the FY27 OKR cycle on
+          <strong>July 1, 2026</strong>. Until then, this view shows the FY26 H2 ruleset by default.
+        </p>
+        <p style="font-size:13px;line-height:1.6;color:var(--cp-text-muted);">
+          Switch the topbar dropdown back to <strong>FY26 H2</strong> to see the active ruleset.
+        </p>`;
+      back.classList.add("show");
+      return;
+    }
 
     const scopeRows = (data.scope || []).map(s =>
       `<li><span class="def-name">${s.name}</span><span class="def-rule">${s.rule || s.desc || ""}</span></li>`
@@ -6695,18 +6835,63 @@ window.__queueSkill = (function () {
     try {
       const r = await fetch("/api/definitions");
       cached = await r.json();
-      const k = document.getElementById("krEpoch");
-      const c = document.getElementById("cfgEpoch");
-      if (k && cached.kr) k.textContent = cached.kr.epoch;
-      if (c && cached.ideal_config) c.textContent = cached.ideal_config.epoch;
     } catch (e) { console.warn("definitions load failed", e); }
+    // Initialize topbar selects from saved/default epoch, sync UI everywhere
+    const krSel = document.getElementById("krEpochSelect");
+    const icSel = document.getElementById("cfgEpochSelect");
+    if (krSel) krSel.value = window.__epochs ? window.__epochs.get("kr") : "FY26 H2";
+    if (icSel) icSel.value = window.__epochs ? window.__epochs.get("ideal_config") : "FY26 H2";
+    if (window.__epochs) {
+      window.__epochs.sync("kr");
+      window.__epochs.sync("ideal_config");
+    }
   }
 
-  document.querySelectorAll(".def-pill").forEach(p => {
-    p.addEventListener("click", () => renderModal(p.dataset.def));
+  // Wire up: epoch dropdowns + info buttons. Selects swap epoch; "i" opens
+  // the rules modal. The select must stop click propagation so opening the
+  // dropdown doesn't also fire the wrapper button.
+  document.addEventListener("change", (e) => {
+    if (e.target.id === "krEpochSelect" && window.__epochs) {
+      window.__epochs.set("kr", e.target.value);
+    } else if (e.target.id === "cfgEpochSelect" && window.__epochs) {
+      window.__epochs.set("ideal_config", e.target.value);
+    }
+  });
+  document.addEventListener("click", (e) => {
+    const info = e.target.closest(".def-info-btn");
+    if (info) {
+      e.stopPropagation();
+      renderModal(info.dataset.def);
+    }
   });
 
   loadDefinitions();
+  // After every customer-block re-render, re-apply the active epoch UI.
+  // CRITICAL: must be debounced — a naive MutationObserver on the whole
+  // body fires for EVERY child mutation and we mutate the DOM inside
+  // syncEpochUI (style changes count), so a tight loop would freeze the
+  // page. Coalesce to a single rAF + only sync when the relevant target
+  // elements exist and the active epoch differs from the rendered one.
+  let _scheduled = false;
+  const obs = new MutationObserver(() => {
+    if (_scheduled || !window.__epochs) return;
+    _scheduled = true;
+    requestAnimationFrame(() => {
+      _scheduled = false;
+      try {
+        // Only sync if the section badges exist and haven't been written yet
+        const wlBadge = document.getElementById("wlSectionEpoch");
+        const icBadge = document.getElementById("icSectionEpoch");
+        if (wlBadge && wlBadge.textContent !== window.__epochs.get("kr")) {
+          window.__epochs.sync("kr");
+        }
+        if (icBadge && icBadge.textContent !== window.__epochs.get("ideal_config")) {
+          window.__epochs.sync("ideal_config");
+        }
+      } catch {}
+    });
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
 })();
 
 // ---------- Non-KR table — toggle slider + fetch + edit ----------
@@ -6727,9 +6912,12 @@ window.__queueSkill = (function () {
   function statusClass(s) { return NONKR_CLASSES[s] || "not-started"; }
 
   function fmtMoM(p) {
-    if (p == null || isNaN(p)) return "—";
-    const sign = p > 0 ? "+" : "";
-    return `${sign}${Math.round(p * 10) / 10}%`;
+    if (p == null || isNaN(p)) return `<span class="mom muted">—</span>`;
+    const v = Math.round(p * 10) / 10;
+    const arrow = v > 0 ? "↑" : (v < 0 ? "↓" : "→");
+    const cls = v > 0 ? "up" : (v < 0 ? "down" : "flat");
+    const sign = v > 0 ? "+" : "";
+    return `<span class="mom ${cls}">${arrow} ${sign}${v}%</span>`;
   }
   function fmtMau(v) {
     if (v == null || isNaN(v)) return "—";
@@ -6786,14 +6974,14 @@ window.__queueSkill = (function () {
           pecHtml = `<button class="pec missing pec-open-btn" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled — modal includes a ✓ Already created option">+ Open PEC</button>`;
         }
         return `<tr>
-          <td class="workload">${w.workload}</td>
-          <td class="status-cell"><select class="nonkr-status ${sc}"
+          <td class="kr-name">${w.workload}</td>
+          <td><select class="nonkr-status ${sc}"
                       data-cust="${cust}" data-wl="${w.workload}" data-field="status">
                 ${opts}
               </select></td>
-          <td class="mom">${fmtMau(w.current_mau)}</td>
-          <td class="mom">${fmtMoM(w.mom_pct)}</td>
-          <td class="pec">${pecHtml}</td>
+          <td class="numeric">${fmtMau(w.current_mau)}</td>
+          <td class="numeric">${fmtMoM(w.mom_pct)}</td>
+          <td>${pecHtml}</td>
           <td>${noteHtml}</td>
         </tr>`;
       }).join("");
@@ -6815,7 +7003,14 @@ window.__queueSkill = (function () {
     const nkWrap = document.getElementById("nonkrTableWrap");
     const toggle = document.getElementById("krModeToggle");
     if (!krWrap || !nkWrap || !toggle) return;
-    if (mode === "nonkr") {
+    // v0.53: respect epoch — if FY27 Q1 is selected, the empty-state is
+    // already showing; don't unhide the tables.
+    const epoch = (window.__epochs && window.__epochs.get("kr")) || "FY26 H2";
+    const isLive = !window.__epochs || epoch === window.__epochs.LIVE;
+    if (!isLive) {
+      krWrap.style.display = "none";
+      nkWrap.style.display = "none";
+    } else if (mode === "nonkr") {
       krWrap.style.display = "none";
       nkWrap.style.display = "";
       const cust = window.activeCust;
