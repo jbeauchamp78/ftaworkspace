@@ -2,8 +2,8 @@
   "name": "FTA Workspace",
   "short_name": "FTA Workspace",
   "description": "FastTrack Architect portfolio dashboard — KR scorecard, Ideal Config posture, recommended actions.",
-  "start_url": "/static/index.html",
-  "scope": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "any",
@@ -11,10 +11,10 @@
   "background_color": "#0f172a",
   "lang": "en-US",
   "icons": [
-    { "src": "/static/favicon-64.png?v=0.16",  "sizes": "64x64",   "type": "image/png", "purpose": "any" },
-    { "src": "/static/favicon-256.png?v=0.16", "sizes": "256x256", "type": "image/png", "purpose": "any" },
-    { "src": "/static/favicon-512.png?v=0.16", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/static/favicon-512.png?v=0.16", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "./favicon-64.png?v=0.16",  "sizes": "64x64",   "type": "image/png", "purpose": "any" },
+    { "src": "./favicon-256.png?v=0.16", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "./favicon-512.png?v=0.16", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./favicon-512.png?v=0.16", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "categories": ["productivity", "business"],
   "id": "fta-workspace"
