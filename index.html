@@ -44,6 +44,67 @@
     border-bottom: 1px solid #d99c1f;
     position: sticky; top: 0; z-index: 10000;
   }
+  /* ===== v0.65: Server-offline overlay ===== */
+  .srv-offline-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 99999;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: srvOfflineFadeIn 0.3s ease-out;
+  }
+  @keyframes srvOfflineFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .srv-offline-card {
+    background: #fff; border-radius: 14px;
+    padding: 32px 36px; max-width: 600px; width: 92%;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.45);
+    font: 14px/1.55 "Segoe UI", system-ui, sans-serif;
+    color: #242424;
+  }
+  .srv-offline-icon { font-size: 56px; text-align: center; color: #D83B01; margin-bottom: 8px; }
+  .srv-offline-title { margin: 0 0 6px; text-align: center; font-size: 22px; font-weight: 700; color: #242424; }
+  .srv-offline-subtitle { margin: 0 0 24px; text-align: center; color: #555; }
+  .srv-offline-subtitle code {
+    background: #f3f3f3; padding: 1px 6px; border-radius: 4px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+  }
+  .srv-offline-section { margin-top: 18px; padding-top: 18px; border-top: 1px solid #e6e6e6; }
+  .srv-offline-section h3 {
+    margin: 0 0 6px; font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.4px; color: #666;
+  }
+  .srv-offline-section p { margin: 4px 0; }
+  .srv-offline-cmd-box {
+    display: flex; align-items: stretch; gap: 6px;
+    background: #1e1e1e; color: #d4d4d4;
+    border-radius: 6px; padding: 10px 12px; margin-top: 8px;
+  }
+  .srv-offline-cmd-box code {
+    flex: 1; font: 11.5px/1.45 ui-monospace, Consolas, monospace;
+    word-break: break-all; user-select: all;
+  }
+  .srv-offline-copy-btn {
+    appearance: none; border: 1px solid #444; background: #2d2d2d;
+    color: #fff; cursor: pointer;
+    padding: 4px 10px; border-radius: 4px; font-size: 11px;
+    white-space: nowrap; align-self: flex-start;
+  }
+  .srv-offline-copy-btn:hover { background: #444; }
+  .srv-offline-hint { font-size: 12px; color: #777; margin-top: 6px; }
+  .srv-offline-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+  .srv-offline-retry-btn {
+    appearance: none; border: 0; background: #0078D4; color: #fff;
+    padding: 9px 18px; border-radius: 6px; font: 600 13px/1 inherit;
+    cursor: pointer; transition: background .15s;
+  }
+  .srv-offline-retry-btn:hover { background: #106EBE; }
+  .srv-offline-dismiss-btn {
+    appearance: none; border: 1px solid #ccc; background: #fff;
+    padding: 9px 16px; border-radius: 6px; font: 500 13px/1 inherit;
+    color: #555; cursor: pointer;
+  }
+  .srv-offline-dismiss-btn:hover { background: #f5f5f5; }
 </style>
 <style>
 :root {
@@ -2847,12 +2908,44 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 </head>
 <body>
 
+<!-- ===== Server offline overlay (v0.65) =====
+     Hidden by default; shown when the health watch detects N consecutive
+     failures. Provides a copy-paste restart command + an auto-retry. -->
+<div id="serverOfflineOverlay" class="srv-offline-backdrop" style="display:none;">
+  <div class="srv-offline-card">
+    <div class="srv-offline-icon">⚠</div>
+    <h2 class="srv-offline-title">FTA Workspace is offline</h2>
+    <p class="srv-offline-subtitle">The local backend server at <code>127.0.0.1:8765</code> isn't responding.</p>
+    <div class="srv-offline-section">
+      <h3>Why this happens</h3>
+      <p>The Workspace runs as a localhost process. If your machine slept, restarted, or the terminal that started it was closed, the server stops and the UI loses its data feed.</p>
+    </div>
+    <div class="srv-offline-section">
+      <h3>Restart the server</h3>
+      <p>Open a PowerShell window and run:</p>
+      <div class="srv-offline-cmd-box">
+        <code id="srvOfflineCmd">cd "$env:USERPROFILE\.copilot\skills\fta-workspace"; Start-Process python -ArgumentList "-m","uvicorn","app.main:app","--host","127.0.0.1","--port","8765" -WorkingDirectory $PWD -WindowStyle Hidden</code>
+        <button type="button" class="srv-offline-copy-btn" id="srvOfflineCopyBtn">📋 Copy</button>
+      </div>
+      <p class="srv-offline-hint">Or double-click the <strong>FTA Workspace</strong> desktop shortcut if you have one installed.</p>
+    </div>
+    <div class="srv-offline-section">
+      <h3>I'm checking every 5 seconds…</h3>
+      <p>This screen will dismiss itself the moment the server comes back. Last check: <strong id="srvOfflineLastCheck">just now</strong> · Failed attempts: <strong id="srvOfflineAttempts">0</strong></p>
+    </div>
+    <div class="srv-offline-actions">
+      <button type="button" class="srv-offline-retry-btn" id="srvOfflineRetryBtn">↻ Retry now</button>
+      <button type="button" class="srv-offline-dismiss-btn" id="srvOfflineDismissBtn">Dismiss for this tab</button>
+    </div>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="topbar-title">
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.64 locked 2026-06-20 (Audit pass on every cart-queuing modal for the v0.63 'stuck disabled button' pattern: (1) Spotlight draft + already-created — fixed in v0.63. (2) PEC draft submit — fixed in v0.63. (3) PEC Advance/Disengage — no disable, safe. (4) PEC Engagement Note — no disable, safe. (5) Drill panel '+ queue' buttons — intentionally stay disabled with '✓ queued' label, safe. (6) Refresh Now topbar — has finally clause, safe. (7) Cart row ✓ Approve — re-renders panel on success, safe. (8) Heatmap tile editor + queue-confirm modal — no disable, safe. All vulnerable modals now use re-enable-before-close + defensive reset on open. Companion cleanup: pruned 9 obsolete cart-processor automation session folders (~7 MB) from ~/.copilot/session-state/.)">v0.64 · Stable</span>
+      <span class="version-tag" title="Build version: v0.65 locked 2026-06-20 (Server-offline overlay — when the FTA Workspace localhost backend at 127.0.0.1:8765 stops responding (machine slept, terminal closed, crash), the UI no longer just sits there showing stale '—' counters. Instead a full-screen modal appears explaining what happened, providing a one-click 📋 Copy of the exact PowerShell command to restart, auto-retrying every 5 seconds, and auto-reloading the page the moment the server comes back. Dismissible per-tab for users who want to view the cached state without the overlay. Demo mode is exempt (no real backend to lose).)">v0.65 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -9114,6 +9207,99 @@ window.__cartLogModal = (function () {
 // Required for Edge to surface the "Install app" button. We must register
 // at root scope ("/") so it can intercept both /static/* and /api/*.
 /* SW registration stripped from bundle */
+</script>
+
+<!-- ===== v0.65: Server-offline watch ===== -->
+<script>
+(function setupServerWatch() {
+  // Demo mode never goes "offline" — the shim is in-memory.
+  if (/[?&]demo=1\b/.test(location.search) || location.pathname === "/demo") return;
+
+  const overlay   = document.getElementById("serverOfflineOverlay");
+  const lastCheck = document.getElementById("srvOfflineLastCheck");
+  const attemptsE = document.getElementById("srvOfflineAttempts");
+  const retryBtn  = document.getElementById("srvOfflineRetryBtn");
+  const dismissBt = document.getElementById("srvOfflineDismissBtn");
+  const copyBtn   = document.getElementById("srvOfflineCopyBtn");
+  const cmdEl     = document.getElementById("srvOfflineCmd");
+  if (!overlay) return;
+
+  let consecutiveFails = 0;
+  let dismissed = false;
+  let pollTimer = null;
+  const FAIL_THRESHOLD = 2;   // show overlay after 2 consecutive failures (~10s)
+  const POLL_INTERVAL  = 5000; // 5s when offline; 30s when online
+
+  function fmtTime() {
+    const d = new Date();
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+  }
+  function showOverlay() {
+    if (dismissed) return;
+    if (overlay.style.display !== "flex") overlay.style.display = "flex";
+  }
+  function hideOverlay() {
+    if (overlay.style.display !== "none") overlay.style.display = "none";
+  }
+
+  async function probe() {
+    let ok = false;
+    try {
+      // 3s timeout via AbortController so a hung connection doesn't stall
+      const ctl = new AbortController();
+      const tid = setTimeout(() => ctl.abort(), 3000);
+      const r = await fetch("/api/health", { method: "GET", signal: ctl.signal, cache: "no-store" });
+      clearTimeout(tid);
+      ok = r.ok;
+    } catch { ok = false; }
+    if (lastCheck) lastCheck.textContent = fmtTime();
+    if (ok) {
+      if (consecutiveFails >= FAIL_THRESHOLD) {
+        // Coming back online — reload the page to re-fetch fresh data
+        hideOverlay();
+        consecutiveFails = 0;
+        // brief flash before reload
+        setTimeout(() => { try { location.reload(); } catch {} }, 250);
+        return true;
+      }
+      consecutiveFails = 0;
+      hideOverlay();
+      return true;
+    }
+    consecutiveFails++;
+    if (attemptsE) attemptsE.textContent = consecutiveFails;
+    if (consecutiveFails >= FAIL_THRESHOLD) showOverlay();
+    return false;
+  }
+
+  function schedule() {
+    if (pollTimer) clearTimeout(pollTimer);
+    const wait = overlay.style.display === "flex" ? POLL_INTERVAL : 30_000;
+    pollTimer = setTimeout(() => { probe().then(schedule); }, wait);
+  }
+
+  // First probe on load — fire immediately, then schedule
+  probe().then(schedule);
+
+  // Wire up overlay buttons
+  if (retryBtn) retryBtn.addEventListener("click", () => probe().then(schedule));
+  if (dismissBt) dismissBt.addEventListener("click", () => { dismissed = true; hideOverlay(); });
+  if (copyBtn && cmdEl) {
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(cmdEl.textContent.trim());
+        copyBtn.textContent = "✓ Copied";
+        setTimeout(() => { copyBtn.textContent = "📋 Copy"; }, 1500);
+      } catch {
+        copyBtn.textContent = "copy failed";
+        setTimeout(() => { copyBtn.textContent = "📋 Copy"; }, 1500);
+      }
+    });
+  }
+
+  // Browser regaining network is a great moment to re-probe
+  window.addEventListener("online", () => probe().then(schedule));
+})();
 </script>
 </body>
 </html>
