@@ -316,7 +316,7 @@
           completed_at: iso(new Date(today.getTime() - 1000*60*60*3 + 1000*60*2)),
         },
         { id: 903, kind: "pec-draft", label: "Open PEC - Initech - Copilot Chat",
-          prompt: '/manage-pecs draft "Initech" --kr "Copilot Chat" --stage triage --workload "Copilot Chat" --deploy-lead FastTrack',
+          prompt: '/manage-pecs create PEC for "Initech" on workload "Copilot Chat" (deploy lead: FastTrack) in Triage stage.',
           cust: "Initech", status: "failed", result: "failed",
           summary: "FTOP returned 502 on incident-create. Will retry on next heartbeat.",
           created_at: iso(new Date(today.getTime() - 1000*60*60*5)),
@@ -459,12 +459,12 @@
       STATE.queue.pending.push({
         id, kind: "insight-draft",
         label: `Insight - ${cust}${body.kr_label ? " - " + body.kr_label : ""}`,
-        prompt: `/insight create "${cust}" --payload "[demo-staged]/${cust}-${id}.json"`,
+        prompt: `/insight create "${cust}"\n# Workspace pre-fill draft staged at: [demo-staged]/${cust}-${id}.json`,
         cust, status: "pending", requires_user_confirm: 0,
         trigger: "ui_insight_draft", created_at: nowSql,
       });
       STATE.queue.count = (STATE.queue.count || 0) + 1;
-      return jsonResp({ ok: true, id, prompt: `/insight create "${cust}" ...`, requires_user_confirm: 0 });
+      return jsonResp({ ok: true, id, prompt: `/insight create "${cust}"`, requires_user_confirm: 0 });
     }],
     ["GET", /^\/api\/insights\/summary$/, () => {
       // Demo: synthesize a small but believable count
@@ -578,14 +578,14 @@
       STATE.queue.pending.push({
         id, kind: "spotlight-draft",
         label: `${body.kind === "lowlight" ? "(Lowlight) " : ""}Spotlight - ${cust}${body.kr_label ? " - " + body.kr_label : ""}`,
-        prompt: `/spotlight --payload "[demo-staged]/${cust}-${id}.json"`,
+        prompt: `/spotlight "${cust}"\n# Workspace pre-fill draft staged at: [demo-staged]/${cust}-${id}.json`,
         cust, status: "pending", requires_user_confirm: 0,
         trigger: "ui_spotlight_draft", created_at: nowSql,
       });
       STATE.queue.count = (STATE.queue.count || 0) + 1;
       return jsonResp({
         ok: true, id, staged_path: `[demo-staged]/${cust}-${id}.json`,
-        prompt: `/spotlight --payload "[demo-staged]/${cust}-${id}.json"`,
+        prompt: `/spotlight "${cust}"\n# Workspace pre-fill draft staged at: [demo-staged]/${cust}-${id}.json`,
         requires_user_confirm: 0, auto_submit_enabled: false,
       });
     }],
@@ -649,7 +649,7 @@
       STATE.queue.pending.push({
         id, kind: "pec-draft-create",
         label: `PEC create - ${cust} - ${wl0.label}${more}`,
-        prompt: `/manage-pecs create "${cust}" --payload "[demo-staged]/pec-${cust}-${id}.json"`,
+        prompt: `/manage-pecs create PEC for "${cust}" in Triage stage.\n# Workspace pre-fill draft staged at: [demo-staged]/pec-${cust}-${id}.json`,
         cust, status: "pending", requires_user_confirm: 0,
         trigger: "ui_pec_draft", created_at: new Date().toISOString(),
       });
@@ -657,7 +657,7 @@
       return jsonResp({
         ok: true, id,
         staged_path: `[demo-staged]/pec-${cust}-${id}.json`,
-        prompt: `/manage-pecs create "${cust}" ...`,
+        prompt: `/manage-pecs create PEC for "${cust}" in Triage stage`,
         requires_user_confirm: 0, auto_submit_enabled: false,
       });
     }],
@@ -775,12 +775,12 @@
       STATE.queue.pending.push({
         id, kind: "pec-disengage",
         label: `Disengage PEC - ${cust} - ${kr}`,
-        prompt: `/manage-pecs disengage "${cust}" --kr "${kr}" --reason "${body.reason}" --handshake "${body.handshake}"`,
+        prompt: `/manage-pecs disengage PEC for "${cust}" on KR "${kr}", reason: "${body.reason}", handshake: "${body.handshake}".`,
         cust, status: "pending", requires_user_confirm: 0,
         trigger: "ui_pec_disengage", created_at: new Date().toISOString(),
       });
       STATE.queue.count = (STATE.queue.count || 0) + 1;
-      return jsonResp({ ok: true, id, prompt: `/manage-pecs disengage ...` });
+      return jsonResp({ ok: true, id, prompt: `/manage-pecs disengage PEC ...` });
     }],
     ["POST", /^\/api\/customer\/([^/?]+)\/kr\/([^/?]+)\/pec-advance$/, (m, opts) => {      const cust = decodeURIComponent(m[1]);
       const kr = decodeURIComponent(m[2]);
@@ -799,8 +799,8 @@
         ? `Advance PEC → Engage - ${cust} - ${kr}`
         : `Disengage PEC - ${cust} - ${kr}`;
       const prompt = stage === "engage"
-        ? `/manage-pecs advance "${cust}" --kr "${kr}" --stage engage`
-        : `/manage-pecs disengage "${cust}" --kr "${kr}" --reason "${body.reason}" --handshake "${body.handshake}"`;
+        ? `/manage-pecs advance PEC for "${cust}" on KR "${kr}" from Triage to Engage. (Please confirm before writing.)`
+        : `/manage-pecs disengage PEC for "${cust}" on KR "${kr}", reason: "${body.reason}", handshake: "${body.handshake}".`;
       STATE.queue.pending.push({
         id, kind, label, prompt, cust,
         status: "pending", requires_user_confirm: 0,
