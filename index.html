@@ -105,6 +105,28 @@
     color: #555; cursor: pointer;
   }
   .srv-offline-dismiss-btn:hover { background: #f5f5f5; }
+  /* ===== v0.71: Missing-skills banner ===== */
+  .missing-skills-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; background: #FFF4CE; color: #8A6D00;
+    border-bottom: 1px solid #F2C949;
+    font: 12.5px/1.4 "Segoe UI", system-ui, sans-serif;
+    position: sticky; top: 0; z-index: 9999;
+  }
+  .missing-skills-banner .msb-icon { font-size: 16px; flex-shrink: 0; }
+  .missing-skills-banner .msb-text { flex: 1; }
+  .missing-skills-banner .msb-link {
+    color: #8A6D00; font-weight: 700; text-decoration: underline; cursor: pointer;
+    white-space: nowrap;
+  }
+  .missing-skills-banner .msb-link:hover { color: #5D4900; }
+  .missing-skills-banner .msb-dismiss {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font-size: 18px; line-height: 1; color: #8A6D00; padding: 0 4px;
+  }
+  .missing-skills-banner .msb-dismiss:hover { color: #5D4900; }
+  /* When the demo banner is also present, stack them */
+  html[data-demo-mode="1"] .missing-skills-banner { top: 24px; }
 </style>
 <style>
 :root {
@@ -2972,12 +2994,28 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   </div>
 </div>
 
+<!-- ===== v0.71: Missing-skills banner — surfaces when required upstream
+     skills (insight, spotlight, manage-pecs, pec-engagement-note) are
+     not present in ~/.copilot/skills/. The workspace can queue actions
+     against them, but the bridge runner will fail until they're installed.
+     Hidden by default; the script at the bottom of this file unhides + fills. -->
+<div id="missingSkillsBanner" class="missing-skills-banner" style="display:none;">
+  <span class="msb-icon">⚠</span>
+  <span class="msb-text">
+    <strong>Some FastTrack skills are missing</strong> —
+    <span id="msbMissingList">…</span>.
+    Cart items for these will fail until you install them.
+  </span>
+  <a id="msbHelpLink" href="#" class="msb-link">Show me how →</a>
+  <button type="button" class="msb-dismiss" id="msbDismiss" aria-label="Dismiss" title="Dismiss for this tab">×</button>
+</div>
+
 <div class="topbar">
   <div class="topbar-title">
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.70 locked 2026-06-21 (Ideal Config 'forever loading' hotfix — both _resolve_oms_tenant_id (FTOP Dataverse call) and _fetch_lynx (Lynx CopilotSettings call) were issuing async fetches with NO timeout, so when Edge CDP was unreachable / auth was stale / network was slow, the IC card spinner never finished. Wrapped both in asyncio.wait_for — 4s for the Dataverse lookup and 8s for the Lynx fetch. Failures now log a breadcrumb and fall through to the stub fallback that was always there but unreachable. IC chip in the customer-statusline shows 'IC X/10 · YELLOW' from the stub instead of perpetual '— loading IC'.)">v0.70 · Stable</span>
+      <span class="version-tag" title="Build version: v0.71 locked 2026-06-21 (Two fixes: (1) Insight modal — Workload field was an empty read-only text input when launched from the customer-card 💡 button (no KR context to derive from). Replaced with a <select> dropdown with optgroups for KR (15 OKR workloads) and Non-KR (Exchange/SharePoint/OneDrive/Teams/Viva/Loop/Stream/Forms/Planner/Whiteboard/Power Automate/Power Apps/Outlook Mobile/Bookings). Pre-selects when opened from a KR row; required for submit. (2) Missing-skills banner — workspace requires /insight, /spotlight, /manage-pecs, /pec-engagement-note to be installed locally for the cart to drain cleanly. New sticky yellow banner at top lists any of the 4 that aren't in /api/skills/installed, with a help dialog pointing to /update-skills. Dismissible per-tab. Backlog item mvp2-bootstrap-pull-upstream-skills queued to make /ftaworkspace install auto-pull them.)">v0.71 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -8857,9 +8895,11 @@ window.__insightDraftForm = (function () {
               <span class="sp-hint">≤ 200 chars · keep it factual + searchable</span>
             </div>
             <div>
-              <label class="fld">Workload</label>
-              <input type="text" id="insWorkload" readonly />
-              <span class="sp-hint">Resolved from KR row context</span>
+              <label class="fld">Workload <span class="req">*</span></label>
+              <select id="insWorkload">
+                <option value="" disabled selected>Choose a workload…</option>
+              </select>
+              <span class="sp-hint">KR + Non-KR workloads · auto-selected from KR row when launched there</span>
             </div>
           </div>
           <label class="fld">Scenario / Context <span class="req">*</span></label>
@@ -8909,6 +8949,59 @@ window.__insightDraftForm = (function () {
 
   function close() { if (modal) modal.classList.remove("show"); currentCtx = null; }
 
+  // v0.71: Canonical workload list for the Insight modal dropdown.
+  // KR workloads (top, optgroup) match the 15 thresholds backend uses for
+  // KR scoring. Non-KR workloads come from the local Non-KR catalog when
+  // the page exposes it (window.NON_KR_WORKLOADS_OPTIONS), otherwise a
+  // built-in fallback set is used.
+  const _INS_KR_OPTIONS = [
+    "M365 Copilot", "Copilot Chat", "Copilot Agents",
+    "MDE Usage", "MDE Admin Days", "MDO Usage", "MDO Admin Days",
+    "MDI Usage", "MDI Admin Days", "MDA Usage", "MDA Admin Days",
+    "IP P2", "IRM", "Win365 Paid", "Win365 POC",
+  ];
+  const _INS_NONKR_FALLBACK = [
+    "Exchange Online", "SharePoint Online", "OneDrive for Business",
+    "Microsoft Teams", "Teams Phone", "Teams Meetings",
+    "Viva Engage", "Viva Insights", "Microsoft Loop",
+    "Microsoft Stream", "Microsoft Forms", "Microsoft Planner",
+    "Microsoft Whiteboard", "Power Automate", "Power Apps",
+    "Outlook Mobile", "Bookings",
+  ];
+  function _populateWorkloadOptions(sel, preselect) {
+    sel.innerHTML = "";
+    const blank = document.createElement("option");
+    blank.value = ""; blank.disabled = true; blank.selected = true;
+    blank.textContent = "Choose a workload…";
+    sel.appendChild(blank);
+    const krGroup = document.createElement("optgroup");
+    krGroup.label = "KR (OKR-scored)";
+    _INS_KR_OPTIONS.forEach(w => {
+      const o = document.createElement("option");
+      o.value = w; o.textContent = w;
+      krGroup.appendChild(o);
+    });
+    sel.appendChild(krGroup);
+    const nkGroup = document.createElement("optgroup");
+    nkGroup.label = "Non-KR";
+    const nkList = (window.NON_KR_WORKLOADS_OPTIONS && window.NON_KR_WORKLOADS_OPTIONS.length)
+      ? window.NON_KR_WORKLOADS_OPTIONS : _INS_NONKR_FALLBACK;
+    nkList.forEach(w => {
+      const o = document.createElement("option");
+      o.value = w; o.textContent = w;
+      nkGroup.appendChild(o);
+    });
+    sel.appendChild(nkGroup);
+    if (preselect) {
+      // Try exact match first, then case-insensitive
+      const match = Array.from(sel.options).find(o =>
+        o.value === preselect ||
+        o.value.toLowerCase() === preselect.toLowerCase()
+      );
+      if (match) { sel.value = match.value; blank.selected = false; }
+    }
+  }
+
   async function open(ctx) {
     build();
     currentCtx = ctx;
@@ -8919,7 +9012,7 @@ window.__insightDraftForm = (function () {
     modal.querySelector("#insightDraftTitle").textContent =
       `Submit FT Feedback Insight — ${ctx.cust}${ctx.kr_label ? " · " + ctx.kr_label : ""}`;
     modal.querySelector("#insTitle").value = "";
-    modal.querySelector("#insWorkload").value = "";
+    _populateWorkloadOptions(modal.querySelector("#insWorkload"), ctx.kr_label || "");
     modal.querySelector("#insScenario").value = "";
     modal.querySelector("#insImpact").value = "";
     modal.querySelector("#insDesired").value = "";
@@ -8942,14 +9035,17 @@ window.__insightDraftForm = (function () {
       const data = await r.json();
       if (data.ok && data.draft) {
         modal.querySelector("#insTitle").value = data.draft.title || "";
-        modal.querySelector("#insWorkload").value = data.draft.workload_hint || "";
+        // Re-apply preselect if backend resolved a workload hint
+        if (data.draft.workload_hint) {
+          _populateWorkloadOptions(modal.querySelector("#insWorkload"), data.draft.workload_hint);
+        }
         modal.querySelector("#insScenario").value = data.draft.scenario || "";
         modal.querySelector("#insImpact").value = data.draft.impact || "";
         modal.querySelector("#insDesired").value = data.draft.desired_outcome || "";
         modal.querySelector("#insPriority").value = data.draft.priority || "P3";
         modal.querySelector("#insBlocked").checked = !!data.draft.blocked;
         currentCtx._draft = data.draft;
-        setStatus("Pre-filled from KR + ESN context. Review and edit before queueing.", false);
+        setStatus("Pre-filled from KR + ESN context. Choose a workload and edit before queueing.", false);
       } else {
         setStatus(data.error || "Failed to load draft.", true);
       }
@@ -8963,6 +9059,7 @@ window.__insightDraftForm = (function () {
     btn.disabled = true; cancel.disabled = true;
     setStatus("Staging payload + queuing…", false);
     try {
+      const wlSel = modal.querySelector("#insWorkload").value;
       const payload = Object.assign({}, currentCtx._draft || {}, {
         title:           modal.querySelector("#insTitle").value.trim(),
         scenario:        modal.querySelector("#insScenario").value.trim(),
@@ -8971,8 +9068,10 @@ window.__insightDraftForm = (function () {
         priority:        modal.querySelector("#insPriority").value,
         blocked:         modal.querySelector("#insBlocked").checked,
         kr_label:        currentCtx.kr_label || "",
+        workload_hint:   wlSel,
       });
       if (!payload.title) { setStatus("Title is required.", true); btn.disabled = false; cancel.disabled = false; return; }
+      if (!wlSel) { setStatus("Workload is required — pick one from the dropdown.", true); btn.disabled = false; cancel.disabled = false; return; }
       if (!payload.scenario || !payload.impact || !payload.desired_outcome) {
         setStatus("Scenario, Impact, and Desired Outcome are all required.", true);
         btn.disabled = false; cancel.disabled = false; return;
@@ -9706,6 +9805,47 @@ window.__cartLogModal = (function () {
 // is sacrificed in exchange for reliable update propagation + a working
 // server-offline overlay.
 /* SW registration stripped from bundle */
+</script>
+
+<!-- ===== v0.71: Missing-skills banner watcher ===== -->
+<script>
+(function setupMissingSkillsWatch() {
+  // Demo mode never shows the banner — skills don't apply in-memory.
+  if (/[?&]demo=1\b/.test(location.search) || location.pathname === "/demo") return;
+  // Required upstream skills the workspace assumes are installed. These ship
+  // separately (FT-CitizenDev-Claw-Pilot repo). The bundled /ftaworkspace
+  // skill copies bridge-run / heatmap-ftbi-sync / spotlight-sync /
+  // pec-engagement-note from this repo's skills-helpers/ subdir.
+  const REQUIRED = ["insight", "spotlight", "manage-pecs", "pec-engagement-note"];
+  const banner = document.getElementById("missingSkillsBanner");
+  const listEl = document.getElementById("msbMissingList");
+  const helpA  = document.getElementById("msbHelpLink");
+  const dismiss = document.getElementById("msbDismiss");
+  if (!banner || !listEl) return;
+  if (sessionStorage.getItem("fta-workspace-msb-dismissed") === "1") return;
+  if (dismiss) dismiss.addEventListener("click", () => {
+    sessionStorage.setItem("fta-workspace-msb-dismissed", "1");
+    banner.style.display = "none";
+  });
+  if (helpA) helpA.addEventListener("click", (e) => {
+    e.preventDefault();
+    const text =
+      "Required FastTrack skills missing on this machine.\n\n" +
+      "These skills live in the bap-microsoft/FT-CitizenDev-Claw-Pilot GitHub repo. " +
+      "In a Clawpilot chat run:\n\n  /update-skills\n\n" +
+      "That clones (or pulls) the upstream repo into ~/.copilot/skills/ and the " +
+      "workspace's cart actions will start running cleanly. Until then, queued " +
+      "items for the missing skills will fail on the heartbeat.";
+    alert(text);
+  });
+  fetch("/api/skills/installed").then(r => r.json()).then(d => {
+    const installed = new Set(d.installed || []);
+    const missing = REQUIRED.filter(s => !installed.has(s));
+    if (missing.length === 0) return;
+    listEl.textContent = missing.map(s => `/${s}`).join(", ");
+    banner.style.display = "flex";
+  }).catch(() => { /* non-fatal */ });
+})();
 </script>
 
 <!-- ===== v0.65: Server-offline watch ===== -->
