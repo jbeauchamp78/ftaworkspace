@@ -1723,7 +1723,11 @@ table.heatmap {
 /* ===== V3 three-section counter row ===== */
 .counter-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  /* v0.68: 4 sections — Customers (auto), KR Status (5 tiles, 5fr),
+   * Stories (2 tiles, 2fr), Data Quality (5 tiles, 5fr). Proportions
+   * keep tile widths roughly even across sections so nothing looks
+   * cramped or stretched. */
+  grid-template-columns: auto 5fr 2fr 5fr;
   gap: 18px; align-items: stretch;
   padding: 16px 24px;
   background: var(--cp-bg);
@@ -2798,6 +2802,34 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 .wl-pt:hover { r: 5; }
 .sp-draft-foot button:hover { filter: brightness(1.05); }
 .sp-draft-foot button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* v0.68: Insight modal — 2-col responsive grid for compact field pairs */
+.ins-grid {
+  display: grid; grid-template-columns: 1fr 220px; gap: 14px;
+  margin-bottom: 10px;
+}
+.ins-grid input[readonly] {
+  background: var(--cp-surface-soft); color: var(--cp-text-muted);
+  cursor: not-allowed;
+}
+
+/* v0.68: Workspace feedback — type radio pills */
+.fb-type-row { display: flex; gap: 6px; margin: 6px 0 12px; }
+.fb-type-pill {
+  flex: 1; cursor: pointer; user-select: none;
+}
+.fb-type-pill input { display: none; }
+.fb-type-pill span {
+  display: block; text-align: center; padding: 8px 12px;
+  border: 1px solid var(--cp-border); border-radius: 6px;
+  font-size: 13px; font-weight: 500; color: var(--cp-text-muted);
+  background: var(--cp-surface); transition: all .15s;
+}
+.fb-type-pill:hover span { border-color: var(--cp-accent); color: var(--cp-accent); }
+.fb-type-pill input:checked + span {
+  background: var(--cp-accent); color: var(--cp-accent-fg, #fff);
+  border-color: var(--cp-accent); font-weight: 700;
+}
 .sp-draft-status { font-size: 11px; color: var(--cp-text-muted); margin-top: 6px; }
 .sp-draft-status.err { color: #c0392b; }
 
@@ -2945,7 +2977,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.67 locked 2026-06-20 (Field Guide opt-out checkbox inverted — was 'Don't show on startup' (default unchecked = show), now 'Show on startup' (default checked = show). Cleaner UX — checked-state matches intent. Legacy 'skip-on-start' localStorage key is honored for users who already opted out so their preference survives the rename. Field Guide tour copy updated to say 'uncheck' instead of 'tick'.)">v0.67 · Stable</span>
+      <span class="version-tag" title="Build version: v0.68 locked 2026-06-20 (Big build: (1) Insight (FT Feedback) flow — new Insights counter tile next to Spotlights, new 💡 Submit Insight button on every customer card, full draft modal pre-filled from KR + ESN context, queues /insight bridge cart row consuming staged JSON payload (PII-scrubbed, Tenant ID only). New backend insight_draft.py module + GET/POST /api/customer/{nick}/insight-draft endpoints + GET /api/insights/summary + insight_index local cache table. (2) Counter row reorganization — split Spotlights out of KR Status into a new Stories section (Spotlights + Insights side-by-side); grid columns proportional to tile count so widths look even. (3) KR table column tightening — KR/Workload 200→180, Status 130→110, numeric cols 70→62 and 80→72, PEC 80→72 — frees ~80px for the Notes column. Same on Non-KR table. (4) Workspace Feedback — new 💬 topbar button + Bug/Idea/Question modal that POSTs /api/feedback/submit, which writes a workspace_feedback row to the same shared telemetry CSV the install-id tracking writes to. Anonymous unless contact is provided. (5) /insight + /insight-sync added to _AUTO_SAFE_KINDS allow-list. (6) Demo shim parity for all new endpoints.)">v0.68 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -2980,6 +3012,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   <button class="btn secondary" id="btnCart" onclick="window.toggleCart && window.toggleCart()" title="Show today's bridge log (pending + processed)" style="position:relative;">
     🛒 Pending <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
   </button>
+  <button class="btn secondary" id="btnWorkspaceFeedback" title="Send a bug / idea / question about the FTA Workspace itself (anonymized — install_id only). Different from 💡 Submit Insight which goes to FT Feedback on a customer's behalf.">💬 Feedback</button>
   <button class="btn" id="btnRefresh" title="Verify health + comprehensive refresh: MIDAS snapshot + FTOP PECs/roster/DQ + Lynx Ideal Config + auto-queue maintenance skills. ~60 seconds.">↻ Refresh Now</button>
 </div>
 
@@ -3009,7 +3042,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
         <button class="section-refresh" id="btnRefreshKR" title="Refresh KR Status + Ideal Config (MIDAS + FTOP + Lynx, ~30s)">⟳</button>
       </div>
     </div>
-    <div class="tile-grid" style="--n: 6">
+    <div class="tile-grid" style="--n: 5">
       <div class="counter accent clickable" data-tile="kr-wins">
         <div class="label" title="Customers with at least one KPI WIN this FY">Total KR Wins</div>
         <div class="value" id="ct-kr-wins">—</div>
@@ -3019,11 +3052,6 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
         <div class="label" title="Count of KR rows with status KPI WIN (KPI MET excluded — that's prior-FY carryover)">Total KPI Wins</div>
         <div class="value" id="ct-kpi-wins">—</div>
         <div class="hint">KPI WIN rows earned this FY</div>
-      </div>
-      <div class="counter accent clickable" data-tile="spotlights" title="✨ Spotlights — count of published spotlights this FY. Auto-synced from FTOP on every Refresh Now. Click to drill into per-customer spotlight state.">
-        <div class="label">Spotlights</div>
-        <div class="value" id="ct-sp-wins">—</div>
-        <div class="hint" id="ct-sp-hint">published this FY</div>
       </div>
       <div class="counter danger clickable" data-tile="regressions">
         <div class="label" title="Count of KR rows with status REGRESSION">KPI Regressions</div>
@@ -3039,6 +3067,28 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
         <div class="label">Ideal Config Wins</div>
         <div class="value" id="ct-ic-wins">—</div>
         <div class="hint" id="ct-ic-hint">customers GREEN</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="counter-section">
+    <div class="section-hdr">
+      <h2>Stories</h2>
+      <div class="hdr-right">
+        <span class="src">FTOP + FT Feedback</span>
+        <button class="section-refresh" id="btnRefreshStories" title="Refresh Spotlights + Insights counts">⟳</button>
+      </div>
+    </div>
+    <div class="tile-grid" style="--n: 2">
+      <div class="counter accent clickable" data-tile="spotlights" title="✨ Spotlights — count of published spotlights this FY. Auto-synced from FTOP on every Refresh Now. Click to drill into per-customer spotlight state.">
+        <div class="label">Spotlights</div>
+        <div class="value" id="ct-sp-wins">—</div>
+        <div class="hint" id="ct-sp-hint">published this FY</div>
+      </div>
+      <div class="counter accent clickable" data-tile="insights" title="💡 Insights — FT Feedback (msdyn_cmty_idea) submissions tracked locally. Counts items submitted by you on behalf of customers. Click for breakdown.">
+        <div class="label">Insights</div>
+        <div class="value" id="ct-insights">—</div>
+        <div class="hint" id="ct-insights-hint">FT Feedback submitted</div>
       </div>
     </div>
   </div>
@@ -3599,6 +3649,8 @@ function renderContent() {
                 title="Expand current view: hides sidebar">⛶ Expand</button>
         <button class="btn secondary" id="btnHeatmap"
                 title="Toggle between Customer Workspace and M365 Usage Heatmap">M365 Usage Heatmap</button>
+        <button class="btn secondary cust-insight-btn" data-cust="${c.n}"
+                title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
         <button class="btn secondary" id="btnRefreshCustomer" data-cust="${c.n}"
                 title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Clawpilot bridge.">🔄 Refresh This Customer</button>
         <span class="customer-refresh-stamp" id="customerRefreshStamp" data-cust="${c.n}"
@@ -3719,13 +3771,13 @@ function renderContent() {
       <div id="krTableWrap">
         <table class="kr-table">
           <thead><tr>
-            <th style="width: 200px" class="kr-sort-th" data-sort-key="kr">KR / Workload <span class="sort-ind"></span></th>
-            <th style="width: 130px" class="kr-sort-th" data-sort-key="status">Status <span class="sort-ind"></span></th>
-            <th style="width: 70px; text-align:right" class="kr-sort-th" data-sort-key="baseline">Jun 30 <span class="sort-ind"></span></th>
-            <th style="width: 70px; text-align:right" class="kr-sort-th" data-sort-key="current">Current <span class="sort-ind"></span></th>
-            <th style="width: 80px; text-align:right" class="kr-sort-th" data-sort-key="growth">FY Growth <span class="sort-ind"></span></th>
-            <th style="width: 80px; text-align:right" class="kr-sort-th" data-sort-key="mom">MoM <span class="sort-ind"></span></th>
-            <th style="width: 80px" class="kr-sort-th" data-sort-key="pec">PEC <span class="sort-ind"></span></th>
+            <th style="width: 180px" class="kr-sort-th" data-sort-key="kr">KR / Workload <span class="sort-ind"></span></th>
+            <th style="width: 110px" class="kr-sort-th" data-sort-key="status">Status <span class="sort-ind"></span></th>
+            <th style="width: 62px; text-align:right" class="kr-sort-th" data-sort-key="baseline">Jun 30 <span class="sort-ind"></span></th>
+            <th style="width: 62px; text-align:right" class="kr-sort-th" data-sort-key="current">Current <span class="sort-ind"></span></th>
+            <th style="width: 72px; text-align:right" class="kr-sort-th" data-sort-key="growth">FY Growth <span class="sort-ind"></span></th>
+            <th style="width: 72px; text-align:right" class="kr-sort-th" data-sort-key="mom">MoM <span class="sort-ind"></span></th>
+            <th style="width: 72px" class="kr-sort-th" data-sort-key="pec">PEC <span class="sort-ind"></span></th>
             <th>KR Notes</th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -3734,11 +3786,11 @@ function renderContent() {
       <div id="nonkrTableWrap" style="display:none;">
         <table class="kr-table nonkr-table" data-cust="${c.n}">
           <thead><tr>
-            <th style="width: 200px">Workload</th>
-            <th style="width: 130px">Status</th>
-            <th style="width: 70px; text-align:right">Current</th>
-            <th style="width: 80px; text-align:right">MoM</th>
-            <th style="width: 80px">PEC</th>
+            <th style="width: 180px">Workload</th>
+            <th style="width: 110px">Status</th>
+            <th style="width: 62px; text-align:right">Current</th>
+            <th style="width: 72px; text-align:right">MoM</th>
+            <th style="width: 72px">PEC</th>
             <th>Notes</th>
           </tr></thead>
           <tbody id="nonkrTableBody-${c.n}">
@@ -5434,6 +5486,24 @@ window.__api = (function() {
         : (sp.customers_with_spotlight > 0
             ? `${sp.customers_with_spotlight} customers w/ spotlight`
             : 'published this FY');
+      // v0.68: Insights — fetch from dedicated endpoint (lazy, swallow failures)
+      try {
+        const insR = await fetch("/api/insights/summary");
+        if (insR.ok) {
+          const ins = await insR.json();
+          _flashCounter('#ct-insights', ins.total_active);
+          const insHint = document.querySelector('#ct-insights-hint');
+          if (insHint) {
+            if (ins.in_flight > 0) {
+              insHint.textContent = `${ins.in_flight} in flight · ${ins.customers_touched} customers`;
+            } else if (ins.customers_touched > 0) {
+              insHint.textContent = `${ins.customers_touched} customers · ${ins.from_workspace} from workspace`;
+            } else {
+              insHint.textContent = 'FT Feedback submitted';
+            }
+          }
+        }
+      } catch { /* non-fatal */ }
       // Data Quality
       _flashCounter('#ct-dq-esn',              c.data_quality.esn_missing_or_expired);
       _flashCounter('#ct-dq-l1-unknown',       c.data_quality.l1_status_unknown);
@@ -6402,6 +6472,19 @@ window.__queueSkill = (function () {
           : `/manage-pecs create ${ctx.cust}`,
         requires_user_confirm: 1,
       }),
+    },
+    "insight-create": {
+      title: "Submit a FastTrack Feedback Insight?",
+      short: "Files a Microsoft-Engineering-visible product gap on this customer's behalf.",
+      sideEffects: [
+        { kind: "read", label: "Reads cached KR row + latest ESN snippet" },
+        { kind: "preview", label: "Strict PII scrub — Tenant ID only" },
+        { kind: "write", label: "Writes to Dataverse msdyn_cmty_idea via ftfeedback-mcp" },
+      ],
+      requires_user_confirm: 0,
+      skill_path: "insight",
+      cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/insight-draft/queue`,
+      cart_body: () => ({}),
     },
     "pec-draft-create": {
       title: "Create PEC from staged payload?",
@@ -8652,6 +8735,309 @@ document.addEventListener("click", (e) => {
   if (!cust || !kr) return;
   if (window.__pecNoteModal) window.__pecNoteModal.open({ cust, kr_label: kr });
 }, true);
+
+// ---------- Insight (FT Feedback) draft modal ----------
+// 💡 Submit Insight button on customer card → opens this. Pre-fills from
+// /api/customer/{nick}/insight-draft (KR row + ESN snippet), staged JSON
+// is queued as /insight bridge cart row.
+window.__insightDraftForm = (function () {
+  let modal = null;
+  let currentCtx = null;
+
+  function build() {
+    if (document.getElementById("insightDraftBackdrop")) {
+      modal = document.getElementById("insightDraftBackdrop"); return;
+    }
+    modal = document.createElement("div");
+    modal.id = "insightDraftBackdrop";
+    modal.className = "sp-draft-backdrop";
+    modal.innerHTML = `
+      <div class="sp-draft-modal" role="dialog" aria-modal="true" style="max-width:780px;">
+        <div class="sp-draft-head">
+          <h3 id="insightDraftTitle">Submit FT Feedback Insight</h3>
+          <span class="sp-kind-badge" style="background:#A78BFA;color:#fff;">💡 INSIGHT</span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="insightInfoBar"></div>
+        <div class="sp-draft-body">
+          <p class="sp-hint" style="margin:0 0 10px;">
+            Submits a FastTrack Feedback Insight (msdyn_cmty_idea) to Microsoft Engineering on this customer's behalf.
+            <strong>PII guard:</strong> only Tenant ID is sent as customer identifier — never customer name in the body.
+          </p>
+          <div class="ins-grid">
+            <div>
+              <label class="fld">Title <span class="req">*</span></label>
+              <input type="text" id="insTitle" maxlength="200" placeholder="[Workload] Product gap observed at customer engagement" />
+              <span class="sp-hint">≤ 200 chars · keep it factual + searchable</span>
+            </div>
+            <div>
+              <label class="fld">Workload</label>
+              <input type="text" id="insWorkload" readonly />
+              <span class="sp-hint">Resolved from KR row context</span>
+            </div>
+          </div>
+          <label class="fld">Scenario / Context <span class="req">*</span></label>
+          <textarea id="insScenario" rows="4" placeholder="What was the customer trying to do? What happened? What was the FastTrack guidance?"></textarea>
+          <label class="fld">Impact <span class="req">*</span></label>
+          <textarea id="insImpact" rows="3" placeholder="Who is blocked and how badly? Is this a single-customer issue or portfolio-wide?"></textarea>
+          <label class="fld">Desired Outcome <span class="req">*</span></label>
+          <textarea id="insDesired" rows="3" placeholder="What specific product capability is needed? Be concrete — engineering needs a testable target."></textarea>
+          <div class="ins-grid">
+            <div>
+              <label class="fld">Priority</label>
+              <select id="insPriority">
+                <option value="P1">P1 — Blocker</option>
+                <option value="P2">P2 — High</option>
+                <option value="P3" selected>P3 — Medium</option>
+                <option value="P4">P4 — Low</option>
+              </select>
+            </div>
+            <div>
+              <label class="fld" style="display:flex;align-items:center;gap:6px;margin-top:18px;">
+                <input type="checkbox" id="insBlocked" />
+                Customer is actively blocked
+              </label>
+            </div>
+          </div>
+          <div class="sp-draft-status" id="insStatus"></div>
+        </div>
+        <div class="sp-draft-foot">
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Heartbeat runs /insight within 30 min. PII-scrubbed before write.</span>
+          <button type="button" id="insCancel">Cancel</button>
+          <button type="button" id="insQueue" class="primary">⚡ Queue Insight</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#insCancel").addEventListener("click", close);
+    modal.querySelector("#insQueue").addEventListener("click", submit);
+  }
+
+  function setStatus(msg, isErr) {
+    const el = modal.querySelector("#insStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("err", !!isErr);
+  }
+
+  function close() { if (modal) modal.classList.remove("show"); currentCtx = null; }
+
+  async function open(ctx) {
+    build();
+    currentCtx = ctx;
+    // Defensive: re-enable buttons in case prior submit bailed
+    ["#insCancel", "#insQueue"].forEach(s => {
+      const b = modal.querySelector(s); if (b) b.disabled = false;
+    });
+    modal.querySelector("#insightDraftTitle").textContent =
+      `Submit FT Feedback Insight — ${ctx.cust}${ctx.kr_label ? " · " + ctx.kr_label : ""}`;
+    modal.querySelector("#insTitle").value = "";
+    modal.querySelector("#insWorkload").value = "";
+    modal.querySelector("#insScenario").value = "";
+    modal.querySelector("#insImpact").value = "";
+    modal.querySelector("#insDesired").value = "";
+    modal.querySelector("#insPriority").value = "P3";
+    modal.querySelector("#insBlocked").checked = false;
+    setStatus("Loading suggested draft…", false);
+    // Skill info bar
+    const infoBar = modal.querySelector("#insightInfoBar");
+    if (infoBar && window.__queueSkill && window.__queueSkill.renderSkillInfoBar) {
+      infoBar.innerHTML = window.__queueSkill.renderSkillInfoBar("insight-create", {
+        cust: ctx.cust, kr_label: ctx.kr_label || ""
+      });
+      window.__queueSkill.hydrateSkillInfoBar(infoBar);
+    }
+    modal.classList.add("show");
+    try {
+      const url = `/api/customer/${encodeURIComponent(ctx.cust)}/insight-draft` +
+        (ctx.kr_label ? `?kr_label=${encodeURIComponent(ctx.kr_label)}` : "");
+      const r = await fetch(url);
+      const data = await r.json();
+      if (data.ok && data.draft) {
+        modal.querySelector("#insTitle").value = data.draft.title || "";
+        modal.querySelector("#insWorkload").value = data.draft.workload_hint || "";
+        modal.querySelector("#insScenario").value = data.draft.scenario || "";
+        modal.querySelector("#insImpact").value = data.draft.impact || "";
+        modal.querySelector("#insDesired").value = data.draft.desired_outcome || "";
+        modal.querySelector("#insPriority").value = data.draft.priority || "P3";
+        modal.querySelector("#insBlocked").checked = !!data.draft.blocked;
+        currentCtx._draft = data.draft;
+        setStatus("Pre-filled from KR + ESN context. Review and edit before queueing.", false);
+      } else {
+        setStatus(data.error || "Failed to load draft.", true);
+      }
+    } catch (e) { setStatus("Load failed: " + e.message, true); }
+  }
+
+  async function submit() {
+    if (!currentCtx) return;
+    const btn = modal.querySelector("#insQueue");
+    const cancel = modal.querySelector("#insCancel");
+    btn.disabled = true; cancel.disabled = true;
+    setStatus("Staging payload + queuing…", false);
+    try {
+      const payload = Object.assign({}, currentCtx._draft || {}, {
+        title:           modal.querySelector("#insTitle").value.trim(),
+        scenario:        modal.querySelector("#insScenario").value.trim(),
+        impact:          modal.querySelector("#insImpact").value.trim(),
+        desired_outcome: modal.querySelector("#insDesired").value.trim(),
+        priority:        modal.querySelector("#insPriority").value,
+        blocked:         modal.querySelector("#insBlocked").checked,
+        kr_label:        currentCtx.kr_label || "",
+      });
+      if (!payload.title) { setStatus("Title is required.", true); btn.disabled = false; cancel.disabled = false; return; }
+      if (!payload.scenario || !payload.impact || !payload.desired_outcome) {
+        setStatus("Scenario, Impact, and Desired Outcome are all required.", true);
+        btn.disabled = false; cancel.disabled = false; return;
+      }
+      const r = await fetch(`/api/customer/${encodeURIComponent(currentCtx.cust)}/insight-draft/queue`,
+        { method: "POST", headers: {"content-type":"application/json"}, body: JSON.stringify(payload) });
+      const data = await r.json();
+      if (!data.ok) { setStatus(`Queue failed: ${data.error || 'unknown'}`, true); btn.disabled = false; cancel.disabled = false; return; }
+      setStatus(`✓ Queued — heartbeat will submit within 30 min (cart id ${data.id}).`, false);
+      if (typeof toast === "function") toast(`Insight queued — cart id ${data.id}`, "ok");
+      if (typeof refreshCartBadge === "function") refreshCartBadge();
+      btn.disabled = false; cancel.disabled = false;
+      setTimeout(close, 1500);
+    } catch (e) {
+      setStatus(`Error: ${e.message}`, true);
+      btn.disabled = false; cancel.disabled = false;
+    }
+  }
+
+  return { open, close };
+})();
+
+// Wire: 💡 button on customer card opens the Insight draft modal
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".cust-insight-btn");
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  const cust = btn.dataset.cust || window.activeCust;
+  if (!cust) return;
+  if (window.__insightDraftForm) window.__insightDraftForm.open({ cust, kr_label: "" });
+});
+
+// ---------- Workspace Feedback modal (Bug / Idea / Question) ----------
+// 💬 button in topbar opens this. Writes to the shared telemetry CSV under
+// event_type='workspace_feedback' so the maintainer can aggregate across
+// all FTAs. Completely separate channel from per-customer FT Feedback.
+window.__feedbackModal = (function () {
+  let modal = null;
+
+  function build() {
+    if (document.getElementById("feedbackBackdrop")) { modal = document.getElementById("feedbackBackdrop"); return; }
+    modal = document.createElement("div");
+    modal.id = "feedbackBackdrop";
+    modal.className = "sp-draft-backdrop";
+    modal.innerHTML = `
+      <div class="sp-draft-modal" role="dialog" aria-modal="true" style="max-width:560px;">
+        <div class="sp-draft-head">
+          <h3>FTA Workspace Feedback</h3>
+          <span class="sp-kind-badge" style="background:#2C7BE5;color:#fff;">💬 about the app</span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="sp-draft-body">
+          <p class="sp-hint" style="margin:0 0 10px;">
+            Tell the maintainer what to fix or build next. This is about <strong>the workspace itself</strong>,
+            not about Microsoft products (those go through 💡 Submit Insight on a customer card).
+            Anonymous via your machine install_id — no name/email captured unless you opt in below.
+          </p>
+          <label class="fld">Type <span class="req">*</span></label>
+          <div class="fb-type-row">
+            <label class="fb-type-pill"><input type="radio" name="fbType" value="bug" /><span>🐛 Bug</span></label>
+            <label class="fb-type-pill"><input type="radio" name="fbType" value="idea" checked /><span>💡 Idea</span></label>
+            <label class="fb-type-pill"><input type="radio" name="fbType" value="question" /><span>❓ Question</span></label>
+          </div>
+          <label class="fld">Title <span class="req">*</span></label>
+          <input type="text" id="fbTitle" maxlength="200" placeholder="Short summary (≤200 chars)" />
+          <label class="fld">Details <span class="req">*</span> <span class="opt">(≤4000 chars, newlines preserved)</span></label>
+          <textarea id="fbBody" rows="6" placeholder="What did you try? What did you expect? What happened instead? (For bugs include version, browser, and steps to repro.)"></textarea>
+          <label class="fld">Contact <span class="opt">(optional — if you want a follow-up)</span></label>
+          <input type="email" id="fbContact" maxlength="200" placeholder="alias@microsoft.com (leave blank for anonymous)" />
+          <div class="sp-draft-status" id="fbStatus"></div>
+        </div>
+        <div class="sp-draft-foot">
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Logged to shared FTA Workspace Telemetry CSV. install_id only — no other identifying data unless you provide contact.</span>
+          <button type="button" id="fbCancel">Cancel</button>
+          <button type="button" id="fbSend" class="primary">📤 Send</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#fbCancel").addEventListener("click", close);
+    modal.querySelector("#fbSend").addEventListener("click", submit);
+  }
+
+  function setStatus(msg, err) {
+    const el = modal.querySelector("#fbStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("err", !!err);
+  }
+
+  function close() { if (modal) modal.classList.remove("show"); }
+
+  function open() {
+    build();
+    ["#fbCancel", "#fbSend"].forEach(s => {
+      const b = modal.querySelector(s); if (b) b.disabled = false;
+    });
+    modal.querySelector("#fbTitle").value = "";
+    modal.querySelector("#fbBody").value = "";
+    modal.querySelector("#fbContact").value = "";
+    setStatus("", false);
+    modal.classList.add("show");
+  }
+
+  async function submit() {
+    const btn = modal.querySelector("#fbSend");
+    const cancel = modal.querySelector("#fbCancel");
+    const typeEl = modal.querySelector('input[name="fbType"]:checked');
+    const type = typeEl ? typeEl.value : "idea";
+    const title = modal.querySelector("#fbTitle").value.trim();
+    const body = modal.querySelector("#fbBody").value.trim();
+    const contact = modal.querySelector("#fbContact").value.trim();
+    if (!title) { setStatus("Title is required.", true); return; }
+    if (!body) { setStatus("Details are required.", true); return; }
+    btn.disabled = true; cancel.disabled = true;
+    setStatus("Sending…", false);
+    try {
+      const r = await fetch("/api/feedback/submit", {
+        method: "POST", headers: {"content-type":"application/json"},
+        body: JSON.stringify({
+          type, title, body, contact,
+          ua: navigator.userAgent.slice(0, 200),
+          page: location.pathname + location.search,
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setStatus(`Failed: ${data.error || 'unknown'}`, true);
+        btn.disabled = false; cancel.disabled = false; return;
+      }
+      setStatus(`✓ Sent. Thanks!`, false);
+      if (typeof toast === "function") toast(`💬 Feedback sent — install_id ${(data.install_id || "?").slice(0,8)}…`, "ok");
+      btn.disabled = false; cancel.disabled = false;
+      setTimeout(close, 1500);
+    } catch (e) {
+      setStatus(`Error: ${e.message}`, true);
+      btn.disabled = false; cancel.disabled = false;
+    }
+  }
+
+  return { open, close };
+})();
+
+// Wire: 💬 button in topbar opens the workspace-feedback modal
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("#btnWorkspaceFeedback");
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  if (window.__feedbackModal) window.__feedbackModal.open();
+});
 
 // ---------- Cart Log Viewer modal ----------
 // 📜 button in the cart header opens this — shows ALL queue items (pending,

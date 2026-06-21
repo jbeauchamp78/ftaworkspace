@@ -426,6 +426,65 @@
     }],
 
     // ----- Spotlight draft form (v0.35) -----
+    ["GET", /^\/api\/customer\/([^/?]+)\/insight-draft$/, (m, opts, search) => {
+      const cust = decodeURIComponent(m[1]);
+      const params = new URLSearchParams(search || "");
+      const krLabel = params.get("kr_label") || "";
+      const wl = krLabel || "M365 Copilot";
+      return jsonResp({
+        ok: true,
+        draft: {
+          title: `[${wl}] Product gap observed at customer engagement`,
+          scenario: `During FastTrack engagement with ${cust}, the customer encountered a limitation while deploying ${wl}.\n\nReplace this with the specific scenario — what they were trying to do, what happened, what was the FastTrack guidance.`,
+          impact: `Blocks ${wl} adoption for ${cust}. If widespread, blocks adoption across the FastTrack portfolio.`,
+          desired_outcome: "Replace with the specific product capability needed — e.g., 'support for X scenario in Y feature', 'admin control for Z policy'.",
+          workload_hint: wl,
+          kr_label: krLabel || null,
+          priority: "P3",
+          blocked: false,
+          _context: { cust_nickname: cust, kr_label: krLabel || null },
+        },
+      });
+    }],
+    ["POST", /^\/api\/customer\/([^/?]+)\/insight-draft\/queue$/, (m, opts) => {
+      const cust = decodeURIComponent(m[1]);
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      if (!body.title) return jsonResp({ ok: false, error: "title is required" });
+      if (!body.scenario || !body.impact || !body.desired_outcome) {
+        return jsonResp({ ok: false, error: "scenario, impact, and desired_outcome are required" });
+      }
+      STATE.queue.pending = STATE.queue.pending || [];
+      const id = STATE.nextQueueId++;
+      const nowSql = new Date().toISOString().replace("T", " ").slice(0, 19);
+      STATE.queue.pending.push({
+        id, kind: "insight-draft",
+        label: `Insight - ${cust}${body.kr_label ? " - " + body.kr_label : ""}`,
+        prompt: `/insight create "${cust}" --payload "[demo-staged]/${cust}-${id}.json"`,
+        cust, status: "pending", requires_user_confirm: 0,
+        trigger: "ui_insight_draft", created_at: nowSql,
+      });
+      STATE.queue.count = (STATE.queue.count || 0) + 1;
+      return jsonResp({ ok: true, id, prompt: `/insight create "${cust}" ...`, requires_user_confirm: 0 });
+    }],
+    ["GET", /^\/api\/insights\/summary$/, () => {
+      // Demo: synthesize a small but believable count
+      const inFlight = (STATE.queue.pending || []).filter(p => p.kind === "insight-draft").length;
+      return jsonResp({
+        total_active: 3 + inFlight,
+        in_flight: inFlight,
+        from_workspace: inFlight,
+        customers_touched: 2 + (inFlight > 0 ? 1 : 0),
+      });
+    }],
+    ["POST", /^\/api\/feedback\/submit$/, (m, opts) => {
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      const t = (body.type || "").toLowerCase();
+      if (!["bug","idea","question"].includes(t)) return jsonResp({ ok: false, error: "type must be bug|idea|question" });
+      if (!body.title) return jsonResp({ ok: false, error: "title is required" });
+      if (!body.body) return jsonResp({ ok: false, error: "body is required" });
+      return jsonResp({ ok: true, install_id: "demo-install-id", path: "[demo] usage_events.csv" });
+    }],
+    // ----- Spotlight draft form (v0.35) -----
     ["GET", /^\/api\/customer\/([^/?]+)\/spotlight-draft$/, (m, opts, search) => {
       const cust = decodeURIComponent(m[1]);
       const params = new URLSearchParams(search || "");
