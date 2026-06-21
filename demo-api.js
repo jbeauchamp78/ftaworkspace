@@ -290,6 +290,82 @@
       jsonResp({ meta: STATE.meta, customers: STATE.customers })],
     ["GET", /^\/api\/counters$/, () => jsonResp(STATE.counters)],
     ["GET", /^\/api\/clawpilot\/queue$/, () => jsonResp(STATE.queue)],
+    ["GET", /^\/api\/clawpilot\/queue\/log/, (m, opts, search) => {
+      const sp = new URLSearchParams(search || "");
+      const days = parseInt(sp.get("days") || "30", 10);
+      const statusFilter = sp.get("status") || "";
+      // Synthesize a few completed + a few pending rows for the demo
+      const today = new Date();
+      const iso = (d) => d.toISOString().slice(0, 19);
+      const fake = [
+        // Today
+        { id: 901, kind: "pec-note",      label: "Engagement Note → REQ-558521-Z7C9B6 (Acme · MDE Usage)",
+          prompt: '/pec-engagement-note "Acme" --kr "MDE Usage" --ticket REQ-558521-Z7C9B6 --subject "FT Engagement Note — MDE Usage — 2026-06-20" --body "Customer agreed to expand MDE pilot to 1500 seats by EoQ."',
+          cust: "Acme", status: "succeeded", result: "success",
+          summary: "Posted PEC Note → REQ-558521-Z7C9B6 (activityid: 9f8b1d2e-…)",
+          created_at: iso(new Date(today.getTime() - 1000*60*45)),
+          sent_at: iso(new Date(today.getTime() - 1000*60*40)),
+          started_at: iso(new Date(today.getTime() - 1000*60*38)),
+          completed_at: iso(new Date(today.getTime() - 1000*60*37)),
+        },
+        { id: 902, kind: "spotlight-sync", label: "Sync spotlights for Globex",
+          prompt: "/spotlight-sync Globex",
+          cust: "Globex", status: "succeeded", result: "success",
+          summary: "Indexed 7 spotlights (4 publish · 3 draft).",
+          created_at: iso(new Date(today.getTime() - 1000*60*60*3)),
+          completed_at: iso(new Date(today.getTime() - 1000*60*60*3 + 1000*60*2)),
+        },
+        { id: 903, kind: "pec-draft", label: "Open PEC - Initech - Copilot Chat",
+          prompt: '/manage-pecs draft "Initech" --kr "Copilot Chat" --stage triage --workload "Copilot Chat" --deploy-lead FastTrack',
+          cust: "Initech", status: "failed", result: "failed",
+          summary: "FTOP returned 502 on incident-create. Will retry on next heartbeat.",
+          created_at: iso(new Date(today.getTime() - 1000*60*60*5)),
+          completed_at: iso(new Date(today.getTime() - 1000*60*60*5 + 1000*60*1)),
+        },
+        // Yesterday
+        { id: 904, kind: "heatmap-ftbi-sync", label: "Sync heatmap for Hooli",
+          prompt: "/heatmap-ftbi-sync Hooli",
+          cust: "Hooli", status: "succeeded", result: "success",
+          summary: "Updated 41 heatmap tiles from FTBI tenant profile.",
+          created_at: iso(new Date(today.getTime() - 1000*60*60*30)),
+          completed_at: iso(new Date(today.getTime() - 1000*60*60*30 + 1000*60*4)),
+        },
+        // Pending now
+        ...((STATE.queue.pending || []).map(p => ({
+          ...p, summary: null, result: null,
+          completed_at: null, started_at: null,
+        }))),
+      ];
+      const filtered = statusFilter ? fake.filter(r => r.status === statusFilter) : fake;
+      // Group by date local
+      const groups = {};
+      filtered.forEach(r => {
+        const ts = r.completed_at || r.sent_at || r.created_at;
+        if (!ts) return;
+        const d = new Date(ts);
+        const key = d.toISOString().slice(0, 10);
+        const dayMs = 24 * 60 * 60 * 1000;
+        const diff = Math.floor((Date.now() - d.getTime()) / dayMs);
+        let label;
+        if (diff === 0) label = "Today";
+        else if (diff === 1) label = "Yesterday";
+        else if (diff < 7) label = d.toLocaleDateString([], { weekday: "long" });
+        else label = d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+        if (!groups[key]) groups[key] = { date: key, label, items: [] };
+        groups[key].items.push(r);
+      });
+      const groupList = Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
+      return jsonResp({
+        groups: groupList,
+        meta: {
+          filtered: filtered.length, total: filtered.length,
+          retention_days: 30, window_days: days, limit: 500,
+          db_size_kb: 84.2,
+          oldest_iso: filtered[filtered.length - 1]?.created_at,
+          newest_iso: filtered[0]?.completed_at,
+        },
+      });
+    }],
     ["GET", /^\/api\/automation\/status$/, () =>
       jsonResp({ state: STATE.autoState, enabled: STATE.autoState === "on" })],
     ["GET", /^\/api\/midas\/snapshot-check$/, () =>
@@ -627,7 +703,7 @@
       STATE.queue.pending.push({
         id, kind: "pec-note",
         label: `Engagement Note → ${ticket} (${cust} · ${kr})`,
-        prompt: `/manage-pecs add-note "${cust}" --kr "${kr}" --ticket ${ticket} --subject ${JSON.stringify(subj)} --body ${JSON.stringify(note)}`,
+        prompt: `/pec-engagement-note "${cust}" --kr "${kr}" --ticket ${ticket} --subject ${JSON.stringify(subj)} --body ${JSON.stringify(note)}`,
         cust, status: "pending", requires_user_confirm: 0,
         trigger: "ui_pec_note", created_at: new Date().toISOString(),
       });

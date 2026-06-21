@@ -562,6 +562,112 @@ html[data-theme="win98"] .info-pill {
 .cart-remove:hover { background: #FFE9E9; color: #C92A2A; }
 .cart-foot { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--cp-border); }
 .cart-btn-sm { padding: 4px 10px; font-size: 11px; }
+/* ===== v0.60: Cart Log Viewer modal ===== */
+.cart-log-modal { display: flex; flex-direction: column; }
+.cart-log-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; background: var(--cp-surface-soft);
+  border-bottom: 1px solid var(--cp-border);
+  flex-wrap: wrap;
+}
+.cart-log-filter-group { display: inline-flex; gap: 4px; align-items: center; }
+.cart-log-filter-label {
+  font-size: 11px; font-weight: 600; color: var(--cp-text-muted);
+  letter-spacing: 0.04em; text-transform: uppercase; margin-right: 4px;
+}
+.cart-log-filter-btn {
+  appearance: none; border: 1px solid var(--cp-border);
+  background: var(--cp-surface); color: var(--cp-text);
+  padding: 3px 9px; border-radius: 999px; font: inherit; font-size: 11px;
+  cursor: pointer; transition: all .15s;
+}
+.cart-log-filter-btn:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent); }
+.cart-log-filter-btn.active {
+  background: var(--cp-accent); color: var(--cp-accent-fg, #fff);
+  border-color: var(--cp-accent); font-weight: 700;
+}
+.cart-log-window { font-size: 11px; color: var(--cp-text-muted); }
+.cart-log-window select {
+  margin-left: 6px; font-size: 11px; padding: 2px 6px;
+  border: 1px solid var(--cp-border); border-radius: 4px;
+  background: var(--cp-surface); color: var(--cp-text);
+}
+.cart-log-body {
+  flex: 1; overflow-y: auto; padding: 0; min-height: 200px; max-height: 60vh;
+}
+.cart-log-loading, .cart-log-empty {
+  padding: 36px; text-align: center; color: var(--cp-text-muted); font-size: 13px;
+}
+.cart-log-group { border-bottom: 1px solid var(--cp-border); }
+.cart-log-group > summary {
+  padding: 8px 16px; cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--cp-surface-soft); font-weight: 600;
+  list-style: none; user-select: none;
+}
+.cart-log-group > summary::-webkit-details-marker { display: none; }
+.cart-log-group > summary::before { content: "▸"; font-size: 10px; transition: transform .15s; color: var(--cp-text-muted); }
+.cart-log-group[open] > summary::before { transform: rotate(90deg); }
+.cl-group-label { font-size: 13px; }
+.cl-group-date { font-size: 11px; color: var(--cp-text-muted); }
+.cl-group-count {
+  margin-left: auto; font-size: 11px; padding: 1px 8px; border-radius: 999px;
+  background: var(--cp-surface); border: 1px solid var(--cp-border); color: var(--cp-text-muted);
+}
+.cart-log-rows { background: var(--cp-surface); }
+.cart-log-row { border-top: 1px solid var(--cp-border); }
+.cart-log-row > summary {
+  padding: 6px 16px 6px 36px; cursor: pointer;
+  display: grid; grid-template-columns: 60px 100px 110px 1fr 120px;
+  gap: 10px; align-items: center; font-size: 12px;
+  list-style: none; user-select: none;
+}
+.cart-log-row > summary::-webkit-details-marker { display: none; }
+.cart-log-row > summary:hover { background: var(--cp-surface-soft); }
+.cl-row-time { color: var(--cp-text-muted); font-variant-numeric: tabular-nums; }
+.cl-st {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  white-space: nowrap;
+}
+.cl-st-ok      { background: #DFF6DD; color: #107C10; }
+.cl-st-bad     { background: #FDE7E9; color: #C0392B; }
+.cl-st-pending { background: #FFF4CE; color: #8A6D00; }
+.cl-st-running { background: #DEECF9; color: #0078D4; }
+.cl-st-unknown { background: var(--cp-surface-soft); color: var(--cp-text-muted); }
+.cl-kind {
+  font-size: 10px; padding: 1px 6px; border-radius: 4px;
+  background: var(--cp-surface-soft); border: 1px solid var(--cp-border);
+  color: var(--cp-text-muted); font-family: ui-monospace, Consolas, monospace;
+  white-space: nowrap;
+}
+.cl-row-label {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--cp-text);
+}
+.cl-row-cust {
+  font-size: 11px; color: var(--cp-text-muted);
+  text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cl-row-detail {
+  padding: 8px 16px 12px 36px; background: var(--cp-surface-soft);
+  border-top: 1px solid var(--cp-border);
+}
+.cl-row-section { margin-bottom: 8px; }
+.cl-row-section strong {
+  display: block; font-size: 10px; text-transform: uppercase;
+  color: var(--cp-text-muted); letter-spacing: 0.04em; margin-bottom: 2px;
+}
+.cl-row-prompt, .cl-row-summary {
+  margin: 0; padding: 6px 8px; font: 11px/1.4 ui-monospace, Consolas, monospace;
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: 4px; white-space: pre-wrap; word-break: break-word;
+  color: var(--cp-text);
+}
+.cl-row-meta {
+  display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--cp-text-muted);
+}
+.cl-row-meta strong { display: inline; font-size: 11px; margin-right: 4px; }
 .drill-hdr {
   display: flex; align-items: center; gap: 12px;
   margin-bottom: 8px;
@@ -2743,7 +2849,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.59 locked 2026-06-20 (PEC Engagement Note modal — new 📝 button next to each ● Yes PEC pill opens a workload-locked modal: pre-resolves the target FTOP ticket via /pec-note/resolve (workload-hint match on cached pec_details, picks most recent active), shows it in a fixed badge so the FTA can't post against the wrong workload, body textarea (≤4000 chars), subject auto-defaults to 'FT Engagement Note — KR — date'. Queues a /manage-pecs add-note bridge cart row with JSON-encoded body so newlines survive. Override dropdown if multiple PECs match. Backlog: mvp2-manage-pecs-add-note to land the inner skill action.)">v0.59 · Stable</span>
+      <span class="version-tag" title="Build version: v0.60 locked 2026-06-20 (Two big additions: (1) /pec-engagement-note skill — ships with FTA Workspace skills-helpers, wraps ftop_post_pec_note(dry_run=false), accepts --ticket --kr --subject --body, JSON-decodes the body if needed so newlines survive the bridge cart. Backend pec_note.build_prompt updated to queue /pec-engagement-note instead of the temporary /manage-pecs add-note placeholder. /ftaworkspace install step adds it to the copy roster. (2) Cart Log Viewer — 📜 Log button in cart header opens a date-grouped modal showing every queue item (succeeded/failed/pending/running) with status filter pills, 7/30/90 day window, expandable rows revealing prompt + result summary + timing meta. Server-side retention sweep deletes rows older than 30 days on each open so the DB stays bounded.)">v0.60 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4693,6 +4799,7 @@ async function renderCartInline() {
         ${failed.length ? `<span class="count cart-failed-count">${failed.length} ✗ today</span>` : ''}
         <span style="flex:1"></span>
         <button class="btn secondary cart-btn-sm" id="cartRefresh" title="Refresh now (auto-refresh every 30s)">⟳</button>
+        <button class="btn secondary cart-btn-sm" id="cartLog" title="View cart history — items processed in the last 30 days, grouped by date">📜 Log</button>
         <button class="btn secondary cart-btn-sm" id="cartClear" ${pending.length === 0 ? "disabled" : ""}>Clear pending</button>
         <button class="btn secondary cart-btn-sm" id="cartCopy" ${pending.length === 0 ? "disabled" : ""} title="Copy /bridge-run prompts to clipboard. Paste into Clawpilot if you want to run something manually before the next heartbeat tick.">📋 Copy prompts</button>
         <button class="close" id="cartClose" title="Hide">×</button>
@@ -4779,6 +4886,11 @@ async function renderCartInline() {
     } catch (e) {
       if (window.__api) window.__api.toast("Clipboard copy failed: " + e.message, "err");
     }
+  };
+  // v0.60: open the cart log viewer modal
+  const logBtn = panel.querySelector("#cartLog");
+  if (logBtn) logBtn.onclick = () => {
+    if (window.__cartLogModal) window.__cartLogModal.open();
   };
 }
 
@@ -8419,6 +8531,171 @@ document.addEventListener("click", (e) => {
   if (!cust || !kr) return;
   if (window.__pecNoteModal) window.__pecNoteModal.open({ cust, kr_label: kr });
 }, true);
+
+// ---------- Cart Log Viewer modal ----------
+// 📜 button in the cart header opens this — shows ALL queue items (pending,
+// running, completed, failed) grouped by date with status filtering. Server
+// applies a 30-day retention sweep on each open so the DB stays bounded.
+window.__cartLogModal = (function () {
+  let modal = null;
+  let state = { status: "all", kind: "all", window_days: 30 };
+
+  function build() {
+    if (document.getElementById("cartLogBackdrop")) { modal = document.getElementById("cartLogBackdrop"); return; }
+    modal = document.createElement("div");
+    modal.id = "cartLogBackdrop";
+    modal.className = "sp-draft-backdrop";
+    modal.innerHTML = `
+      <div class="sp-draft-modal cart-log-modal" role="dialog" aria-modal="true" style="max-width:880px;max-height:88vh;">
+        <div class="sp-draft-head">
+          <h3>📜 Cart Log</h3>
+          <span class="sp-kind-badge" id="cartLogMeta" style="background:#555;color:#fff;">loading…</span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="cart-log-toolbar">
+          <div class="cart-log-filter-group">
+            <span class="cart-log-filter-label">Status</span>
+            <button data-status="all" class="cart-log-filter-btn active">All</button>
+            <button data-status="succeeded" class="cart-log-filter-btn">✓ Succeeded</button>
+            <button data-status="failed" class="cart-log-filter-btn">✗ Failed</button>
+            <button data-status="pending" class="cart-log-filter-btn">⏳ Pending</button>
+            <button data-status="running" class="cart-log-filter-btn">▶ Running</button>
+          </div>
+          <span style="flex:1"></span>
+          <label class="cart-log-window">
+            Window:
+            <select id="cartLogWindow">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </label>
+        </div>
+        <div class="cart-log-body" id="cartLogBody">
+          <div class="cart-log-loading">loading…</div>
+        </div>
+        <div class="sp-draft-foot">
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);" id="cartLogFootHint">
+            Retention: 30 days. Older rows auto-archived on next open.
+          </span>
+          <button type="button" id="cartLogClose">Close</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#cartLogClose").addEventListener("click", close);
+    modal.querySelectorAll(".cart-log-filter-btn").forEach(b => {
+      b.addEventListener("click", () => {
+        state.status = b.dataset.status;
+        modal.querySelectorAll(".cart-log-filter-btn").forEach(x =>
+          x.classList.toggle("active", x.dataset.status === state.status));
+        load();
+      });
+    });
+    modal.querySelector("#cartLogWindow").addEventListener("change", (e) => {
+      state.window_days = parseInt(e.target.value, 10) || 30;
+      load();
+    });
+  }
+
+  function close() { if (modal) modal.classList.remove("show"); }
+
+  async function open() {
+    build();
+    modal.classList.add("show");
+    load();
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso.replace(" ", "T"));
+      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    } catch { return iso; }
+  }
+  function escapeHTML(s) {
+    return String(s || "").replace(/[&<>"]/g, c =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  }
+  function statusBadge(st) {
+    const map = {
+      succeeded: { icon: "✓", cls: "cl-st-ok",   label: "succeeded" },
+      failed:    { icon: "✗", cls: "cl-st-bad",  label: "failed" },
+      pending:   { icon: "⏳", cls: "cl-st-pending", label: "pending" },
+      sent:      { icon: "→", cls: "cl-st-pending", label: "sent" },
+      running:   { icon: "▶", cls: "cl-st-running", label: "running" },
+    };
+    const m = map[st] || { icon: "·", cls: "cl-st-unknown", label: st || "?" };
+    return `<span class="cl-st ${m.cls}">${m.icon} ${m.label}</span>`;
+  }
+  function kindBadge(kind) {
+    return `<span class="cl-kind" title="cart kind">${escapeHTML(kind || "—")}</span>`;
+  }
+
+  async function load() {
+    const body = modal.querySelector("#cartLogBody");
+    const meta = modal.querySelector("#cartLogMeta");
+    body.innerHTML = `<div class="cart-log-loading">loading…</div>`;
+    meta.textContent = "loading…";
+    const params = new URLSearchParams({ days: state.window_days, limit: 500 });
+    if (state.status && state.status !== "all") params.set("status", state.status);
+    try {
+      const r = await fetch("/api/clawpilot/queue/log?" + params.toString());
+      const data = await r.json();
+      const m = data.meta || {};
+      meta.textContent = `${m.filtered ?? 0}/${m.total ?? 0} rows · DB ${m.db_size_kb ?? "?"} KB`;
+      modal.querySelector("#cartLogFootHint").textContent =
+        `Retention: ${m.retention_days || 30} days. Older rows auto-archived on next open. ` +
+        `Window: ${m.window_days || state.window_days}d.`;
+      const groups = data.groups || [];
+      if (groups.length === 0) {
+        body.innerHTML = `<div class="cart-log-empty">No cart history in this window.</div>`;
+        return;
+      }
+      body.innerHTML = groups.map(g => `
+        <details class="cart-log-group" open>
+          <summary>
+            <span class="cl-group-label">${escapeHTML(g.label)}</span>
+            <span class="cl-group-date">${escapeHTML(g.date)}</span>
+            <span class="cl-group-count">${g.items.length}</span>
+          </summary>
+          <div class="cart-log-rows">
+            ${g.items.map(it => `
+              <details class="cart-log-row" data-id="${it.id}">
+                <summary>
+                  <span class="cl-row-time">${escapeHTML(fmtTime(it.completed_at || it.sent_at || it.created_at))}</span>
+                  ${statusBadge(it.status)}
+                  ${kindBadge(it.kind)}
+                  <span class="cl-row-label" title="${escapeHTML(it.label || '')}">${escapeHTML(it.label || it.prompt || '—')}</span>
+                  <span class="cl-row-cust">${escapeHTML(it.cust || '')}</span>
+                </summary>
+                <div class="cl-row-detail">
+                  <div class="cl-row-section"><strong>Prompt</strong>
+                    <pre class="cl-row-prompt">${escapeHTML(it.prompt || '')}</pre>
+                  </div>
+                  ${it.summary ? `<div class="cl-row-section"><strong>Result summary</strong>
+                    <pre class="cl-row-summary">${escapeHTML(it.summary || '')}</pre></div>` : ''}
+                  <div class="cl-row-section cl-row-meta">
+                    <span><strong>ID:</strong> ${it.id}</span>
+                    ${it.created_at ? `<span><strong>Created:</strong> ${escapeHTML(it.created_at)}</span>` : ''}
+                    ${it.sent_at ? `<span><strong>Sent:</strong> ${escapeHTML(it.sent_at)}</span>` : ''}
+                    ${it.started_at ? `<span><strong>Started:</strong> ${escapeHTML(it.started_at)}</span>` : ''}
+                    ${it.completed_at ? `<span><strong>Completed:</strong> ${escapeHTML(it.completed_at)}</span>` : ''}
+                  </div>
+                </div>
+              </details>
+            `).join("")}
+          </div>
+        </details>
+      `).join("");
+    } catch (e) {
+      body.innerHTML = `<div class="cart-log-empty" style="color:#C0392B">Failed to load: ${escapeHTML(e.message)}</div>`;
+    }
+  }
+
+  return { open, close };
+})();
 
 // ---------- Help / Info modal ("i" pill in topbar) ----------
 (function setupHelpModal() {
