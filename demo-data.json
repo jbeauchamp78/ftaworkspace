@@ -11858,19 +11858,19 @@
   "count": 4,
   "running_count": 0,
   "completed_today": 2,
-  "needs_user_count": 3,
-  "auto_safe_count": 1,
+  "needs_user_count": 0,
+  "auto_safe_count": 4,
   "pending": [
    {
     "id": 101,
-    "kind": "open-pec",
+    "kind": "pec-draft",
     "label": "Open PEC - Vandelay Imports - M365 Copilot",
-    "prompt": "/manage-pecs create Vandelay for KR \"M365 Copilot\"",
+    "prompt": "/manage-pecs draft \"Vandelay\" --kr \"M365 Copilot\" --stage triage --workload \"M365 Copilot\" --deploy-lead FastTrack",
     "cust": "Vandelay",
     "status": "pending",
     "created_at": "2026-06-18 09:14:00",
     "sent_at": null,
-    "requires_user_confirm": 1
+    "requires_user_confirm": 0
    },
    {
     "id": 102,
@@ -11881,7 +11881,7 @@
     "status": "pending",
     "created_at": "2026-06-18 09:38:00",
     "sent_at": null,
-    "requires_user_confirm": 1
+    "requires_user_confirm": 0
    },
    {
     "id": 103,
@@ -11896,14 +11896,14 @@
    },
    {
     "id": 104,
-    "kind": "spotlight",
+    "kind": "spotlight-draft",
     "label": "Draft spotlight - Wonka Confections",
-    "prompt": "/spotlight Wonka",
+    "prompt": "/spotlight Wonka --payload [demo-staged]/Wonka-104.json",
     "cust": "Wonka",
     "status": "pending",
     "created_at": "2026-06-18 10:42:00",
     "sent_at": null,
-    "requires_user_confirm": 1
+    "requires_user_confirm": 0
    }
   ],
   "running": [],
