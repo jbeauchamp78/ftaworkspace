@@ -3016,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.74 locked 2026-06-21 (Phase 1 audit fixes — all workspace cart prompts now match the canonical invocation forms each inner skill actually accepts. (1) /spotlight emits '/spotlight \"<cust>\" [--lowlight]' per SKILL.md line 3. (2) /insight emits '/insight create \"<cust>\"' per SKILL.md verb spec line 54. (3) /manage-pecs create emits natural-language form so the conversational parser handles it (was '--workloads ...' flag-style which the skill treats as free text). (4) /manage-pecs disengage + advance also rewritten as natural-language so the skill's parser + rule #1 pause-for-approval kick in cleanly. Staged JSON payloads still written to disk as paste-ready reference the FTA can use during the skill's preview step (and that a future skill version with --payload support can consume directly). Demo shim mirrored.)">v0.74 · Stable</span>
+      <span class="version-tag" title="Build version: v0.75 locked 2026-06-21 (Insight read-only sync — first half of Phase 1 expansion. NEW: (1) /api/insights/bulk endpoint mirrors /api/spotlights/bulk to upsert insight_index rows from Dataverse. (2) /api/customer/{nick}/insights endpoint returns per-customer cached insights + per-KR 💡 state map. (3) New /insight-sync skill at ~/.copilot/skills/insight-sync/ + bundled at fta-workspace/skills-helpers/insight-sync/ — pulls msdyn_cmty_idea rows authored by the FTA from FT Feedback via ftfeedback-mcp insight_list_mine and bulk-POSTs to workspace. (4) Insights tile drill modal upgraded — shows per-customer insight breakdown sorted by count + Sync from FT Feedback button that queues /insight-sync. (5) Customer refresh now auto-queues /insight-sync alongside /spotlight-sync. (6) Insight Submit button kept as queue-to-Clawpilot (not unattended — Tenant ID widget + Engineering blast radius). Next: PEC unattended endpoints (v0.76).)">v0.75 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4616,7 +4616,7 @@ async function renderDrillPanel(tile) {
     return;
   }
 
-  // ----- Insights drill (v0.69) — portfolio rollup of FT Feedback submissions -----
+  // ----- Insights drill (v0.69→v0.75) — portfolio rollup of FT Feedback submissions -----
   if (tile === "insights") {
     panel.innerHTML = `<div class="drill-hdr"><h3>Insights</h3>
       <span class="count">…</span>
@@ -4624,22 +4624,71 @@ async function renderDrillPanel(tile) {
       <div class="drill-list"><div class="drill-empty">Loading FT Feedback rollup…</div></div>`;
     document.getElementById("drillClose").onclick = closeDrill;
     try {
-      const r = await fetch("/api/insights/summary").then(x => x.json());
+      const [sumR, trackerR] = await Promise.all([
+        fetch("/api/insights/summary").then(x => x.json()),
+        fetch("/api/tracker").then(x => x.json()),
+      ]);
+      // Per-customer insights (parallel fetch for each customer in roster)
+      const customers = (trackerR.customers || []).map(c => c.nickname);
+      const perCust = await Promise.all(customers.map(async (n) => {
+        try {
+          const r = await fetch(`/api/customer/${encodeURIComponent(n)}/insights`).then(x => x.json());
+          return { nickname: n, total: r.total_active || 0, in_flight: r.in_flight || 0,
+                   insights: r.insights || [] };
+        } catch (_) { return { nickname: n, total: 0, in_flight: 0, insights: [] }; }
+      }));
+      const withInsights = perCust.filter(p => p.total > 0 || p.in_flight > 0)
+                                  .sort((a, b) => (b.total + b.in_flight) - (a.total + a.in_flight));
       panel.innerHTML = `
         <div class="drill-hdr"><h3>Insights</h3>
-          <span class="count">${r.total_active || 0} active</span>
+          <span class="count">${sumR.total_active || 0} active</span>
           <button class="close" id="drillClose" title="Close">×</button></div>
+        <div class="drill-actions" style="padding:8px 12px; border-bottom:1px solid var(--border);">
+          <button class="btn small primary" id="insightSyncBtn" title="Queue /insight-sync to pull latest from FT Feedback">🔄 Sync from FT Feedback</button>
+          <span style="margin-left:12px; color:var(--text-muted); font-size:11px;">
+            ${sumR.total_active || 0} active · ${sumR.in_flight || 0} in flight · ${sumR.from_workspace || 0} from workspace · ${sumR.customers_touched || 0} customers
+          </span>
+        </div>
         <div class="drill-list">
-          <div class="drill-item" style="background:transparent;">
-            <span class="cust">FT Feedback summary</span>
-            <span class="kr">${r.total_active || 0} active · ${r.in_flight || 0} in flight · ${r.from_workspace || 0} from workspace · ${r.customers_touched || 0} customers</span>
-          </div>
-          <div class="drill-empty" style="margin-top:8px;">
-            Click <strong>💡 Submit Insight</strong> on any customer card to file a new FT Feedback item.
-            Existing items sync from Dataverse on the next /insight-sync run.
-          </div>
+          ${withInsights.length === 0 ?
+            `<div class="drill-empty">No insights tracked yet. Click <strong>🔄 Sync from FT Feedback</strong> to pull from Dataverse, or click <strong>💡</strong> on any customer card to draft a new one.</div>` :
+            withInsights.map(p => `
+              <div class="drill-item" data-cust="${escapeHtml(p.nickname)}">
+                <span class="cust">${escapeHtml(p.nickname)}</span>
+                <span class="kr">${p.total} active${p.in_flight ? ` · ${p.in_flight} ⏳` : ''}</span>
+              </div>
+              ${p.insights.slice(0, 5).map(ix => `
+                <div class="drill-item" style="padding-left:24px; background:transparent;">
+                  <span class="cust" style="font-size:11px; color:var(--text-muted);">↳ ${escapeHtml(ix.title || '(untitled)').slice(0, 80)}</span>
+                  <span class="kr" style="font-size:10px;">${escapeHtml(ix.stage || '')} · ${ix.upvotes || 0} 👍</span>
+                </div>`).join("")}
+            `).join("")}
         </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
+      panel.querySelectorAll(".drill-item[data-cust]").forEach(el => {
+        el.onclick = () => _jumpToCustomer(el.dataset.cust);
+      });
+      const syncBtn = document.getElementById("insightSyncBtn");
+      if (syncBtn) syncBtn.onclick = async () => {
+        syncBtn.disabled = true;
+        syncBtn.textContent = "Queueing…";
+        try {
+          const r = await fetch("/api/clawpilot/queue", {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+              kind: "insight-sync",
+              label: "Insight sync — portfolio",
+              prompt: "/insight-sync",
+              cust: null,
+            }),
+          }).then(x => x.json());
+          syncBtn.textContent = r.id ? `Queued #${r.id} ✓` : "Failed";
+          setTimeout(() => { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync from FT Feedback"; }, 2000);
+        } catch (e) {
+          syncBtn.textContent = "Failed: " + e.message;
+          setTimeout(() => { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync from FT Feedback"; }, 3000);
+        }
+      };
     } catch (e) {
       panel.innerHTML = `<div class="drill-hdr"><h3>Insights</h3>
         <button class="close" id="drillClose" title="Close">×</button></div>
