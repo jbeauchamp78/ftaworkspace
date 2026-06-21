@@ -389,7 +389,8 @@ html[data-theme="win98"] .info-pill {
   .help-modal-body { grid-template-columns: 1fr; }
   .help-nav { display: none; }
 }
-.topbar .meta { font-size: 12px; color: var(--cp-text-muted); }
+.topbar .meta { font-size: 12px; color: var(--cp-text-muted); display: inline-flex; flex-direction: column; gap: 2px; line-height: 1.35; }
+.topbar .meta .tb-row { display: block; white-space: nowrap; }
 .topbar .spacer { flex: 1; }
 .btn { background: var(--cp-accent); color: var(--cp-accent-fg); border: none;
   padding: 7px 14px; border-radius: 0.625rem; font-size: 13px; font-weight: 500;
@@ -3015,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.72 locked 2026-06-21 (Skill-detection fix — /api/skills/installed was only scanning ~/.copilot/skills/ (user-authored skills folder) and totally missing ~/.copilot/m-skills/ (Clawpilot's primary upstream-managed skills directory where /insight, /spotlight, /manage-pecs, /pec-engagement-note, and 100+ other FastTrack skills actually live). The workspace never RUNS those skills — it queues prompts that Clawpilot resolves — so what matters is Clawpilot's ability to find them, which means BOTH directories count. Now scans both, returns merged + sorted list + a per-root breakdown for debugging. The v0.71 'missing skills' yellow banner will now correctly disappear for users with a normal Clawpilot install.)">v0.72 · Stable</span>
+      <span class="version-tag" title="Build version: v0.73 locked 2026-06-21 (Topbar meta line rearranged onto three rows for readability: Row 1: 'User: <FTA Name>' · Row 2: 'MIDAS snapshot: <date or in-progress>' · Row 3: 'Workspace Refresh: <relative timestamp>'. Same data, cleaner visual hierarchy than a single dot-separated line that wrapped awkwardly. CSS uses inline-flex column layout so the meta block stays compact in the topbar.)">v0.73 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3036,7 +3037,11 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
       </span>
     </span>
   </div>
-  <span class="meta" id="topbarMeta">James A. Beauchamp · <span title="MIDAS labels each monthly snapshot with that month's end-of-month date. Today's reading sits in an in-progress bucket (e.g., June data is stamped 2026-06-30 throughout June, then finalizes on Jul 1). The data is current; only the date label is forward-dated.">MIDAS snapshot:</span> <strong id="midasSnap" title="MIDAS publishes one snapshot per month, labeled with the last day of that month. The label updates to (in progress) for the running month and switches to the literal date once that month closes.">—</strong> · Last refresh: <strong id="lastRefresh">—</strong></span>
+  <span class="meta" id="topbarMeta">
+    <span class="tb-row">User: <strong>James Beauchamp</strong></span>
+    <span class="tb-row"><span title="MIDAS labels each monthly snapshot with that month's end-of-month date. Today's reading sits in an in-progress bucket (e.g., June data is stamped 2026-06-30 throughout June, then finalizes on Jul 1). The data is current; only the date label is forward-dated.">MIDAS snapshot:</span> <strong id="midasSnap" title="MIDAS publishes one snapshot per month, labeled with the last day of that month. The label updates to (in progress) for the running month and switches to the literal date once that month closes.">—</strong></span>
+    <span class="tb-row">Workspace Refresh: <strong id="lastRefresh">—</strong></span>
+  </span>
   <span class="spacer"></span>
   <span class="toast" id="toast" aria-live="polite" style="font-size:12px;color:var(--cp-text-muted);min-width:120px;text-align:right"></span>
   <select class="btn secondary theme-select" id="themeSelect" title="Switch theme">
@@ -5545,7 +5550,10 @@ window.__api = (function() {
     const tb = document.getElementById("topbarMeta");
     if (tb && meta.fta_name) {
       const SNAP_TIP = "MIDAS labels each monthly snapshot with that month's end-of-month date. Today's reading sits in an in-progress bucket (e.g., June data is stamped 2026-06-30 throughout June, then finalizes on Jul 1). The data is current; only the date label is forward-dated.";
-      tb.innerHTML = `${meta.fta_name} · <span title="${SNAP_TIP}">MIDAS snapshot:</span> <strong id="midasSnap" title="${SNAP_TIP}">${snapTxt}</strong> · Last refresh: <strong id="lastRefresh">${tsTxt}</strong>`;
+      tb.innerHTML =
+        `<span class="tb-row">User: <strong>${meta.fta_name}</strong></span>` +
+        `<span class="tb-row"><span title="${SNAP_TIP}">MIDAS snapshot:</span> <strong id="midasSnap" title="${SNAP_TIP}">${snapTxt}</strong></span>` +
+        `<span class="tb-row">Workspace Refresh: <strong id="lastRefresh">${tsTxt}</strong></span>`;
     }
   }
 
