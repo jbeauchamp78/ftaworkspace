@@ -470,10 +470,10 @@
       // Demo: synthesize a small but believable count
       const inFlight = (STATE.queue.pending || []).filter(p => p.kind === "insight-draft").length;
       return jsonResp({
-        total_active: 3 + inFlight,
+        total_active: 8 + inFlight,
         in_flight: inFlight,
-        from_workspace: inFlight,
-        customers_touched: 2 + (inFlight > 0 ? 1 : 0),
+        from_workspace: 3 + inFlight,
+        customers_touched: 6 + (inFlight > 0 ? 1 : 0),
       });
     }],
     ["POST", /^\/api\/feedback\/submit$/, (m, opts) => {
@@ -483,6 +483,59 @@
       if (!body.title) return jsonResp({ ok: false, error: "title is required" });
       if (!body.body) return jsonResp({ ok: false, error: "body is required" });
       return jsonResp({ ok: true, install_id: "demo-install-id", path: "[demo] usage_events.csv" });
+    }],
+    // ----- Drill panel data feeds (v0.69 demo parity) -----
+    ["GET", /^\/api\/ideal-config\/rollup$/, () => {
+      const items = STATE.customers.map((c) => {
+        const ic = c.ideal_config || {};
+        const green = ic.green_count != null ? ic.green_count
+                    : (ic.settings ? ic.settings.filter(s => s.status === "green").length : 7);
+        const total = ic.total_count != null ? ic.total_count
+                    : (ic.settings ? ic.settings.length : 10);
+        const overall = green === total ? "green" : green >= 6 ? "yellow" : "red";
+        return { nickname: c.nickname, overall, green_count: green, total_count: total };
+      });
+      return jsonResp({ items });
+    }],
+    ["GET", /^\/api\/counters\/dq-list\/(\w+)$/, (m) => {
+      const key = m[1];
+      // Build demo lists from the customer set + DQ counts in meta
+      const dq = STATE.counters?.data_quality || {};
+      const count = dq[key] || 0;
+      const items = [];
+      const pool = STATE.customers.slice(0, count + 2);
+      const titles = {
+        esn_missing_or_expired: (c) => ({
+          name: c.nickname, entity: "account", id: c.ftop_account_id,
+          extra: `ESN last touched 45+ days ago — past next-update`,
+        }),
+        l1_status_unknown: (c) => ({
+          name: c.nickname, entity: "ftop_serviceintents", id: null,
+          extra: `Workload Intent row L1 = "Status Unknown"`,
+        }),
+        l1_ip_without_engagement_start: (c) => ({
+          name: c.nickname, entity: "ftop_serviceintents", id: null,
+          extra: `L1 = In Progress, Engagement Start = blank`,
+        }),
+        l1_ip_without_target_date: (c) => ({
+          name: c.nickname, entity: "ftop_serviceintents", id: null,
+          extra: `L1 = In Progress, Target Date = blank`,
+        }),
+        l1_blocked_next_action_late: (c) => ({
+          name: c.nickname, entity: "ftop_serviceintents", id: null,
+          extra: `L1 = Blocked, Next Action overdue`,
+        }),
+      };
+      const mkr = titles[key];
+      if (mkr) {
+        for (let i = 0; i < Math.min(count, pool.length); i++) {
+          items.push(mkr(pool[i]));
+        }
+      }
+      return jsonResp({
+        items,
+        view_url: `https://fasttrack365.crm.dynamics.com/main.aspx#dq/${key}`,
+      });
     }],
     // ----- Spotlight draft form (v0.35) -----
     ["GET", /^\/api\/customer\/([^/?]+)\/spotlight-draft$/, (m, opts, search) => {
@@ -665,6 +718,33 @@
         });
         return { kr_label: kr.kr_label, points, threshold: t };
       }).filter(Boolean);
+
+      // v0.69: also include Non-KR series in the demo so the chart's Non-KR
+      // mode actually has data to draw. In production this comes from the
+      // (deferred) non_kr_status_history table. For demo we synthesize from
+      // STATE.nonKrByCust[c.nickname] which already has current_mau values.
+      STATE.nonKrByCust = STATE.nonKrByCust || {};
+      if (!STATE.nonKrByCust[cust]) STATE.nonKrByCust[cust] = NON_KR_DEFAULT();
+      const nkRows = STATE.nonKrByCust[cust] || [];
+      nkRows.forEach((nk) => {
+        if (nk.current_mau == null) return;
+        const curMau = Math.max(1, nk.current_mau);
+        const baseMau = Math.max(0, curMau * (0.45 + ((nk.workload.length % 5) * 0.05)));
+        const points = months.map((m, i) => {
+          const frac = i / Math.max(1, months.length - 1);
+          const jitter = (Math.sin(i * 0.7 + nk.workload.length) + 1) * 60 - 60;
+          const mau = Math.round(baseMau + (curMau - baseMau) * frac + jitter);
+          return {
+            month: m,
+            iso: `${m}-${i === months.length - 1 ? "30" : "28"}`,
+            value: null,
+            mau: Math.max(0, mau),
+          };
+        });
+        // Non-KR series have NO threshold — that's the toggle's signal.
+        series.push({ kr_label: nk.workload, points, threshold: null });
+      });
+
       return jsonResp({ nickname: cust, months, series, thresholds: THRESHOLDS });
     }],
 

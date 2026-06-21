@@ -2977,7 +2977,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.68 locked 2026-06-20 (Big build: (1) Insight (FT Feedback) flow — new Insights counter tile next to Spotlights, new 💡 Submit Insight button on every customer card, full draft modal pre-filled from KR + ESN context, queues /insight bridge cart row consuming staged JSON payload (PII-scrubbed, Tenant ID only). New backend insight_draft.py module + GET/POST /api/customer/{nick}/insight-draft endpoints + GET /api/insights/summary + insight_index local cache table. (2) Counter row reorganization — split Spotlights out of KR Status into a new Stories section (Spotlights + Insights side-by-side); grid columns proportional to tile count so widths look even. (3) KR table column tightening — KR/Workload 200→180, Status 130→110, numeric cols 70→62 and 80→72, PEC 80→72 — frees ~80px for the Notes column. Same on Non-KR table. (4) Workspace Feedback — new 💬 topbar button + Bug/Idea/Question modal that POSTs /api/feedback/submit, which writes a workspace_feedback row to the same shared telemetry CSV the install-id tracking writes to. Anonymous unless contact is provided. (5) /insight + /insight-sync added to _AUTO_SAFE_KINDS allow-list. (6) Demo shim parity for all new endpoints.)">v0.68 · Stable</span>
+      <span class="version-tag" title="Build version: v0.69 locked 2026-06-21 (Demo fixes: (1) Tile clicks now have content — added portfolio-rollup drill panels for Spotlights and Insights tiles (previously empty), and demo-api.js handlers for /api/ideal-config/rollup + /api/counters/dq-list/{key} so IC Wins + the 5 DQ tiles populate with synthesized customer rows. (2) Non-KR chart works in demo — kr-history handler now also emits Non-KR series synthesized from STATE.nonKrByCust so the chart's Non-KR toggle actually draws lines. Production still needs non_kr_status_history (backlog item mvp2-nonkr-history). (3) Bumped demo DQ counts so the tiles look populated (esn-missing 4→7, etc).)">v0.69 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4445,6 +4445,8 @@ const TILE_TITLES = {
   "regressions":         "KPI Regressions",
   "missing-pecs":        "Missing PECs",
   "ic-wins":             "Ideal Config Wins",
+  "spotlights":          "Spotlights",
+  "insights":            "Insights",
   "dq-esn":              "ESN Missing / Expired",
   "dq-l1-unknown":       "L1 Status Unknown",
   "dq-l1-no-engstart":   "L1 In Progress w/o Engagement Start",
@@ -4519,6 +4521,90 @@ async function _enqueueBridge(payload) {
 async function renderDrillPanel(tile) {
   const panel = document.getElementById("drillPanel");
   panel.style.display = "block";
+
+  // ----- Spotlights drill (v0.69) — list customers grouped by spotlight count -----
+  if (tile === "spotlights") {
+    panel.innerHTML = `<div class="drill-hdr"><h3>Spotlights</h3>
+      <span class="count">…</span>
+      <button class="close" id="drillClose" title="Close">×</button></div>
+      <div class="drill-list"><div class="drill-empty">Loading portfolio spotlights…</div></div>`;
+    document.getElementById("drillClose").onclick = closeDrill;
+    try {
+      const r = await fetch("/api/spotlights/summary").then(x => x.json());
+      // Sub-fetch per-customer counts is too chatty; show portfolio rollup +
+      // hint to click into a customer card for per-cust detail.
+      const rows = [];
+      // Build a per-customer list from CUSTOMERS — assume spotlight count is
+      // recorded per c.spotlights_published (if backend joins it) — else
+      // we expose the portfolio numbers only.
+      CUSTOMERS.forEach(c => {
+        if (c.spotlights_count && c.spotlights_count > 0) {
+          rows.push({ cust: c.n, count: c.spotlights_count });
+        }
+      });
+      panel.innerHTML = `
+        <div class="drill-hdr"><h3>Spotlights</h3>
+          <span class="count">${r.published || 0} published</span>
+          <button class="close" id="drillClose" title="Close">×</button></div>
+        <div class="drill-list">
+          <div class="drill-item" style="background:transparent;">
+            <span class="cust">Portfolio rollup</span>
+            <span class="kr">${r.published || 0} published · ${r.in_flight || 0} in flight · ${r.customers_with_spotlight || 0} customers · ${r.recommended || 0} recommended</span>
+          </span>
+          </div>
+          ${rows.length === 0
+            ? `<div class="drill-empty">Click any customer card → header chip ✨ to see per-customer spotlight details.</div>`
+            : rows.sort((a,b)=>b.count-a.count).map(it => `
+              <div class="drill-item" data-cust="${escapeHtml(it.cust)}">
+                <span class="cust">${escapeHtml(it.cust)}</span>
+                <span class="kr">${it.count} spotlight${it.count>1?'s':''}</span>
+              </div>`).join("")}
+        </div>`;
+      document.getElementById("drillClose").onclick = closeDrill;
+      panel.querySelectorAll(".drill-item[data-cust]").forEach(el => {
+        el.onclick = () => _jumpToCustomer(el.dataset.cust);
+      });
+    } catch (e) {
+      panel.innerHTML = `<div class="drill-hdr"><h3>Spotlights</h3>
+        <button class="close" id="drillClose" title="Close">×</button></div>
+        <div class="drill-empty">Failed: ${e.message}</div>`;
+      document.getElementById("drillClose").onclick = closeDrill;
+    }
+    return;
+  }
+
+  // ----- Insights drill (v0.69) — portfolio rollup of FT Feedback submissions -----
+  if (tile === "insights") {
+    panel.innerHTML = `<div class="drill-hdr"><h3>Insights</h3>
+      <span class="count">…</span>
+      <button class="close" id="drillClose" title="Close">×</button></div>
+      <div class="drill-list"><div class="drill-empty">Loading FT Feedback rollup…</div></div>`;
+    document.getElementById("drillClose").onclick = closeDrill;
+    try {
+      const r = await fetch("/api/insights/summary").then(x => x.json());
+      panel.innerHTML = `
+        <div class="drill-hdr"><h3>Insights</h3>
+          <span class="count">${r.total_active || 0} active</span>
+          <button class="close" id="drillClose" title="Close">×</button></div>
+        <div class="drill-list">
+          <div class="drill-item" style="background:transparent;">
+            <span class="cust">FT Feedback summary</span>
+            <span class="kr">${r.total_active || 0} active · ${r.in_flight || 0} in flight · ${r.from_workspace || 0} from workspace · ${r.customers_touched || 0} customers</span>
+          </div>
+          <div class="drill-empty" style="margin-top:8px;">
+            Click <strong>💡 Submit Insight</strong> on any customer card to file a new FT Feedback item.
+            Existing items sync from Dataverse on the next /insight-sync run.
+          </div>
+        </div>`;
+      document.getElementById("drillClose").onclick = closeDrill;
+    } catch (e) {
+      panel.innerHTML = `<div class="drill-hdr"><h3>Insights</h3>
+        <button class="close" id="drillClose" title="Close">×</button></div>
+        <div class="drill-empty">Failed: ${e.message}</div>`;
+      document.getElementById("drillClose").onclick = closeDrill;
+    }
+    return;
+  }
 
   // Async sources (IC + DQ) — show a loading state, then re-render with real rows.
   if (tile === "ic-wins") {
