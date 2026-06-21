@@ -2852,7 +2852,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.62 locked 2026-06-20 (Two demo-only bugs fixed: (1) the spotlight-draft demo-api.js handler was still emitting requires_user_confirm=1 + kind='spotlight-auto' (not in the v0.61 allow-list), so demo-cart rows still showed the ✓ Approve button after v0.61. Now writes requires_user_confirm=0 + kind='spotlight-draft'. Same fix on the legacy /api/customer/{nick}/spotlights/queue handler. (2) Cart row 'Invalid Date' fix — demo created_at used new Date().toISOString() which already ends in Z; fmtTime then appended ANOTHER Z giving 'ZZ' and an Invalid Date. Demo now formats created_at as 'YYYY-MM-DD HH:MM:SS' to match backend, and fmtTime is hardened to detect ISO-with-TZ inputs and not double-suffix. Also bumped the primary button styling so 'Queue as Draft' reads as clearly enabled rather than muted.)">v0.62 · Stable</span>
+      <span class="version-tag" title="Build version: v0.63 locked 2026-06-20 (Two bug fixes: (1) Spotlight + PEC draft modals were leaving the Queue button disabled after a successful submit because the success path only set disabled=true on entry and never reset it on the success branch (only on error). Both modals are singletons — the same DOM element is reused across opens — so the next time the FTA opened the modal, the button was permanently stuck. Fixed by re-enabling buttons before close + defensive reset on every modal open. (2) Demo cart had stale leftover seeded rows (Vandelay PEC, Hooli compete-brief, Wonka spotlight) cluttering the bundle. Trimmed to a single representative DQ refresh row.)">v0.63 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -7459,6 +7459,12 @@ window.__spotlightDraftForm = (function () {
     build();
     currentCtx = ctx;
     const { cust, kr_label, lowlight } = ctx;
+    // Defensive: re-enable footer buttons. The modal is a singleton — if a
+    // prior submit cycle bailed before re-enabling them, this rescues it.
+    ["#spfQueue", "#spfCancel", "#spfAlready"].forEach(s => {
+      const b = modal.querySelector(s);
+      if (b) b.disabled = false;
+    });
     // Reset all fields + show loading state
     modal.querySelectorAll("input, textarea").forEach(el => el.value = "");
     setStatus("Loading suggested draft…", false);
@@ -7526,6 +7532,7 @@ window.__spotlightDraftForm = (function () {
       if (!data.ok) { setStatus(`Failed: ${data.error || 'unknown'}`, true); all.forEach(b => b && (b.disabled = false)); return; }
       setStatus(`✓ logged as existing (manual). Closing…`, false);
       if (typeof toast === "function") toast(`Spotlight marked as already created (manual)`, "ok");
+      all.forEach(b => b && (b.disabled = false));
       setTimeout(close, 1200);
     } catch (e) {
       setStatus(`Error: ${e.message}`, true);
@@ -7574,6 +7581,10 @@ window.__spotlightDraftForm = (function () {
         toast(`Spotlight queued — cart id ${data.id}`, "ok");
       }
       if (typeof refreshCartBadge === "function") refreshCartBadge();
+      // Re-enable buttons before close so next open of the modal isn't
+      // stuck with a disabled Queue/Cancel pair (the modal is a singleton
+      // — same DOM element reused across spotlights).
+      btn.disabled = false; cancel.disabled = false;
       setTimeout(close, 1500);
     } catch (e) {
       setStatus(`Error: ${e.message}`, true);
@@ -7686,6 +7697,11 @@ window.__pecDraftForm = (function () {
     build();
     currentCtx = ctx;
     const { cust, kr_label } = ctx;
+    // Defensive: re-enable footer buttons in case prior submit bailed early
+    ["#pecfQueue", "#pecfCancel", "#pecfAlready"].forEach(s => {
+      const b = modal.querySelector(s);
+      if (b) b.disabled = false;
+    });
     modal.querySelectorAll("input[type='text'], textarea").forEach(el => el.value = "");
     setStatus("Loading suggested PEC payload…", false);
     modal.querySelector("#pecDraftTitle").textContent = `Create PEC — ${cust}${kr_label ? " · " + kr_label : ""}`;
@@ -7806,6 +7822,7 @@ window.__pecDraftForm = (function () {
       setStatus(`✓ Queued — heartbeat will fire within 30 min (cart id ${data.id}).`, false);
       if (typeof toast === "function") toast(`PEC queued — cart id ${data.id}`, "ok");
       if (typeof refreshCartBadge === "function") refreshCartBadge();
+      btn.disabled = false; cancel.disabled = false;
       setTimeout(close, 1500);
     } catch (e) {
       setStatus(`Error: ${e.message}`, true);
