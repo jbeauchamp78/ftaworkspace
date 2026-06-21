@@ -2945,7 +2945,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.65 locked 2026-06-20 (Server-offline overlay — when the FTA Workspace localhost backend at 127.0.0.1:8765 stops responding (machine slept, terminal closed, crash), the UI no longer just sits there showing stale '—' counters. Instead a full-screen modal appears explaining what happened, providing a one-click 📋 Copy of the exact PowerShell command to restart, auto-retrying every 5 seconds, and auto-reloading the page the moment the server comes back. Dismissible per-tab for users who want to view the cached state without the overlay. Demo mode is exempt (no real backend to lose).)">v0.65 · Stable</span>
+      <span class="version-tag" title="Build version: v0.67 locked 2026-06-20 (Field Guide opt-out checkbox inverted — was 'Don't show on startup' (default unchecked = show), now 'Show on startup' (default checked = show). Cleaner UX — checked-state matches intent. Legacy 'skip-on-start' localStorage key is honored for users who already opted out so their preference survives the rename. Field Guide tour copy updated to say 'uncheck' instead of 'tick'.)">v0.67 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -8860,7 +8860,7 @@ window.__cartLogModal = (function () {
           <li><strong>Click a customer</strong> in the left list. The right panel populates with: header (name + TPID, editable), KR Status table (sortable), Copilot Ideal Config table, To Dos, Recommended Actions.</li>
           <li><strong>Look at the 🛒 Pending badge</strong> next to your name. Red = items awaiting your ✓ Approve (Clawpilot skills queued by auto-maintenance or by you).</li>
           <li><strong>Pick a theme</strong> from the dropdown — defaults to Workspace blue but Win98 is the most fun for 4 PM.</li>
-          <li><strong>Don't want this Field Guide every launch?</strong> Tick the <em>"Don't show on startup"</em> checkbox in the header — re-open any time via the <span class="pill">i</span> pill.</li>
+          <li><strong>Don't want this Field Guide every launch?</strong> Uncheck the <em>"Show on startup"</em> checkbox in the header — re-open any time via the <span class="pill">i</span> pill.</li>
         </ol>
         <div class="help-callout"><strong>Pro tip:</strong> Sort the KR table by clicking column headers (tri-state: asc → desc → reset). Sort resets when you click to a different customer so canonical view always comes back.</div>`,
 
@@ -9143,8 +9143,8 @@ window.__cartLogModal = (function () {
             <div class="help-sub">Everything you need to know — pick a section</div>
           </div>
           <label class="help-skip-toggle" style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.92);margin-right:10px;cursor:pointer;user-select:none;white-space:nowrap;">
-            <input type="checkbox" id="helpSkipOnStart" style="margin:0;cursor:pointer;" />
-            Don't show on startup
+            <input type="checkbox" id="helpShowOnStart" style="margin:0;cursor:pointer;" />
+            Show on startup
           </label>
           <button class="def-close" type="button" aria-label="Close">×</button>
         </div>
@@ -9156,14 +9156,29 @@ window.__cartLogModal = (function () {
     document.body.appendChild(back);
     back.addEventListener("click", (e) => { if (e.target === back) back.classList.remove("show"); });
     back.querySelector(".def-close").addEventListener("click", () => back.classList.remove("show"));
-    // Don't-show-on-startup checkbox: writes/clears the skip key.
-    const SKIP_KEY = "fta-workspace-field-guide-skip-on-start";
-    const skipCb = back.querySelector("#helpSkipOnStart");
-    if (skipCb) {
-      skipCb.checked = localStorage.getItem(SKIP_KEY) === "1";
-      skipCb.addEventListener("change", () => {
-        if (skipCb.checked) localStorage.setItem(SKIP_KEY, "1");
-        else localStorage.removeItem(SKIP_KEY);
+    // v0.67: inverted — checkbox now means "Show on startup" (checked = show).
+    // Storage key is "fta-workspace-field-guide-show-on-start". We also honor
+    // the legacy "...-skip-on-start" key so existing users keep their choice:
+    // if the old skip key was set to "1", treat as show=false; otherwise show=true.
+    const SHOW_KEY = "fta-workspace-field-guide-show-on-start";
+    const LEGACY_SKIP_KEY = "fta-workspace-field-guide-skip-on-start";
+    function readShow() {
+      const v = localStorage.getItem(SHOW_KEY);
+      if (v === "1") return true;
+      if (v === "0") return false;
+      // No new key set — fall through to legacy
+      const legacy = localStorage.getItem(LEGACY_SKIP_KEY);
+      if (legacy === "1") return false;
+      // Default for first-time users: show on startup
+      return true;
+    }
+    const showCb = back.querySelector("#helpShowOnStart");
+    if (showCb) {
+      showCb.checked = readShow();
+      showCb.addEventListener("change", () => {
+        localStorage.setItem(SHOW_KEY, showCb.checked ? "1" : "0");
+        // Clean up the legacy key once the user has expressed a new preference
+        localStorage.removeItem(LEGACY_SKIP_KEY);
       });
     }
     document.addEventListener("keydown", (e) => {
@@ -9187,13 +9202,21 @@ window.__cartLogModal = (function () {
     document.getElementById("helpModal").classList.add("show");
   });
 
-  // First-launch auto-open: by default, the Field Guide opens on EVERY
-  // launch so users always have it in front of them. The user can opt
-  // out via the "Don't show on startup" checkbox inside the modal, which
-  // sets the SKIP_KEY in localStorage. Unchecking the box restores the
-  // default always-show behavior.
-  const SKIP_KEY = "fta-workspace-field-guide-skip-on-start";
-  if (localStorage.getItem(SKIP_KEY) !== "1") {
+  // First-launch auto-open: by default the Field Guide opens on EVERY
+  // launch so users always have it in front of them. Opt out via the
+  // "Show on startup" checkbox in the modal header (v0.67 — inverted from
+  // the prior "Don't show on startup" pattern). Honors a legacy skip key
+  // for users who already opted out before v0.67.
+  const SHOW_KEY = "fta-workspace-field-guide-show-on-start";
+  const LEGACY_SKIP_KEY = "fta-workspace-field-guide-skip-on-start";
+  function shouldShowOnStart() {
+    const v = localStorage.getItem(SHOW_KEY);
+    if (v === "1") return true;
+    if (v === "0") return false;
+    if (localStorage.getItem(LEGACY_SKIP_KEY) === "1") return false;
+    return true;  // default
+  }
+  if (shouldShowOnStart()) {
     // Wait ~700ms for the page to settle (counters, customer list, etc.)
     // so the modal doesn't compete with first-paint.
     setTimeout(() => {
@@ -9203,9 +9226,13 @@ window.__cartLogModal = (function () {
   }
 })();
 
-// ---------- PWA service worker registration ----------
-// Required for Edge to surface the "Install app" button. We must register
-// at root scope ("/") so it can intercept both /static/* and /api/*.
+// ---------- PWA service worker — DISABLED in v0.65 ----------
+// The SW was caching stale HTML so aggressively that backend outages
+// were invisible and updates didn't reach the browser. We've replaced
+// /sw.js with a self-unregistering kill-switch (see app/static-v3/sw.js)
+// and stopped registering a new one here. The PWA "Install app" capability
+// is sacrificed in exchange for reliable update propagation + a working
+// server-offline overlay.
 /* SW registration stripped from bundle */
 </script>
 
