@@ -2613,7 +2613,10 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 .sp-draft-foot button.primary {
   background: var(--cp-accent); color: var(--cp-accent-fg, #fff);
   border-color: var(--cp-accent);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
 }
+.sp-draft-foot button.primary:hover { filter: brightness(1.1); box-shadow: 0 2px 6px rgba(0,120,212,0.35); }
 .sp-draft-foot button.sp-already-btn {
   border: 1px dashed var(--cp-border);
   color: var(--cp-text-muted);
@@ -2849,7 +2852,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.61 locked 2026-06-20 (Approve-step elimination — every workspace queueing path now goes through a modal that IS the review gate (Spotlight + PEC drafts since v0.39, PEC advance/disengage, PEC engagement notes, FTBI heatmap sync, spotlight-sync, DQ refresh, ESN refresh, etc.) so the cart row is the audit trail, not a second approval gate. (1) Backend _AUTO_SAFE_KINDS allow-list now includes every modal-gated kind so new inserts default to requires_user_confirm=0. (2) One-time migration on schema-touch flips stale pending rows of allow-listed kinds to requires_user_confirm=0. (3) Demo bundle's seeded pending rows updated to use the new pec-draft/spotlight-draft kinds with requires_user_confirm=0 — no more ✓ Approve button on the demo cart.)">v0.61 · Stable</span>
+      <span class="version-tag" title="Build version: v0.62 locked 2026-06-20 (Two demo-only bugs fixed: (1) the spotlight-draft demo-api.js handler was still emitting requires_user_confirm=1 + kind='spotlight-auto' (not in the v0.61 allow-list), so demo-cart rows still showed the ✓ Approve button after v0.61. Now writes requires_user_confirm=0 + kind='spotlight-draft'. Same fix on the legacy /api/customer/{nick}/spotlights/queue handler. (2) Cart row 'Invalid Date' fix — demo created_at used new Date().toISOString() which already ends in Z; fmtTime then appended ANOTHER Z giving 'ZZ' and an Invalid Date. Demo now formats created_at as 'YYYY-MM-DD HH:MM:SS' to match backend, and fmtTime is hardened to detect ISO-with-TZ inputs and not double-suffix. Also bumped the primary button styling so 'Queue as Draft' reads as clearly enabled rather than muted.)">v0.62 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4717,10 +4720,18 @@ async function renderCartInline() {
   const esc = (s) => (s == null ? "" : String(s).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])));
   const fmtTime = ts => {
     if (!ts) return "";
-    try {
-      const d = new Date(ts.replace(" ", "T") + "Z");
-      return d.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
-    } catch { return ts; }
+    // Server sends "YYYY-MM-DD HH:MM:SS" (no TZ — treat as UTC).
+    // Demo shim sends ISO 8601 (may already include T + Z or offset).
+    // Normalize without doubling up the trailing 'Z'.
+    let candidate;
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(ts)) {
+      candidate = ts.replace(" ", "T") + "Z";
+    } else {
+      candidate = ts;  // already ISO with TZ
+    }
+    const d = new Date(candidate);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
   };
   const rowHtml = (it, kind) => {
     let dot, dotCls, removeBtn = "", time = "", extra = "", approveBtn = "";

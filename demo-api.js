@@ -459,18 +459,22 @@
       STATE.queue.pending = STATE.queue.pending || [];
       const id = STATE.nextQueueId++;
       const cust = decodeURIComponent(m[1]);
+      // v0.62: format created_at like the backend ("YYYY-MM-DD HH:MM:SS"
+      // without a 'Z' suffix) so the cart panel's fmtTime parses correctly
+      // instead of rendering "Invalid Date".
+      const nowSql = new Date().toISOString().replace("T", " ").slice(0, 19);
       STATE.queue.pending.push({
-        id, kind: "spotlight-auto",
+        id, kind: "spotlight-draft",
         label: `${body.kind === "lowlight" ? "(Lowlight) " : ""}Spotlight - ${cust}${body.kr_label ? " - " + body.kr_label : ""}`,
         prompt: `/spotlight --payload "[demo-staged]/${cust}-${id}.json"`,
-        cust, status: "pending", requires_user_confirm: 1,
-        trigger: "ui_spotlight_draft", created_at: new Date().toISOString(),
+        cust, status: "pending", requires_user_confirm: 0,
+        trigger: "ui_spotlight_draft", created_at: nowSql,
       });
       STATE.queue.count = (STATE.queue.count || 0) + 1;
       return jsonResp({
         ok: true, id, staged_path: `[demo-staged]/${cust}-${id}.json`,
         prompt: `/spotlight --payload "[demo-staged]/${cust}-${id}.json"`,
-        requires_user_confirm: 1, auto_submit_enabled: false,
+        requires_user_confirm: 0, auto_submit_enabled: false,
       });
     }],
 
@@ -1025,12 +1029,12 @@
         kind: "spotlight", label, prompt,
         cust: c.nickname, status: "pending",
         created_at: new Date().toISOString().replace("T", " ").slice(0, 19),
-        sent_at: null, requires_user_confirm: 1,
+        sent_at: null, requires_user_confirm: 0,
       };
       STATE.queue.pending.push(item);
       STATE.queue.count = STATE.queue.pending.length;
       STATE.queue.needs_user_count = STATE.queue.pending.filter((p) => p.requires_user_confirm).length;
-      return jsonResp({ ok: true, queued: true, queue_id: item.id, prompt, needs_user_confirm: true });
+      return jsonResp({ ok: true, queued: true, queue_id: item.id, prompt, needs_user_confirm: false });
     }],
     // ----- Spotlights: portfolio summary -----
     ["GET", /^\/api\/spotlights\/summary$/, () => {
