@@ -3016,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.76 locked 2026-06-22 (Phase 1 expansion 2/4 — backlog-stall fix + real spotlight tile). (1) Split _AUTO_SAFE_KINDS: heartbeat now ONLY auto-runs truly unattended skills (spotlight-sync, insight-sync, heatmap-ftbi-sync, pec-note, dq-refresh, esn-refresh, krtracker-refresh, l1-status-unknown, roster-bind, compete-brief, plus future pec-*-execute skills). The 6 attended write-prompts (pec-draft, pec-advance, pec-disengage, spotlight, spotlight-draft, insight-draft) are now ATTENDED — they sit in cart with ✓ Approve button until the FTA is at the keyboard. Prevents heartbeat from queueing prompts that pause Clawpilot waiting for user input. (2) Spotlights tile drill now shows REAL per-customer spotlight details (mirroring v0.75 Insights tile): customer rows with published/draft counts + collapsible per-spotlight title + stage badge + direct FTOP URL link + 🔄 Sync from FTOP button. Replaces generic 'Portfolio rollup' line.">v0.76 · Stable</span>
+      <span class="version-tag" title="Build version: v0.76.1 hotfix 2026-06-22 09:48 EDT — Workload chart legend converted from multi-select checkboxes to single-select radio buttons. You can only ever view one workload at a time now; multi-line normalized view is gone. Hint text + Field Guide updated to match.">v0.76.1 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -8295,9 +8295,8 @@ window.__workloadChart = (function () {
             </div>
             <div id="wlChartLegend"></div>
             <div class="wl-chart-hint" id="wlChartHint">
-              Pick ONE workload to see absolute MAU + a dashed KPI threshold reference line.
-              Default multi-line view normalizes everything to "% of threshold" so workloads with
-              different scales (ratio vs absolute) are comparable on the same axis.
+              Pick ONE workload to chart absolute MAU over time with a dashed KPI threshold reference line.
+              Use the <strong>KR</strong> / <strong>Non-KR</strong> tabs above to switch workload sets.
             </div>
           </div>
           <div class="wl-chart-main">
@@ -8343,14 +8342,12 @@ window.__workloadChart = (function () {
     if (!hint) return;
     if (state.mode === "kr") {
       hint.textContent =
-        'Pick ONE workload to see absolute MAU + a dashed KPI threshold reference line. ' +
-        'Multi-line view normalizes everything to "% of threshold" so workloads with ' +
-        'different scales are comparable on the same axis.';
+        'Pick ONE workload to chart absolute MAU over time with a dashed KPI threshold reference line. ' +
+        'Use None / Reset to clear the selection.';
     } else {
       hint.textContent =
         'Non-KR workloads have no OKR threshold — chart shows raw MAU per month. ' +
-        'Pick ONE for a clean line; multi-line uses a shared MAU axis so high-volume ' +
-        'workloads (e.g. Teams) will visually dominate.';
+        'Pick ONE workload at a time.';
     }
   }
 
@@ -8419,7 +8416,7 @@ window.__workloadChart = (function () {
       const last = s.points[s.points.length - 1];
       const valStr = formatValue(last && last.value, last && last.mau, s.threshold);
       return `<label class="wl-leg-row" data-kr="${s.kr_label.replace(/"/g, '&quot;')}">
-        <input type="checkbox" class="wl-leg-chk" ${checked} />
+        <input type="radio" name="wl-leg-radio" class="wl-leg-chk" ${checked} />
         <span class="wl-leg-swatch" style="background:${color}"></span>
         <span class="wl-leg-label">${s.kr_label}</span>
         <span class="wl-leg-val">${valStr}</span>
@@ -8429,7 +8426,9 @@ window.__workloadChart = (function () {
       const cb = row.querySelector(".wl-leg-chk");
       cb.addEventListener("change", () => {
         const kr = row.dataset.kr;
-        if (cb.checked) state.selected.add(kr); else state.selected.delete(kr);
+        // Single-select: clear previous selection before adding the new one
+        state.selected.clear();
+        if (cb.checked) state.selected.add(kr);
         renderChart();
       });
     });
@@ -9565,7 +9564,7 @@ window.__cartLogModal = (function () {
           <li><strong>Header</strong> — Display name (editable), full FTOP name, editable TPID pill, and an <code>FTOP account ↗</code> link straight to the customer's Dataverse record.</li>
           <li><strong>Status chips</strong> — KR Wins · KPI Wins · Spotlights · KPI Regressions · and the combined <strong>PECs</strong> pill showing <em>Miss · Triage · Engage · Total</em> at a glance. Click the PECs pill to open the per-customer popover with active/closed PEC details and stage breakdown.</li>
           <li><strong>● Yes PEC pill</strong> (in the KR table) — Click to open the <strong>Advance PEC</strong> modal: pick <em>Engage</em> (Triage → Engage) or <em>Disengage</em> (close out with reason + handshake picklists). Both paths queue <code>/manage-pecs</code> to the bridge.</li>
-          <li><strong>Workloads section</strong> — Toggle <strong>[Key Results | Non-KR]</strong>. KR mode shows the 15 OKR-scored workloads; Non-KR mode shows the additional workloads (Exchange, SharePoint, OneDrive, Teams, etc.) with FTA-managed status + notes. <strong>📈 Chart</strong> button next to the title opens the MoM Workloads chart — multi-line view normalizes everything to "% of threshold" so workloads on different scales are comparable; click ONE workload for absolute MAU + dashed KPI reference line. The chart has its own <strong>KR / Non-KR</strong> toggle in the modal header.</li>
+          <li><strong>Workloads section</strong> — Toggle <strong>[Key Results | Non-KR]</strong>. KR mode shows the 15 OKR-scored workloads; Non-KR mode shows the additional workloads (Exchange, SharePoint, OneDrive, Teams, etc.) with FTA-managed status + notes. <strong>📈 Chart</strong> button next to the title opens the MoM Workloads chart — pick one workload at a time for absolute MAU + dashed KPI reference line. The chart has its own <strong>KR / Non-KR</strong> toggle in the modal header.</li>
           <li><strong>Key Results table (KR mode)</strong> — One row per KR. Columns: KR/Workload, Status, Jun 30, Current, FY Growth, MoM, PEC, Notes. Each Status cell shows a small spotlight icon (✨/⚠/⏳/★) when relevant. Click ✨/⚠ to open the <strong>Spotlight draft</strong> modal — pre-filled from MIDAS + FTOP context, edit and submit in 2 clicks.</li>
           <li><strong>+ Open PEC</strong> (Missing PEC cell) — Opens the <strong>PEC draft</strong> modal: single-workload lock (the row you clicked), Stage picker (Triage / Engage), Deploy lead dropdown. Submits to <code>/manage-pecs</code> via the bridge.</li>
           <li><strong>M365 Adoption Heatmap</strong> — Toggle to view all OKR workloads color-coded by adoption stage (ONBOARDED / IN_PROGRESS / INTENT / NO_INTENT / NOT_LICENSED). Three layouts: Compact, Standard, Detailed. Per-tile override + FTBI sync supported. Export PNG/PPTX.</li>
