@@ -3016,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.77 locked 2026-06-22 09:55 EDT (Phase 1 expansion 3/4 — unattended PEC writes). Three new thin-execute skills shipped: /pec-create-execute, /pec-advance-execute, /pec-disengage-execute. Each is a workspace-owned wrapper that reads a staged JSON payload from ~/.copilot/fta-workspace/pec-staging/, calls the corresponding ftop-mcp tool (ftop_create_pec_execute / ftop_advance_pec_stage / ftop_disengage_pec) with dry_run=false directly, and posts the result back to the workspace cart row. NO preview, NO approval prompts — modal IS the gate. All three kinds are auto-safe so the heartbeat runs them unattended. Existing PEC modals (Create, Advance, Disengage) unchanged from UX perspective — they now route to the execute path automatically. The 4-step FTOP disengage recipe is handled inside ftop_disengage_pec. Skills bundled at fta-workspace/skills-helpers/ for fresh installs + installed at ~/.copilot/skills/. Insight Submit kept as queue-to-Clawpilot (Tenant ID widget blocker). Next: Spotlight unattended-Draft + Publish-from-Workspace button (v0.78).">v0.77 · Stable</span>
+      <span class="version-tag" title="Build version: v0.78.1 hotfix 2026-06-22 10:23 EDT — Removed the 'Not yet pulled from MIDAS' / timestamp line under the Refresh This Customer button. The same info now lives in the button's tooltip (hover the button to see Last refresh status). Cleaner header layout, no more layout jitter when the stamp toggles between empty and populated states.">v0.78.1 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3695,9 +3695,8 @@ function renderContent() {
         <button class="btn secondary cust-insight-btn" data-cust="${c.n}"
                 title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
         <button class="btn secondary" id="btnRefreshCustomer" data-cust="${c.n}"
-                title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Clawpilot bridge.">🔄 Refresh This Customer</button>
-        <span class="customer-refresh-stamp" id="customerRefreshStamp" data-cust="${c.n}"
-              style="font-size:10.5px;color:var(--cp-text-muted);margin-top:-2px;text-align:right;line-height:1.2;min-height:14px;">${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}</span>
+                data-stamp="${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}"
+                title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Clawpilot bridge.&#10;&#10;Last refresh: ${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : 'Not yet pulled from MIDAS')}">🔄 Refresh This Customer</button>
       </div>
     </div>
 
@@ -4614,21 +4613,46 @@ async function renderDrillPanel(tile) {
                 <span class="cust">${escapeHtml(p.nickname)}</span>
                 <span class="kr">${p.published} published${p.total > p.published ? ` · ${p.total - p.published} drafts` : ''}</span>
               </div>
-              ${p.spotlights.slice(0, 6).map(sl => `
-                <div class="drill-item" data-cust="${escapeHtml(p.nickname)}" style="padding-left:24px; background:transparent;">
+              ${p.spotlights.slice(0, 6).map(sl => {
+                const isDraft = (sl.stage || '').toLowerCase() === 'draft';
+                return `
+                <div class="drill-item" data-cust="${escapeHtml(p.nickname)}" data-sl-id="${escapeHtml(sl.spotlight_id || '')}" style="padding-left:24px; background:transparent;">
                   <span class="cust" style="font-size:11px; color:var(--text-muted);">
                     ${stageBadge(sl.stage, sl.kind)} ${sl.url ? `<a href="${escapeHtml(sl.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(sl.title || '(untitled)').slice(0, 70)}</a>` : escapeHtml(sl.title || '(untitled)').slice(0, 70)}
                   </span>
-                  <span class="kr" style="font-size:10px;">${escapeHtml(sl.stage || '')}${sl.kr_label ? ' · ' + escapeHtml(sl.kr_label) : ''}</span>
-                </div>`).join("")}
+                  <span class="kr" style="font-size:10px;">${escapeHtml(sl.stage || '')}${sl.kr_label ? ' · ' + escapeHtml(sl.kr_label) : ''}${isDraft ? ` <button class="btn small primary sp-publish-btn" data-sl-id="${escapeHtml(sl.spotlight_id || '')}" data-cust="${escapeHtml(p.nickname)}" style="margin-left:6px; padding:2px 8px; font-size:10px;">Publish</button>` : ''}</span>
+                </div>`;
+              }).join("")}
             `).join("")}
         </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
       panel.querySelectorAll(".drill-item[data-cust]").forEach(el => {
-        // Skip nested rows when clicking the spotlight title link
+        // Skip nested rows when clicking the spotlight title link OR Publish button
         el.onclick = (ev) => {
           if (ev.target.tagName === 'A') return;
+          if (ev.target.closest('.sp-publish-btn')) return;
           _jumpToCustomer(el.dataset.cust);
+        };
+      });
+      panel.querySelectorAll(".sp-publish-btn").forEach(btn => {
+        btn.onclick = async (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
+          const slId = btn.dataset.slId;
+          const cust = btn.dataset.cust;
+          if (!slId) return;
+          if (!confirm(`Publish this spotlight?\n\nThis will flip the FTOP stage from Draft to Publish and make it visible to FastTrack leadership. Continue?`)) return;
+          btn.disabled = true; btn.textContent = "Queueing…";
+          try {
+            const r = await fetch(`/api/spotlights/${encodeURIComponent(slId)}/publish-execute`, {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({ cust_nickname: cust }),
+            }).then(x => x.json());
+            btn.textContent = r.id ? `Queued #${r.id} ✓` : "Failed";
+            setTimeout(() => { btn.disabled = false; btn.textContent = "Publish"; }, 3000);
+          } catch (e) {
+            btn.textContent = "Failed";
+            setTimeout(() => { btn.disabled = false; btn.textContent = "Publish"; }, 3000);
+          }
         };
       });
       const syncBtn = document.getElementById("spotlightSyncBtn");
@@ -4833,15 +4857,17 @@ async function renderDrillPanel(tile) {
 
   // Synchronous KR-derived drills (existing behavior)
   const items = getDrillItems(tile);
-  const actionable = (tile === "missing-pecs");
+  // v0.78: Missing PECs is no longer queueable from the tile drill.
+  // Open PEC writes always go through the per-customer Open PEC modal
+  // so the FTA collects workload + title + deploy lead first.
+  const actionable = false;
   panel.innerHTML = `
     <div class="drill-hdr">
       <h3>${TILE_TITLES[tile]}</h3>
       <span class="count">${items.length}</span>
-      ${actionable && items.length ? `<button class="drill-bulk-btn" id="drillBulkBtn" title="Queue Open PEC for every row">+ Queue all ${items.length}</button>` : ''}
       <button class="close" id="drillClose" title="Close">×</button>
     </div>
-    <div class="drill-list${actionable ? ' drill-list-stacked' : ''}">
+    <div class="drill-list">
       ${items.length === 0 ? `<div class="drill-empty">No matching rows.</div>` :
         items.map(it => `
           <div class="drill-item" data-cust="${it.cust}">
@@ -4849,17 +4875,13 @@ async function renderDrillPanel(tile) {
             <span class="cust">${it.cust}</span>
             <span class="kr">${it.kr}</span>
             <span class="meta">${it.meta}</span>
-            ${actionable ? `<button class="drill-queue-btn" data-tile="${tile}" data-row='${escapeHtml(JSON.stringify({cust: it.cust, kr: it.kr, status: it.status}))}'>+ Queue</button>` : ''}
           </div>
         `).join("")}
     </div>
   `;
   _wireDrillButtons(panel, tile, () => items);
   panel.querySelectorAll(".drill-item").forEach(el => {
-    if (el.dataset.cust) el.onclick = (e) => {
-      if (e.target.closest(".drill-queue-btn") || e.target.closest("a")) return;
-      _jumpToCustomer(el.dataset.cust);
-    };
+    if (el.dataset.cust) el.onclick = () => _jumpToCustomer(el.dataset.cust);
   });
 }
 
@@ -7646,12 +7668,15 @@ window.__queueSkill = (function () {
         </tr>`;
       }).join("");
       body.innerHTML = rows || `<tr><td colspan="6" style="text-align:center;padding:14px;color:var(--cp-text-muted)">No Non-KR workloads configured.</td></tr>`;
-      // Update header timestamp (lives under "Refresh This Customer" in cust-header)
+      // Update Refresh button tooltip with latest fetched timestamp
       window.__nonKrCache = window.__nonKrCache || {};
       window.__nonKrCache[cust] = maxFetched;
-      const stamp = document.getElementById("customerRefreshStamp");
-      if (stamp && stamp.dataset.cust === cust) {
-        stamp.textContent = fmtFetched(maxFetched);
+      const refreshBtn = document.querySelector(`#btnRefreshCustomer[data-cust="${CSS.escape(cust)}"]`);
+      if (refreshBtn) {
+        const stamp = fmtFetched(maxFetched);
+        refreshBtn.dataset.stamp = stamp;
+        const baseTitle = "Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Clawpilot bridge.";
+        refreshBtn.title = `${baseTitle}\n\nLast refresh: ${stamp || 'Not yet pulled from MIDAS'}`;
       }
     } catch (e) {
       body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;color:#c0392b">Failed to load: ${e.message}</td></tr>`;
