@@ -3122,7 +3122,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.88 locked 2026-06-22 14:25 EDT — Full Test follow-up. Insight create is consistently attended in Stable and DEMO; DQ demo rows expose Customer + Workload/context fields.">v0.88 · Stable</span>
+      <span class="version-tag" title="Build version: v0.90 locked 2026-06-22 14:55 EDT — Insight copy-to-Scout handoff. Insight drafts no longer create cart rows; they stage the payload and show a full Scout prompt to copy/run manually.">v0.90 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -6798,17 +6798,17 @@ window.__queueSkill = (function () {
       cart_body: () => ({ demo: /[?&]demo=1\b/.test(location.search) }),
     },
     "insight-create": {
-      title: "Submit a FastTrack Feedback Insight?",
-      short: "Files a Microsoft-Engineering-visible product gap on this customer's behalf.",
+      title: "Prepare a FastTrack Feedback Insight?",
+      short: "Stages a draft and gives you a Scout prompt for the attended /insight create workflow.",
       sideEffects: [
         { kind: "read", label: "Reads cached KR row + latest ESN snippet" },
         { kind: "preview", label: "Strict PII scrub — Tenant ID only" },
         { kind: "write", label: "Writes to Dataverse msdyn_cmty_idea via ftfeedback-mcp" },
       ],
-      requires_user_confirm: 0,
+      requires_user_confirm: 1,
       skill_path: "insight",
-      cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/insight-draft/queue`,
-      cart_body: () => ({}),
+      cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/insight-draft/prompt`,
+      cart_body: (ctx) => ({ prompt: `/insight create "${ctx.cust}"` }),
     },
     "pec-draft-create": {
       title: "Create PEC from staged payload?",
@@ -9030,6 +9030,87 @@ document.addEventListener("click", (e) => {
   if (window.__pecNoteModal) window.__pecNoteModal.open({ cust, kr_label: kr });
 }, true);
 
+// ---------- Scout Prompt handoff modal ----------
+// Used for attended flows (currently Insight create) where Workspace prepares
+// the draft but Scout must run the interactive preview/dedupe/post workflow.
+window.__scoutPromptModal = (function () {
+  let modal = null;
+  function build() {
+    if (document.getElementById("scoutPromptBackdrop")) {
+      modal = document.getElementById("scoutPromptBackdrop");
+      return;
+    }
+    modal = document.createElement("div");
+    modal.id = "scoutPromptBackdrop";
+    modal.className = "sp-draft-backdrop";
+    modal.innerHTML = `
+      <div class="sp-draft-modal" role="dialog" aria-modal="true" style="max-width:720px;">
+        <div class="sp-draft-head">
+          <h3 id="scoutPromptTitle">Scout Prompt</h3>
+          <span class="sp-kind-badge" style="background:#0078D4;color:#fff;">Scout</span>
+          <button class="sp-draft-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="sp-draft-body">
+          <p class="sp-hint" style="margin:0 0 10px;">
+            Copy this prompt into Scout to continue the attended workflow. Workspace has staged your draft locally as reference material.
+          </p>
+          <label class="fld">Prompt to run in Scout</label>
+          <textarea id="scoutPromptText" rows="7" readonly style="font-family:Consolas,monospace;font-size:12px;"></textarea>
+          <div class="sp-hint" id="scoutPromptPath" style="margin-top:8px;"></div>
+          <div class="sp-draft-status" id="scoutPromptStatus"></div>
+        </div>
+        <div class="sp-draft-foot">
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">No cart row was created. Scout will handle dedupe, PII scrub, preview, and post.</span>
+          <button type="button" id="scoutPromptClose">Close</button>
+          <button type="button" id="scoutPromptFocus" class="secondary">Open Scout</button>
+          <button type="button" id="scoutPromptCopy" class="primary">Copy Prompt</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+    modal.querySelector(".sp-draft-close").addEventListener("click", close);
+    modal.querySelector("#scoutPromptClose").addEventListener("click", close);
+    modal.querySelector("#scoutPromptCopy").addEventListener("click", copyPrompt);
+    modal.querySelector("#scoutPromptFocus").addEventListener("click", focusScout);
+  }
+  function close() { if (modal) modal.classList.remove("show"); }
+  function setStatus(msg, err) {
+    const el = modal.querySelector("#scoutPromptStatus");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.toggle("err", !!err);
+  }
+  async function copyPrompt() {
+    const text = modal.querySelector("#scoutPromptText").value;
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus("Prompt copied. Paste/run it in Scout.", false);
+    } catch (e) {
+      setStatus("Copy failed: " + e.message, true);
+    }
+  }
+  async function focusScout() {
+    try {
+      await fetch("/api/scout/focus", { method: "POST" });
+      setStatus("If Scout did not come forward, open it manually and paste the copied prompt.", false);
+    } catch {
+      setStatus("Open Scout manually and paste the copied prompt.", false);
+    }
+  }
+  function open({ title, prompt, staged_path }) {
+    build();
+    modal.querySelector("#scoutPromptTitle").textContent = title || "Scout Prompt";
+    modal.querySelector("#scoutPromptText").value = prompt || "";
+    modal.querySelector("#scoutPromptPath").innerHTML = staged_path
+      ? `Draft staged at: <code>${escapeHtml(staged_path)}</code>`
+      : "";
+    setStatus("", false);
+    modal.classList.add("show");
+    setTimeout(() => modal.querySelector("#scoutPromptText").select(), 50);
+  }
+  return { open, close };
+})();
+
 // ---------- Insight (FT Feedback) draft modal ----------
 // 💡 Submit Insight button on customer card → opens this. Pre-fills from
 // /api/customer/{nick}/insight-draft (KR row + ESN snippet), staged JSON
@@ -9098,9 +9179,9 @@ window.__insightDraftForm = (function () {
           <div class="sp-draft-status" id="insStatus"></div>
         </div>
         <div class="sp-draft-foot">
-          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Heartbeat runs /insight within 30 min. PII-scrubbed before write.</span>
+          <span style="flex:1;font-size:11px;color:var(--cp-text-muted);">Creates a Scout prompt. Copy it to Scout to complete dedupe, PII review, and post.</span>
           <button type="button" id="insCancel">Cancel</button>
-          <button type="button" id="insQueue" class="primary">⚡ Queue Insight</button>
+          <button type="button" id="insQueue" class="primary">Create Scout Prompt</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -9246,13 +9327,17 @@ window.__insightDraftForm = (function () {
         setStatus("Scenario, Impact, and Desired Outcome are all required.", true);
         btn.disabled = false; cancel.disabled = false; return;
       }
-      const r = await fetch(`/api/customer/${encodeURIComponent(currentCtx.cust)}/insight-draft/queue`,
+      const r = await fetch(`/api/customer/${encodeURIComponent(currentCtx.cust)}/insight-draft/prompt`,
         { method: "POST", headers: {"content-type":"application/json"}, body: JSON.stringify(payload) });
       const data = await r.json();
       if (!data.ok) { setStatus(`Queue failed: ${data.error || 'unknown'}`, true); btn.disabled = false; cancel.disabled = false; return; }
-      setStatus(`✓ Queued — approve it from the cart when you're ready to run the attended /insight flow (cart id ${data.id}).`, false);
-      if (typeof toast === "function") toast(`Insight queued — cart id ${data.id}`, "ok");
-      if (typeof refreshCartBadge === "function") refreshCartBadge();
+      setStatus(`✓ Scout prompt ready. Copy it in the next modal and run it in Scout.`, false);
+      if (typeof toast === "function") toast(`Insight Scout prompt ready`, "ok");
+      if (window.__scoutPromptModal) window.__scoutPromptModal.open({
+        title: `Insight prompt — ${currentCtx.cust}`,
+        prompt: data.prompt,
+        staged_path: data.staged_path,
+      });
       btn.disabled = false; cancel.disabled = false;
       setTimeout(close, 1500);
     } catch (e) {

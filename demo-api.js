@@ -515,6 +515,22 @@
       STATE.queue.count = (STATE.queue.count || 0) + 1;
       return jsonResp({ ok: true, id, prompt: `/insight create "${cust}"`, requires_user_confirm: 1 });
     }],
+    ["POST", /^\/api\/customer\/([^/?]+)\/insight-draft\/prompt$/, (m, opts) => {
+      const cust = decodeURIComponent(m[1]);
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      if (!body.title) return jsonResp({ ok: false, error: "title is required" });
+      if (!body.scenario || !body.impact || !body.desired_outcome) {
+        return jsonResp({ ok: false, error: "scenario, impact, and desired_outcome are required" });
+      }
+      const staged = `[demo-staged]/${cust}-${Date.now()}.json`;
+      return jsonResp({
+        ok: true,
+        staged_path: staged,
+        prompt: `/insight create "${cust}"\n# Workspace pre-fill draft staged at: ${staged}\n# (Skill drives its own M365 mining + preview; this is reference.)`,
+        requires_user_confirm: true,
+        mode: "copy_to_scout",
+      });
+    }],
     ["GET", /^\/api\/insights\/summary$/, () => {
       // Demo: synthesize a small but believable count
       const inFlight = (STATE.queue.pending || []).filter(p => p.kind === "insight-draft").length;
