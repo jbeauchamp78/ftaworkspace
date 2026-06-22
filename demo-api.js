@@ -335,6 +335,10 @@
         const missN = rows.filter(k => ["KPI WIN", "IN PROGRESS"].includes(k.s) && !["Yes", "N/A"].includes(k.p) && !(k.label || "").includes("Admin Days")).length;
         const winN = rows.filter(k => k.s === "KPI WIN").length;
         const dqN = rows.filter(k => ["KPI WIN", "IN PROGRESS", "REGRESSION"].includes(k.s) && (k.c == null) && !(k.label || "").includes("Admin Days")).length;
+        const icSettings = IC_DEFAULT(c.nickname);
+        const icGapN = icSettings.filter(s => s.status !== "green").length;
+        const icGreenN = icSettings.length - icGapN;
+        const icOverall = icSettings.some(s => s.status === "red") ? "red" : (icGapN ? "yellow" : "green");
         const sig = demoSignals[c.nickname] || {};
         const emailN = sig.email_metadata_mentions || 0;
         const teamsN = sig.teams_metadata_mentions || 0;
@@ -342,6 +346,7 @@
         if (emailN) { const points = Math.min(emailN, 3) * 25; score += points; reasons.push(`${emailN} prior-day Email signal(s)`); components.push({ label: "Prior-day Email signals", count: emailN, weight: 25, cap: 3, points, detail: "Aggregate customer-name matches from prior-day email metadata; no email body content is stored." }); }
         if (teamsN) { const points = Math.min(teamsN, 3) * 25; score += points; reasons.push(`${teamsN} prior-day Teams signal(s)`); components.push({ label: "Prior-day Teams signals", count: teamsN, weight: 25, cap: 3, points, detail: "Aggregate customer-name matches from prior-day Teams chat metadata; no chat body content is stored." }); }
         if (missN) { const points = missN * 20; score += points; reasons.push(`${missN} missing PEC(s)`); components.push({ label: "Missing PEC coverage", count: missN, weight: 20, points, detail: "Active KR rows that do not have FTOP PEC backing." }); }
+        if (icOverall !== "green") { const points = 16; score += points; reasons.push(`Ideal Config ${icOverall}`); components.push({ label: "Ideal Config status", count: 1, weight: 16, points, detail: `Overall posture is ${icOverall}; ${icGreenN}/${icSettings.length} settings are green (${icGapN} gap(s)).` }); }
         if (dqN) { const points = dqN * 12; score += points; reasons.push(`${dqN} data-quality issue(s)`); components.push({ label: "Data Quality issues", count: dqN, weight: 12, points, detail: "Local KR rows with unknown/blank status or active rows missing current values." }); }
         if (winN) { const points = winN * 8; score += points; reasons.push(`${winN} KPI win(s) to harvest`); components.push({ label: "KPI wins to harvest", count: winN, weight: 8, points, detail: "KPI WIN rows that may need celebration, closeout, Spotlight, Insight, or PEC hygiene follow-up." }); }
         return { nickname: c.nickname, full_name: c.full_name || c.name || c.nickname, score, reasons, components };
@@ -349,7 +354,7 @@
       return jsonResp({
         generated_at: new Date().toISOString(),
         focus,
-        score_formula: "Score = regressions x30 + prior-day Email signals x25 (max 75) + prior-day Teams signals x25 (max 75) + missing PECs x20 + local data-quality issues x12 + KPI wins x8. Generated during daily refresh and Refresh Now; the Customers tile can refresh the focus list on demand.",
+        score_formula: "Score = regressions x30 + prior-day Email signals x25 (max 75) + prior-day Teams signals x25 (max 75) + missing PECs x20 + non-green Ideal Config status x16 + local data-quality issues x12 + KPI wins x8. Generated during daily refresh and Refresh Now; the Customers tile can refresh the focus list on demand.",
         m365_signal_meta: { demo: true, privacy: "Aggregate customer-level counts only; no email/chat body content stored." },
       });
     }],
