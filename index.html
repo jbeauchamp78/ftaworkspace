@@ -1910,7 +1910,8 @@ table.heatmap {
    * cramped or stretched. */
   grid-template-columns: auto 5fr 2fr 5fr;
   gap: 18px; align-items: stretch;
-  padding: 16px 24px;
+  margin: 0 24px 12px;
+  padding: 0;
   background: var(--cp-bg);
   /* border-bottom removed 2026-06-16 — was producing an extra line above Ask AI */
 }
@@ -2028,6 +2029,7 @@ table.heatmap {
   overflow: hidden;
   box-shadow: 0 0 2px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08);
 }
+.aichat-section { margin: 12px 24px 12px; }
 .heatmap-section { background: var(--cp-bg-elevated); }
 
 /* Sidebar: round the card, drop its right-edge divider (border replaces it) */
@@ -3173,7 +3175,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.96 locked 2026-06-22 16:25 EDT — Priority Score now includes non-green Ideal Config status below Missing PECs and above Data Quality.">v0.96 · Stable</span>
+      <span class="version-tag" title="Build version: v0.98 locked 2026-06-22 16:35 EDT — Section gutters normalized with consistent 24px horizontal and 12px vertical spacing.">v0.98 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
