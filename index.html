@@ -3016,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.78.1 hotfix 2026-06-22 10:23 EDT — Removed the 'Not yet pulled from MIDAS' / timestamp line under the Refresh This Customer button. The same info now lives in the button's tooltip (hover the button to see Last refresh status). Cleaner header layout, no more layout jitter when the stamp toggles between empty and populated states.">v0.78.1 · Stable</span>
+      <span class="version-tag" title="Build version: v0.78.2 hotfix 2026-06-22 11:45 EDT — DEMO bundle no longer shows the 'Some FastTrack skills are missing' banner. Bail-out now also matches document.documentElement.dataset.demoMode === '1' (the marker the demo bootstrap script sets on page load). Previous bail-out only matched ?demo=1 query or /demo path, neither of which matches the GitHub Pages URL.">v0.78.2 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -9953,7 +9953,11 @@ window.__cartLogModal = (function () {
 <script>
 (function setupMissingSkillsWatch() {
   // Demo mode never shows the banner — skills don't apply in-memory.
-  if (/[?&]demo=1\b/.test(location.search) || location.pathname === "/demo") return;
+  // Multiple ways to detect: ?demo=1 query, /demo path, OR the
+  // data-demo-mode="1" attribute the bundle sets on documentElement.
+  if (/[?&]demo=1\b/.test(location.search)
+      || location.pathname === "/demo"
+      || document.documentElement.dataset.demoMode === "1") return;
   // Required upstream skills the workspace assumes are installed. These ship
   // separately (FT-CitizenDev-Claw-Pilot repo). The bundled /ftaworkspace
   // skill copies bridge-run / heatmap-ftbi-sync / spotlight-sync /
