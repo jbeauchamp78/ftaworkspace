@@ -3016,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.75 locked 2026-06-21 (Insight read-only sync — first half of Phase 1 expansion. NEW: (1) /api/insights/bulk endpoint mirrors /api/spotlights/bulk to upsert insight_index rows from Dataverse. (2) /api/customer/{nick}/insights endpoint returns per-customer cached insights + per-KR 💡 state map. (3) New /insight-sync skill at ~/.copilot/skills/insight-sync/ + bundled at fta-workspace/skills-helpers/insight-sync/ — pulls msdyn_cmty_idea rows authored by the FTA from FT Feedback via ftfeedback-mcp insight_list_mine and bulk-POSTs to workspace. (4) Insights tile drill modal upgraded — shows per-customer insight breakdown sorted by count + Sync from FT Feedback button that queues /insight-sync. (5) Customer refresh now auto-queues /insight-sync alongside /spotlight-sync. (6) Insight Submit button kept as queue-to-Clawpilot (not unattended — Tenant ID widget + Engineering blast radius). Next: PEC unattended endpoints (v0.76).)">v0.75 · Stable</span>
+      <span class="version-tag" title="Build version: v0.75.1 hotfix 2026-06-22 09:40 EDT — counters now also re-render when completed_today increments (was only triggered when pending/running dropped, which missed heartbeat-driven syncs that ran while the user wasn't watching the cart). Tile values now stay live without manual page refresh.">v0.75.1 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4914,10 +4914,14 @@ async function refreshCartBadge() {
     // total has dropped, the heartbeat (or manual run) completed work.
     const prev = window.__cartPrev || { pending: 0, running: 0, completedToday: r.completed_today || 0 };
     const completedToday = r.completed_today || 0;
-    if (prev.pending + prev.running > 0 && total < (prev.pending + prev.running)) {
-      const delta = (prev.pending + prev.running) - total;
-      if (window.__api) {
-        window.__api.toast(`Heartbeat processed ${delta} cart item${delta > 1 ? 's' : ''}.`, "ok");
+    const droppedActive = prev.pending + prev.running > 0 && total < (prev.pending + prev.running);
+    const completedRose = completedToday > (prev.completedToday || 0);
+    if (droppedActive || completedRose) {
+      if (droppedActive) {
+        const delta = (prev.pending + prev.running) - total;
+        if (window.__api) {
+          window.__api.toast(`Heartbeat processed ${delta} cart item${delta > 1 ? 's' : ''}.`, "ok");
+        }
       }
       if (typeof updateCounters === "function") updateCounters();
     }
