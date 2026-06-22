@@ -1075,6 +1075,14 @@ html[data-theme="win98"] .info-pill {
   text-decoration: underline; background: var(--cp-surface-soft);
 }
 .cust-header .kr-expand-btn { align-self: flex-end; }
+.cust-collapse-btn {
+  display: none;
+  height: 34px;
+  align-items: center;
+  white-space: nowrap;
+}
+body.kr-expanded .cust-collapse-btn { display: inline-flex; }
+body.kr-expanded .cust-actions-dropdown .kr-expand-toggle { display: none; }
 .cust-action-menu { position: relative; margin-left: auto; }
 .cust-actions-ellipsis {
   width: 34px; height: 34px; padding: 0;
@@ -1989,7 +1997,7 @@ table.heatmap {
 .tile-grid {
   display: grid;
   grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
-  gap: 10px;
+  gap: 24px;
 }
 
 /* Tighten counter tiles when they live inside the new grid (mockup default is bigger) */
@@ -3207,7 +3215,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.01 locked 2026-06-22 16:45 EDT — Main tile bottom padding aligned to the 24px gutter standard.">v1.01 · Stable</span>
+      <span class="version-tag" title="Build version: v1.02 locked 2026-06-22 16:50 EDT — Collapse is visible outside the ellipsis while expanded; main-tile gutters standardized.">v1.02 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3877,11 +3885,13 @@ function renderContent() {
         </div>
       </div>
       <span style="flex:1"></span>
+      <button class="btn secondary cust-collapse-btn kr-expand-toggle" type="button"
+              title="Collapse current expanded view">⛶ Collapse</button>
       <div class="cust-action-menu" data-cust="${c.n}">
         <button class="btn secondary cust-actions-ellipsis" type="button"
                 title="Customer actions" aria-label="Customer actions">⋮</button>
         <div class="cust-actions-dropdown" role="menu" aria-label="Customer actions">
-          <button class="btn secondary cust-action-item kr-expand-btn" id="btnExpandKR"
+          <button class="btn secondary cust-action-item kr-expand-btn kr-expand-toggle"
                   title="Expand current view: hides sidebar">⛶ Expand</button>
           <button class="btn secondary cust-action-item" id="btnHeatmap"
                   title="Toggle between Customer Workspace and M365 Usage Heatmap">🗺️ M365 Usage Heatmap</button>
@@ -6394,7 +6404,7 @@ document.addEventListener("click", (e) => {
   }
   const actionItem = e.target.closest(".cust-action-item");
   if (actionItem) actionItem.closest(".cust-action-menu")?.classList.remove("open");
-  const btn = e.target.closest("#btnExpandKR");
+  const btn = e.target.closest(".kr-expand-toggle");
   if (!btn) return;
   const content = document.querySelector(".content");
   const expanded = document.body.classList.toggle("kr-expanded");
@@ -6710,15 +6720,15 @@ document.addEventListener("click", (e) => {
   }
 
   function updateExpandLabel() {
-    const btn = document.getElementById("btnExpandKR");
-    if (!btn) return;
     const isExpanded = document.body.classList.contains("kr-expanded");
     const isHeatmap = document.body.classList.contains("heatmap-view");
     const target = isHeatmap ? "Heatmap" : "KR view";
-    btn.textContent = isExpanded ? "⛶ Collapse" : "⛶ Expand";
-    btn.title = isExpanded
-      ? `Collapse ${target}; show sidebar`
-      : `Expand ${target}: hides sidebar`;
+    document.querySelectorAll(".kr-expand-toggle").forEach(btn => {
+      btn.textContent = isExpanded ? "⛶ Collapse" : "⛶ Expand";
+      btn.title = isExpanded
+        ? `Collapse ${target}; show sidebar`
+        : `Expand ${target}: hides sidebar`;
+    });
   }
 
   // ---------- Tile editor ----------
