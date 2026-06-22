@@ -329,6 +329,7 @@
       const focus = (STATE.customers || []).map(c => {
         let score = 0;
         const reasons = [];
+        const components = [];
         const rows = c.krs || [];
         const regN = rows.filter(k => k.s === "REGRESSION").length;
         const missN = rows.filter(k => ["KPI WIN", "IN PROGRESS"].includes(k.s) && !["Yes", "N/A"].includes(k.p) && !(k.label || "").includes("Admin Days")).length;
@@ -337,13 +338,13 @@
         const sig = demoSignals[c.nickname] || {};
         const emailN = sig.email_metadata_mentions || 0;
         const teamsN = sig.teams_metadata_mentions || 0;
-        if (regN) { score += regN * 30; reasons.push(`${regN} regression(s)`); }
-        if (emailN) { score += Math.min(emailN, 3) * 25; reasons.push(`${emailN} prior-day Email signal(s)`); }
-        if (teamsN) { score += Math.min(teamsN, 3) * 25; reasons.push(`${teamsN} prior-day Teams signal(s)`); }
-        if (missN) { score += missN * 20; reasons.push(`${missN} missing PEC(s)`); }
-        if (dqN) { score += dqN * 12; reasons.push(`${dqN} data-quality issue(s)`); }
-        if (winN) { score += winN * 8; reasons.push(`${winN} KPI win(s) to harvest`); }
-        return { nickname: c.nickname, full_name: c.full_name || c.name || c.nickname, score, reasons };
+        if (regN) { const points = regN * 30; score += points; reasons.push(`${regN} regression(s)`); components.push({ label: "KPI regressions", count: regN, weight: 30, points, detail: "KR rows currently marked REGRESSION." }); }
+        if (emailN) { const points = Math.min(emailN, 3) * 25; score += points; reasons.push(`${emailN} prior-day Email signal(s)`); components.push({ label: "Prior-day Email signals", count: emailN, weight: 25, cap: 3, points, detail: "Aggregate customer-name matches from prior-day email metadata; no email body content is stored." }); }
+        if (teamsN) { const points = Math.min(teamsN, 3) * 25; score += points; reasons.push(`${teamsN} prior-day Teams signal(s)`); components.push({ label: "Prior-day Teams signals", count: teamsN, weight: 25, cap: 3, points, detail: "Aggregate customer-name matches from prior-day Teams chat metadata; no chat body content is stored." }); }
+        if (missN) { const points = missN * 20; score += points; reasons.push(`${missN} missing PEC(s)`); components.push({ label: "Missing PEC coverage", count: missN, weight: 20, points, detail: "Active KR rows that do not have FTOP PEC backing." }); }
+        if (dqN) { const points = dqN * 12; score += points; reasons.push(`${dqN} data-quality issue(s)`); components.push({ label: "Data Quality issues", count: dqN, weight: 12, points, detail: "Local KR rows with unknown/blank status or active rows missing current values." }); }
+        if (winN) { const points = winN * 8; score += points; reasons.push(`${winN} KPI win(s) to harvest`); components.push({ label: "KPI wins to harvest", count: winN, weight: 8, points, detail: "KPI WIN rows that may need celebration, closeout, Spotlight, Insight, or PEC hygiene follow-up." }); }
+        return { nickname: c.nickname, full_name: c.full_name || c.name || c.nickname, score, reasons, components };
       }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 10);
       return jsonResp({
         generated_at: new Date().toISOString(),

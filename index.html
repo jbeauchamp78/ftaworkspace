@@ -556,6 +556,21 @@ html[data-theme="win98"] .info-pill {
 .lab-feed-title { font-size: 12px; font-weight: 700; color: var(--cp-text); }
 .lab-feed-detail { font-size: 11px; color: var(--cp-text-muted); margin-top: 2px; }
 .lab-score { font-weight: 800; color: var(--cp-accent); }
+.focus-score-list { display: flex; flex-direction: column; gap: 8px; }
+.focus-score-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 9px 10px;
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  background: var(--cp-surface);
+}
+.focus-score-title { font-weight: 700; color: var(--cp-text); font-size: 12px; }
+.focus-score-detail { color: var(--cp-text-muted); font-size: 11px; margin-top: 3px; line-height: 1.35; }
+.focus-score-points { color: var(--cp-accent); font-weight: 800; white-space: nowrap; }
+.focus-score-actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
 .chip.ic-green   { background: #92D050; color: #1f1f1f; }
 .chip.ic-yellow  { background: #FFFF00; color: #1f1f1f; }
 .chip.ic-red     { background: #FF0000; color: #ffffff; }
@@ -1570,14 +1585,18 @@ table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 
 /* ===== Always-on AI chat panel (sits below tiles, above heatmap) ===== */
 .aichat-section {
-  background: var(--cp-bg-elevated);
-  border-bottom: 1px solid var(--cp-border);
+  background: linear-gradient(135deg, var(--cp-surface) 0%, var(--cp-accent-soft) 100%);
+  border: 1px solid var(--cp-border);
+  border-left: 3px solid var(--cp-accent);
+  border-radius: 16px;
+  margin: 0 24px 12px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
   flex-shrink: 0;
 }
 .aichat-section.collapsed .aichat-body { display: none; }
 .aichat-hdr {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 24px;
+  padding: 12px 18px;
   cursor: pointer;
 }
 .aichat-section:not(.collapsed) .aichat-hdr { border-bottom: 1px solid var(--cp-border); }
@@ -1609,7 +1628,7 @@ table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .aichat-hdr .model-pick:focus { outline: none; border-color: var(--cp-accent); }
 
 .aichat-body {
-  padding: 14px 24px 16px 24px;
+  padding: 14px 18px 16px 18px;
   display: flex; flex-direction: column; gap: 10px;
 }
 .aichat-input-row {
@@ -2009,7 +2028,6 @@ table.heatmap {
   overflow: hidden;
   box-shadow: 0 0 2px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08);
 }
-.aichat-section { background: var(--cp-bg-elevated); }
 .heatmap-section { background: var(--cp-bg-elevated); }
 
 /* Sidebar: round the card, drop its right-edge divider (border replaces it) */
@@ -3155,7 +3173,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.94 locked 2026-06-22 16:10 EDT — Daily Focus promoted to Stable with Email/Teams signals weighted above Missing PECs. KPI Wins drilldown remains individual-row based.">v0.94 · Stable</span>
+      <span class="version-tag" title="Build version: v0.95 locked 2026-06-22 16:20 EDT — Ask AI moved above the main tiles with gradient styling; Priority Focus rows now open a score breakdown modal.">v0.95 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3201,6 +3219,39 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 <div class="tabs" style="display:none;">
   <div class="tab active" data-tab="detail">Customer Detail</div>
 </div>
+
+<!-- ===== AI chat (always-available, collapsible) ===== -->
+<section class="aichat-section collapsed" id="aichatSection">
+  <div class="aichat-hdr" onclick="if (!['SELECT','OPTION','BUTTON','TEXTAREA'].includes(event.target.tagName)) document.getElementById('aichatSection').classList.toggle('collapsed')">
+    <span class="chev">▼</span>
+    <div class="icon">✦</div>
+    <h2>Ask AI</h2>
+    <span class="desc">Question your portfolio or a specific customer — context is auto-attached</span>
+    <span class="spacer"></span>
+    <select class="model-pick" id="aichatModel" title="Choose which model handles the prompt">
+      <option value="gpt-5">GPT-5 (default)</option>
+      <option value="gpt-5-mini">GPT-5 mini (faster, cheaper)</option>
+      <option value="gpt-4.1">GPT-4.1 (legacy fallback)</option>
+      <option value="claude-sonnet-4.6">Claude Sonnet 4.6 (long-form)</option>
+      <option value="o1-preview">o1-preview (deep reasoning)</option>
+    </select>
+  </div>
+  <div class="aichat-body">
+    <div class="aichat-input-row">
+      <textarea class="aichat-input" id="aichatInput" placeholder="e.g. 'Draft an email to the CSAM proposing a 30-day Copilot Agents activation push for TELADOC' or 'Which 3 customers have the most KPI Win opportunity this quarter?'"></textarea>
+      <button class="btn" onclick="mockAiSend()" title="Send prompt to selected model">Send →</button>
+    </div>
+    <div class="aichat-suggestions">
+      <span style="color: var(--cp-text-muted);">Try:</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Top 3 risks in my portfolio</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Why is TELADOC at N/A on Copilot Agents?</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Draft a QDR storyline for HCSC</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Compare BCBS NC and BCBS LA on adoption</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Summarize this week's biggest movers</span>
+    </div>
+    <div class="aichat-response" id="aichatResponse" style="display:none;"></div>
+  </div>
+</section>
 
 <!-- ===== Three-section counter row (CUSTOMERS solo · KR Status · Data Quality) ===== -->
 <section id="cartInlinePanel" class="cart-inline" hidden></section>
@@ -3315,39 +3366,6 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 </section>
 
 <div class="drill-panel" id="drillPanel" style="display:none;"></div>
-
-<!-- ===== AI chat (always-available, collapsible) ===== -->
-<section class="aichat-section collapsed" id="aichatSection">
-  <div class="aichat-hdr" onclick="if (!['SELECT','OPTION','BUTTON','TEXTAREA'].includes(event.target.tagName)) document.getElementById('aichatSection').classList.toggle('collapsed')">
-    <span class="chev">▼</span>
-    <div class="icon">✦</div>
-    <h2>Ask AI</h2>
-    <span class="desc">Question your portfolio or a specific customer — context is auto-attached</span>
-    <span class="spacer"></span>
-    <select class="model-pick" id="aichatModel" title="Choose which model handles the prompt">
-      <option value="gpt-5">GPT-5 (default)</option>
-      <option value="gpt-5-mini">GPT-5 mini (faster, cheaper)</option>
-      <option value="gpt-4.1">GPT-4.1 (legacy fallback)</option>
-      <option value="claude-sonnet-4.6">Claude Sonnet 4.6 (long-form)</option>
-      <option value="o1-preview">o1-preview (deep reasoning)</option>
-    </select>
-  </div>
-  <div class="aichat-body">
-    <div class="aichat-input-row">
-      <textarea class="aichat-input" id="aichatInput" placeholder="e.g. 'Draft an email to the CSAM proposing a 30-day Copilot Agents activation push for TELADOC' or 'Which 3 customers have the most KPI Win opportunity this quarter?'"></textarea>
-      <button class="btn" onclick="mockAiSend()" title="Send prompt to selected model">Send →</button>
-    </div>
-    <div class="aichat-suggestions">
-      <span style="color: var(--cp-text-muted);">Try:</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Top 3 risks in my portfolio</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Why is TELADOC at N/A on Copilot Agents?</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Draft a QDR storyline for HCSC</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Compare BCBS NC and BCBS LA on adoption</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Summarize this week's biggest movers</span>
-    </div>
-    <div class="aichat-response" id="aichatResponse" style="display:none;"></div>
-  </div>
-</section>
 
 <!-- ===== Heatmap (inline collapsible section) ===== -->
 <section class="heatmap-section collapsed" id="heatmapSection">
@@ -4728,6 +4746,7 @@ window.updateLabFocus = async function updateLabFocus() {
   try {
     const r = await fetch("/api/daily-focus");
     const data = await r.json();
+    window.__priorityFocusItems = data.focus || [];
     const formula = document.getElementById("labFocusFormula");
     if (formula) formula.textContent = data.score_formula || "Score generated during daily refresh and Refresh Now.";
     focusHost.innerHTML = (data.focus || []).map(x => `
@@ -4735,11 +4754,60 @@ window.updateLabFocus = async function updateLabFocus() {
         <span class="lab-feed-icon"><span class="lab-score">${x.score}</span></span>
         <div><div class="lab-feed-title">${escapeHtml(x.nickname)}</div><div class="lab-feed-detail">${escapeHtml((x.reasons || []).join(" · "))}</div></div>
       </div>`).join("") || `<div class="drill-empty">No priority customers scored today.</div>`;
-    focusHost.querySelectorAll("[data-cust]").forEach(el => el.onclick = () => _jumpToCustomer(el.dataset.cust));
+    focusHost.querySelectorAll("[data-cust]").forEach(el => el.onclick = () => showFocusScoreModal(el.dataset.cust));
   } catch (e) {
     focusHost.innerHTML = `<div class="drill-empty">Daily Focus failed.</div>`;
   }
 };
+
+function showFocusScoreModal(nickname) {
+  const item = (window.__priorityFocusItems || []).find(x => x.nickname === nickname);
+  if (!item) return;
+  let back = document.getElementById("focusScoreModal");
+  if (!back) {
+    back = document.createElement("div");
+    back.id = "focusScoreModal";
+    back.className = "def-modal-backdrop";
+    back.innerHTML = `
+      <div class="def-modal" role="dialog" aria-modal="true" aria-labelledby="focusScoreTitle">
+        <div class="def-modal-head">
+          <h3 id="focusScoreTitle">Priority Score</h3>
+          <span class="def-badge" id="focusScoreBadge">0</span>
+          <button type="button" class="def-close" title="Close">×</button>
+        </div>
+        <div class="def-modal-body" id="focusScoreBody"></div>
+      </div>`;
+    document.body.appendChild(back);
+    back.addEventListener("click", e => { if (e.target === back) back.classList.remove("show"); });
+    back.querySelector(".def-close").addEventListener("click", () => back.classList.remove("show"));
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && back.classList.contains("show")) back.classList.remove("show");
+    });
+  }
+  back.querySelector("#focusScoreTitle").textContent = `${item.nickname} · Priority Score`;
+  back.querySelector("#focusScoreBadge").textContent = `${item.score} pts`;
+  const components = item.components || [];
+  back.querySelector("#focusScoreBody").innerHTML = `
+    <div class="def-sub">${escapeHtml(item.full_name || item.nickname)} · ${escapeHtml((item.reasons || []).join(" · "))}</div>
+    <div class="focus-score-list">
+      ${components.map(c => `
+        <div class="focus-score-row">
+          <div>
+            <div class="focus-score-title">${escapeHtml(c.label || "")}</div>
+            <div class="focus-score-detail">${escapeHtml(c.detail || "")}</div>
+            <div class="focus-score-detail">Count ${escapeHtml(String(c.count ?? 0))} × weight ${escapeHtml(String(c.weight ?? 0))}${c.cap ? ` · cap ${escapeHtml(String(c.cap))}` : ""}</div>
+          </div>
+          <div class="focus-score-points">+${escapeHtml(String(c.points ?? 0))}</div>
+        </div>`).join("")}
+    </div>
+    <div class="focus-score-actions">
+      <button type="button" class="btn secondary" id="focusJumpBtn">Open customer</button>
+      <button type="button" class="btn" id="focusCloseBtn">Done</button>
+    </div>`;
+  back.querySelector("#focusJumpBtn").onclick = () => { back.classList.remove("show"); _jumpToCustomer(item.nickname); };
+  back.querySelector("#focusCloseBtn").onclick = () => back.classList.remove("show");
+  back.classList.add("show");
+}
 
 async function renderDrillPanel(tile) {
   const panel = document.getElementById("drillPanel");
