@@ -318,6 +318,40 @@
     })],
     ["GET", /^\/api\/tracker$/, () =>
       jsonResp({ meta: STATE.meta, customers: STATE.customers })],
+    ["GET", /^\/api\/(?:daily-focus|lab\/daily-focus)$/, () => {
+      const demoSignals = {
+        "BCBS NC": { email_metadata_mentions: 1, teams_metadata_mentions: 1 },
+        "BAPTIST HCS": { teams_metadata_mentions: 1 },
+        "CARESOURCE": { email_metadata_mentions: 1 },
+        "BCBS MI": { teams_metadata_mentions: 1 },
+        "TELADOC": { email_metadata_mentions: 1, teams_metadata_mentions: 1 },
+      };
+      const focus = (STATE.customers || []).map(c => {
+        let score = 0;
+        const reasons = [];
+        const rows = c.krs || [];
+        const regN = rows.filter(k => k.s === "REGRESSION").length;
+        const missN = rows.filter(k => ["KPI WIN", "IN PROGRESS"].includes(k.s) && !["Yes", "N/A"].includes(k.p) && !(k.label || "").includes("Admin Days")).length;
+        const winN = rows.filter(k => k.s === "KPI WIN").length;
+        const dqN = rows.filter(k => ["KPI WIN", "IN PROGRESS", "REGRESSION"].includes(k.s) && (k.c == null) && !(k.label || "").includes("Admin Days")).length;
+        const sig = demoSignals[c.nickname] || {};
+        const emailN = sig.email_metadata_mentions || 0;
+        const teamsN = sig.teams_metadata_mentions || 0;
+        if (regN) { score += regN * 30; reasons.push(`${regN} regression(s)`); }
+        if (emailN) { score += Math.min(emailN, 3) * 25; reasons.push(`${emailN} prior-day Email signal(s)`); }
+        if (teamsN) { score += Math.min(teamsN, 3) * 25; reasons.push(`${teamsN} prior-day Teams signal(s)`); }
+        if (missN) { score += missN * 20; reasons.push(`${missN} missing PEC(s)`); }
+        if (dqN) { score += dqN * 12; reasons.push(`${dqN} data-quality issue(s)`); }
+        if (winN) { score += winN * 8; reasons.push(`${winN} KPI win(s) to harvest`); }
+        return { nickname: c.nickname, full_name: c.full_name || c.name || c.nickname, score, reasons };
+      }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 10);
+      return jsonResp({
+        generated_at: new Date().toISOString(),
+        focus,
+        score_formula: "Score = regressions x30 + prior-day Email signals x25 (max 75) + prior-day Teams signals x25 (max 75) + missing PECs x20 + local data-quality issues x12 + KPI wins x8. Generated during daily refresh and Refresh Now; the Customers tile can refresh the focus list on demand.",
+        m365_signal_meta: { demo: true, privacy: "Aggregate customer-level counts only; no email/chat body content stored." },
+      });
+    }],
     ["GET", /^\/api\/counters$/, () => {
       const counters = structuredClone(STATE.counters);
       let pub = 0;

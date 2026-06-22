@@ -523,6 +523,39 @@ html[data-theme="win98"] .info-pill {
 }
 .dq-open:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent); }
 .dq-open-missing { color: var(--cp-text-muted); }
+.lab-focus-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+.lab-focus-card {
+  background: var(--cp-bg-elevated);
+  border: 1px solid var(--cp-border);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08);
+}
+.lab-feed-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.lab-feed-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.lab-feed-icon {
+  width: 24px; height: 24px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--cp-accent-soft); color: var(--cp-accent);
+  font-size: 12px; font-weight: 800;
+}
+.lab-feed-title { font-size: 12px; font-weight: 700; color: var(--cp-text); }
+.lab-feed-detail { font-size: 11px; color: var(--cp-text-muted); margin-top: 2px; }
+.lab-score { font-weight: 800; color: var(--cp-accent); }
 .chip.ic-green   { background: #92D050; color: #1f1f1f; }
 .chip.ic-yellow  { background: #FFFF00; color: #1f1f1f; }
 .chip.ic-red     { background: #FF0000; color: #ffffff; }
@@ -3122,7 +3155,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.93 locked 2026-06-22 16:00 EDT — KPI Wins drilldown now lists individual KPI WIN rows across Stable, LAB, and DEMO. Insight drafts remain copy-to-Scout handoff only.">v0.93 · Stable</span>
+      <span class="version-tag" title="Build version: v0.94 locked 2026-06-22 16:10 EDT — Daily Focus promoted to Stable with Email/Teams signals weighted above Missing PECs. KPI Wins drilldown remains individual-row based.">v0.94 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3175,11 +3208,11 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 <section class="counter-row" id="counter-row" aria-label="Portfolio counters">
 
   <div class="counter-section solo">
-    <div class="counter solo-customers clickable" data-tile="customers" title="Click to close any open drill-down">
+    <div class="counter solo-customers clickable" data-tile="customers" title="Click for Daily Focus">
       <button class="section-refresh corner" id="btnRefreshRoster" title="Refresh customer roster from FTOP">⟳</button>
       <div class="label">Customers</div>
       <div class="value" id="ct-customers">—</div>
-      <div class="hint">in portfolio</div>
+      <div class="hint">Click for Daily Focus</div>
     </div>
   </div>
 
@@ -4689,9 +4722,46 @@ function storyHalfCounts(items) {
   };
 }
 
+window.updateLabFocus = async function updateLabFocus() {
+  const focusHost = document.getElementById("labPriorityList");
+  if (!focusHost) return;
+  try {
+    const r = await fetch("/api/daily-focus");
+    const data = await r.json();
+    const formula = document.getElementById("labFocusFormula");
+    if (formula) formula.textContent = data.score_formula || "Score generated during daily refresh and Refresh Now.";
+    focusHost.innerHTML = (data.focus || []).map(x => `
+      <div class="lab-feed-row" data-cust="${escapeHtml(x.nickname)}" style="cursor:pointer">
+        <span class="lab-feed-icon"><span class="lab-score">${x.score}</span></span>
+        <div><div class="lab-feed-title">${escapeHtml(x.nickname)}</div><div class="lab-feed-detail">${escapeHtml((x.reasons || []).join(" · "))}</div></div>
+      </div>`).join("") || `<div class="drill-empty">No priority customers scored today.</div>`;
+    focusHost.querySelectorAll("[data-cust]").forEach(el => el.onclick = () => _jumpToCustomer(el.dataset.cust));
+  } catch (e) {
+    focusHost.innerHTML = `<div class="drill-empty">Daily Focus failed.</div>`;
+  }
+};
+
 async function renderDrillPanel(tile) {
   const panel = document.getElementById("drillPanel");
   panel.style.display = "block";
+
+  if (tile === "customers") {
+    panel.innerHTML = `<div class="drill-hdr"><h3>Customers · Daily Focus</h3>
+      <span class="count">Focus</span>
+      <button class="section-refresh" id="btnLabFocusRefresh" title="Refresh focus list">⟳</button>
+      <button class="close" id="drillClose" title="Close">×</button></div>
+      <div class="lab-focus-panel" id="labFocusPanel">
+        <div class="lab-focus-card">
+          <div class="section-hdr"><h2>Priority Focus List</h2><span class="src">KR/PEC + prior-day Email/Teams signals</span></div>
+          <div id="labFocusFormula" class="muted" style="font-size:11px;margin:0 0 10px;">Score generated during daily refresh and Refresh Now.</div>
+          <div id="labPriorityList" class="lab-feed-list"><div class="drill-empty">Loading focus list…</div></div>
+        </div>
+      </div>`;
+    document.getElementById("drillClose").onclick = closeDrill;
+    document.getElementById("btnLabFocusRefresh").onclick = () => window.updateLabFocus && window.updateLabFocus();
+    if (window.updateLabFocus) await window.updateLabFocus();
+    return;
+  }
 
   // ----- Spotlights drill (v0.69) — list customers grouped by spotlight count -----
   if (tile === "spotlights") {
@@ -5509,13 +5579,9 @@ function _telemetry(eventType, extra) {
 })();
 
 document.getElementById("counter-row").addEventListener("click", e => {
+  if (e.target.closest(".section-refresh")) return;
   const tile = e.target.closest(".counter");
   if (!tile) return;
-  // Customers tile: close any open drill-down, no list to show
-  if (tile.dataset.tile === "customers") {
-    closeDrill();
-    return;
-  }
   if (!tile.classList.contains("clickable")) return;
   const which = tile.dataset.tile;
   if (window.activeTile === which) {
