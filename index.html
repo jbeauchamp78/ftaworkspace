@@ -3016,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.76.1 hotfix 2026-06-22 09:48 EDT — Workload chart legend converted from multi-select checkboxes to single-select radio buttons. You can only ever view one workload at a time now; multi-line normalized view is gone. Hint text + Field Guide updated to match.">v0.76.1 · Stable</span>
+      <span class="version-tag" title="Build version: v0.76.2 hotfix 2026-06-22 09:50 EDT — Insights drill modal now matches the v0.76 Spotlights pattern: stage badges (💡 Submitted / ⚙ In Progress / ✓ Reviewed/inactive), clickable insight title that opens the FT Feedback record in a new tab, up to 6 nested rows per customer, KR label shown inline. Parity with Spotlights tile.">v0.76.2 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4660,7 +4660,7 @@ async function renderDrillPanel(tile) {
     return;
   }
 
-  // ----- Insights drill (v0.69→v0.75) — portfolio rollup of FT Feedback submissions -----
+  // ----- Insights drill (v0.69→v0.76.2) — portfolio rollup of FT Feedback submissions -----
   if (tile === "insights") {
     panel.innerHTML = `<div class="drill-hdr"><h3>Insights</h3>
       <span class="count">…</span>
@@ -4672,7 +4672,6 @@ async function renderDrillPanel(tile) {
         fetch("/api/insights/summary").then(x => x.json()),
         fetch("/api/tracker").then(x => x.json()),
       ]);
-      // Per-customer insights (parallel fetch for each customer in roster)
       const customers = (trackerR.customers || []).map(c => c.nickname);
       const perCust = await Promise.all(customers.map(async (n) => {
         try {
@@ -4683,6 +4682,15 @@ async function renderDrillPanel(tile) {
       }));
       const withInsights = perCust.filter(p => p.total > 0 || p.in_flight > 0)
                                   .sort((a, b) => (b.total + b.in_flight) - (a.total + a.in_flight));
+      const stageBadge = (stage, state) => {
+        const s = (stage || '').toLowerCase();
+        const st = (state || '').toLowerCase();
+        if (st === 'inactive' || st === '1') return `<span style="color:var(--text-muted);">✓</span>`;
+        if (s.includes('reviewed') || s.includes('triaged')) return `<span style="color:#107C10;">✓</span>`;
+        if (s.includes('progress') || s.includes('engineering')) return `<span style="color:#8e44ad;">⚙</span>`;
+        if (s.includes('submitted') || s.includes('open') || s.includes('new')) return `<span style="color:#0078D4;">💡</span>`;
+        return `<span style="color:var(--text-muted);">💡</span>`;
+      };
       panel.innerHTML = `
         <div class="drill-hdr"><h3>Insights</h3>
           <span class="count">${sumR.total_active || 0} active</span>
@@ -4695,22 +4703,27 @@ async function renderDrillPanel(tile) {
         </div>
         <div class="drill-list">
           ${withInsights.length === 0 ?
-            `<div class="drill-empty">No insights tracked yet. Click <strong>🔄 Sync from FT Feedback</strong> to pull from Dataverse, or click <strong>💡</strong> on any customer card to draft a new one.</div>` :
+            `<div class="drill-empty">No insights cached yet. Click <strong>🔄 Sync from FT Feedback</strong> above, or click <strong>💡</strong> on any customer card to draft a new one.</div>` :
             withInsights.map(p => `
               <div class="drill-item" data-cust="${escapeHtml(p.nickname)}">
                 <span class="cust">${escapeHtml(p.nickname)}</span>
                 <span class="kr">${p.total} active${p.in_flight ? ` · ${p.in_flight} ⏳` : ''}</span>
               </div>
-              ${p.insights.slice(0, 5).map(ix => `
-                <div class="drill-item" style="padding-left:24px; background:transparent;">
-                  <span class="cust" style="font-size:11px; color:var(--text-muted);">↳ ${escapeHtml(ix.title || '(untitled)').slice(0, 80)}</span>
-                  <span class="kr" style="font-size:10px;">${escapeHtml(ix.stage || '')} · ${ix.upvotes || 0} 👍</span>
+              ${p.insights.slice(0, 6).map(ix => `
+                <div class="drill-item" data-cust="${escapeHtml(p.nickname)}" style="padding-left:24px; background:transparent;">
+                  <span class="cust" style="font-size:11px; color:var(--text-muted);">
+                    ${stageBadge(ix.stage, ix.state)} ${ix.url ? `<a href="${escapeHtml(ix.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(ix.title || '(untitled)').slice(0, 70)}</a>` : escapeHtml(ix.title || '(untitled)').slice(0, 70)}
+                  </span>
+                  <span class="kr" style="font-size:10px;">${escapeHtml(ix.stage || '')}${ix.upvotes ? ' · ' + ix.upvotes + ' 👍' : ''}${ix.kr_label ? ' · ' + escapeHtml(ix.kr_label) : ''}</span>
                 </div>`).join("")}
             `).join("")}
         </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
       panel.querySelectorAll(".drill-item[data-cust]").forEach(el => {
-        el.onclick = () => _jumpToCustomer(el.dataset.cust);
+        el.onclick = (ev) => {
+          if (ev.target.tagName === 'A') return;
+          _jumpToCustomer(el.dataset.cust);
+        };
       });
       const syncBtn = document.getElementById("insightSyncBtn");
       if (syncBtn) syncBtn.onclick = async () => {
