@@ -3122,7 +3122,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.86 locked 2026-06-22 14:15 EDT — Full Test contract alignment. Insight create is now attended because the underlying /insight skill requires preview/portal interaction; helper skill contracts aligned with staged payloads.">v0.86 · Stable</span>
+      <span class="version-tag" title="Build version: v0.87 locked 2026-06-22 14:20 EDT — DQ demo parity. Demo DQ rows now expose the same Customer + Workload/context fields as Stable.">v0.87 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4974,7 +4974,7 @@ async function renderDrillPanel(tile) {
               <div class="dq-row">
                 <div class="dq-main">
                   <div class="dq-customer">${escapeHtml(it.customer || it.name || '(customer not shown)')}</div>
-                  <div class="dq-workload">${escapeHtml(it.workload || it.extra || 'Data quality row')}</div>
+                  <div class="dq-workload">Workload/context: ${escapeHtml(it.workload || it.extra || 'Data quality row')}</div>
                 </div>
                 ${it.id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=${it.entity}&id=${it.id}" target="_blank" class="dq-open">Open in FTOP ↗</a>` : `<span class="dq-open dq-open-missing">No direct link</span>`}
               </div>

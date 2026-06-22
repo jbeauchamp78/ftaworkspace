@@ -562,23 +562,28 @@
       const pool = STATE.customers.slice(0, count + 2);
       const titles = {
         esn_missing_or_expired: (c) => ({
-          name: c.nickname, entity: "account", id: c.ftop_account_id,
+          name: c.nickname, customer: c.nickname, workload: "Enterprise Status Note",
+          entity: "account", id: c.ftop_account_id,
           extra: `ESN last touched 45+ days ago — past next-update`,
         }),
         l1_status_unknown: (c) => ({
-          name: c.nickname, entity: "ftop_serviceintents", id: null,
+          name: c.nickname, customer: c.nickname, workload: "Microsoft 365 Copilot",
+          entity: "ftop_serviceintents", id: null,
           extra: `Workload Intent row L1 = "Status Unknown"`,
         }),
         l1_ip_without_engagement_start: (c) => ({
-          name: c.nickname, entity: "ftop_serviceintents", id: null,
+          name: c.nickname, customer: c.nickname, workload: "MDE Usage",
+          entity: "ftop_serviceintents", id: null,
           extra: `L1 = In Progress, Engagement Start = blank`,
         }),
         l1_ip_without_target_date: (c) => ({
-          name: c.nickname, entity: "ftop_serviceintents", id: null,
+          name: c.nickname, customer: c.nickname, workload: "Insider Risk Management",
+          entity: "ftop_serviceintents", id: null,
           extra: `L1 = In Progress, Target Date = blank`,
         }),
         l1_blocked_next_action_late: (c) => ({
-          name: c.nickname, entity: "ftop_serviceintents", id: null,
+          name: c.nickname, customer: c.nickname, workload: "Windows 365",
+          entity: "ftop_serviceintents", id: null,
           extra: `L1 = Blocked, Next Action overdue`,
         }),
       };
