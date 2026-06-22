@@ -1948,7 +1948,7 @@ table.heatmap {
    * keep tile widths roughly even across sections so nothing looks
    * cramped or stretched. */
   grid-template-columns: auto 5fr 2fr 5fr;
-  gap: 24px; align-items: stretch;
+  gap: 12px; align-items: stretch;
   margin: 0 24px 12px;
   padding: 0;
   background: var(--cp-bg);
@@ -1958,8 +1958,8 @@ table.heatmap {
   background: var(--cp-bg-elevated);
   border: 1px solid var(--cp-border);
   border-radius: 14px;
-  padding: 14px 12px 24px;
-  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
   min-width: 0;
 }
 .counter-section.solo {
@@ -1997,12 +1997,12 @@ table.heatmap {
 .tile-grid {
   display: grid;
   grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
-  gap: 24px;
+  gap: 12px;
 }
 
 /* Tighten counter tiles when they live inside the new grid (mockup default is bigger) */
 .counter-row .counter {
-  padding: 8px 10px 24px;
+  padding: 8px 10px 12px;
   min-width: 0;
   border-radius: 10px;
   text-align: center;
@@ -3215,7 +3215,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.02 locked 2026-06-22 16:50 EDT — Collapse is visible outside the ellipsis while expanded; main-tile gutters standardized.">v1.02 · Stable</span>
+      <span class="version-tag" title="Build version: v1.03 locked 2026-06-22 16:55 EDT — Main Tile internal gutters standardized to 12px; outer app margins remain 24px.">v1.03 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
