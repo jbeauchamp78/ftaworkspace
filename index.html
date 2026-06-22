@@ -3077,7 +3077,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.82 locked 2026-06-22 13:10 EDT — Spotlight FY date fix. (1) Normalizes FTOP spotlight dates from M/D/YYYY to ISO so SQLite FY/H1/H2 filters see synced spotlights. (2) Existing spotlight_index rows migrated in place. (3) Demo bundle rebuilt from the same v0.82 assets.">v0.82 · Stable</span>
+      <span class="version-tag" title="Build version: v0.83 locked 2026-06-22 13:40 EDT — Removed superseded cart actions. Legacy /spotlight, /spotlight --lowlight, and /manage-pecs create registry actions were replaced by the current workspace modal-gated execute flows. Demo bundle rebuilt from the same v0.83 assets.">v0.83 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4586,11 +4586,6 @@ function _initials(name) {
 // ===== Bridge prompts per tile/row =====
 function _bridgePromptFor(tile, row) {
   // row may be {cust, kr, status} (KR-derived) or DQ row {name, entity, id} or IC row {nickname, overall, ...}
-  if (tile === "regressions" || tile === "missing-pecs") {
-    return { label: `Open PEC · ${row.cust} · ${row.kr}`,
-             prompt: `/manage-pecs create ${row.cust} for KR "${row.kr}"`,
-             kind: "open-pec", cust: row.cust };
-  }
   if (tile === "ic-wins") {
     return { label: `Diagnose Copilot blockers · ${row.nickname}`,
              prompt: `/copilot-blockers ${row.nickname}`,
@@ -5048,19 +5043,6 @@ function closeDrill() {
 }
 
 window.activeTile = null;
-// ===== Open PEC button: queue a Scout /manage-pecs action via shared confirm =====
-document.addEventListener("click", async e => {
-  const btn = e.target.closest(".pec-open-btn");
-  if (!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
-  const cust = btn.dataset.cust;
-  const kr   = btn.dataset.kr;
-  const result = await window.__queueSkill.queueSkill("manage-pecs-create", {
-    cust, kr_label: kr,
-  });
-  if (result.ok) btn.classList.add("queued");
-});
 
 // ===== "✓ already" inline link removed in v0.38 — replaced by the
 // ===== ✓ Already created button inside the queue-confirm modal.
@@ -6767,31 +6749,23 @@ window.__queueSkill = (function () {
   // Registry — one entry per skill kind. Add new entries here when wiring
   // new skill-queueing buttons.
   const REGISTRY = {
-    "spotlight": {
+    "spotlight-create-execute": {
       title: "Draft a Spotlight?",
-      short: "Drafts a FastTrack Initiative Spotlight from KR + ESN + Outlook/Teams signal.",
+      short: "Stages a reviewed Spotlight payload and creates a Draft spotlight in FTOP.",
       sideEffects: [
-        { kind: "read", label: "Read MIDAS, FTOP ESNs, Outlook/Teams" },
-        { kind: "preview", label: "Preview narrative before any write" },
-        { kind: "write", label: "FTOP write only after your approval" },
+        { kind: "read", label: "Read cached MIDAS + FTOP context" },
+        { kind: "preview", label: "Workspace modal is the review gate" },
+        { kind: "write", label: "Creates FTOP Spotlight in Draft stage" },
       ],
-      requires_user_confirm: 1,
-      skill_path: "spotlight",
+      requires_user_confirm: 0,
+      skill_path: "spotlight-create-execute",
       cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/spotlights/queue`,
-      cart_body: (ctx) => ({ kr_label: ctx.kr_label || "", lowlight: !!ctx.lowlight }),
-    },
-    "spotlight-lowlight": {
-      title: "Draft a Lowlight Spotlight?",
-      short: "Drafts a Lowlight spotlight (regression / blocker story).",
-      sideEffects: [
-        { kind: "read", label: "Read MIDAS regression, FTOP ESN" },
-        { kind: "preview", label: "Preview before any FTOP write" },
-        { kind: "write", label: "FTOP write only after your approval" },
-      ],
-      requires_user_confirm: 1,
-      skill_path: "spotlight",
-      cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/spotlights/queue`,
-      cart_body: (ctx) => ({ kr_label: ctx.kr_label || "", lowlight: true }),
+      cart_body: (ctx) => ({
+        kind: "spotlight-create-execute",
+        prompt: `/spotlight-create-execute <staged payload for ${ctx.cust}${ctx.kr_label ? " · " + ctx.kr_label : ""}>`,
+        kr_label: ctx.kr_label || "",
+        lowlight: !!ctx.lowlight,
+      }),
     },
     "heatmap-ftbi-sync": {
       title: "Sync heatmap from FTBI?",
@@ -6819,26 +6793,6 @@ window.__queueSkill = (function () {
       cart_body: () => ({
         kind: "dq-refresh", label: "Data Quality refresh",
         prompt: "/dq-refresh", requires_user_confirm: 1,
-      }),
-    },
-    "manage-pecs-create": {
-      title: "Create a new PEC?",
-      short: "Opens a new FTOP PEC (Prioritized Engagement Case) for a workload.",
-      sideEffects: [
-        { kind: "read", label: "Read FTOP account roster" },
-        { kind: "preview", label: "Skill previews PEC fields before write" },
-        { kind: "write", label: "Creates a new FTOP incident on your approval" },
-      ],
-      requires_user_confirm: 1,
-      skill_path: "manage-pecs",
-      cart_endpoint: () => "/api/scout/queue",
-      cart_body: (ctx) => ({
-        kind: "open-pec", cust: ctx.cust,
-        label: `Open PEC - ${ctx.cust}${ctx.kr_label ? " - " + ctx.kr_label : ""}`,
-        prompt: ctx.kr_label
-          ? `/manage-pecs create ${ctx.cust} for KR "${ctx.kr_label}"`
-          : `/manage-pecs create ${ctx.cust}`,
-        requires_user_confirm: 1,
       }),
     },
     "insight-create": {
@@ -6950,13 +6904,6 @@ window.__queueSkill = (function () {
     // Reuse the cart_body to extract a human-readable prompt for display.
     const body = reg.cart_body ? reg.cart_body(ctx) : {};
     if (body && body.prompt) return body.prompt;
-    if (reg === REGISTRY.spotlight || reg === REGISTRY["spotlight-lowlight"]) {
-      const flags = []; if (body.lowlight) flags.push("--lowlight");
-      let p = `/spotlight ${ctx.cust}`;
-      if (flags.length) p += " " + flags.join(" ");
-      if (body.kr_label) p += `  # context: KR=${body.kr_label}`;
-      return p;
-    }
     if (reg === REGISTRY["heatmap-ftbi-sync"]) {
       return `/heatmap-ftbi-sync ${ctx.cust}`;
     }
@@ -7009,10 +6956,8 @@ window.__queueSkill = (function () {
     const dontAsk = document.getElementById("qsDontAsk");
     dontAsk.checked = false;
 
-    // Show "✓ Already created" only for kinds that support local manual-mark
-    // (PEC create + spotlight + spotlight-lowlight). For everything else
-    // (single-customer-refresh, sync skills, etc.) the button stays hidden.
-    const ALREADY_KINDS = new Set(["manage-pecs-create", "spotlight", "spotlight-lowlight"]);
+    // Show "✓ Already created" only for Spotlight draft/create.
+    const ALREADY_KINDS = new Set(["spotlight-create-execute"]);
     const alreadyBtn = document.getElementById("qsAlready");
     if (alreadyBtn) {
       alreadyBtn.style.display = ALREADY_KINDS.has(kind) ? "" : "none";
@@ -7029,35 +6974,19 @@ window.__queueSkill = (function () {
         resolve(result);
       };
       const already = async () => {
-        // No-queue path — mark the underlying artifact as manually-created
-        // in the local DB instead of running a Scout skill.
-        let r, label;
-        if (kind === "manage-pecs-create") {
-          if (!ctx.cust || !ctx.kr_label) {
-            alert("Customer + KR label required to mark a PEC as already created.");
-            return;
-          }
-          if (!confirm(`Mark "${ctx.kr_label}" PEC for ${ctx.cust} as already created in FTOP?\n\nIt will be verified against FTOP on the next refresh.`)) return;
-          r = await fetch(`/api/customer/${encodeURIComponent(ctx.cust)}/kr/${encodeURIComponent(ctx.kr_label)}/pec-flag`,
-            { method: "PATCH", headers: {"content-type":"application/json"},
-              body: JSON.stringify({ flag: "Yes" }) });
-          label = "PEC marked as already created (manual)";
-        } else {
-          // spotlight / spotlight-lowlight — log via /api/spotlights/manual
-          const titleSuggest = `${ctx.cust}${ctx.kr_label ? " — " + ctx.kr_label : ""} — ${kind === "spotlight-lowlight" ? "Lowlight" : "Spotlight"}`;
-          const userTitle = prompt(`Log existing spotlight for ${ctx.cust}.\n\nTitle:`, titleSuggest);
-          if (!userTitle) return;
-          r = await fetch(`/api/spotlights/manual`,
-            { method: "POST", headers: {"content-type":"application/json"},
-              body: JSON.stringify({
-                cust_nickname: ctx.cust,
-                title: userTitle.trim(),
-                kr_label: ctx.kr_label || null,
-                stage: "Publish",
-                kind: kind === "spotlight-lowlight" ? "lowlight" : "highlight",
-              }) });
-          label = "Spotlight logged as already created (manual)";
-        }
+        const titleSuggest = `${ctx.cust}${ctx.kr_label ? " — " + ctx.kr_label : ""} — ${ctx.lowlight ? "Lowlight" : "Spotlight"}`;
+        const userTitle = prompt(`Log existing spotlight for ${ctx.cust}.\n\nTitle:`, titleSuggest);
+        if (!userTitle) return;
+        const r = await fetch(`/api/spotlights/manual`,
+          { method: "POST", headers: {"content-type":"application/json"},
+            body: JSON.stringify({
+              cust_nickname: ctx.cust,
+              title: userTitle.trim(),
+              kr_label: ctx.kr_label || null,
+              stage: "Publish",
+              kind: ctx.lowlight ? "lowlight" : "highlight",
+            }) });
+        const label = "Spotlight logged as already created (manual)";
         let data = {};
         try { data = await r.json(); } catch {}
         if (data.ok === false) {
@@ -7408,12 +7337,7 @@ window.__queueSkill = (function () {
       }, 500);
       return;
     }
-    // Fallback to legacy flow if the new form isn't loaded
-    const kind = isLowlight ? "spotlight-lowlight" : "spotlight";
-    const result = await window.__queueSkill.queueSkill(kind, {
-      cust: nick, kr_label: krLabel,
-    });
-    if (result.ok) hydrate(nick);
+    alert("Spotlight draft form is not available. Refresh the Workspace and try again.");
   }
 
   // ---------- Hydrate on customer switch or row re-render ----------
@@ -8022,8 +7946,7 @@ window.__spotlightDraftForm = (function () {
     // as the queue-confirm modal. Title/short/side-effects/installed/badge/prompt.
     const infoBar = modal.querySelector("#spDraftInfoBar");
     if (infoBar && window.__queueSkill && window.__queueSkill.renderSkillInfoBar) {
-      const kind = lowlight ? "spotlight-lowlight" : "spotlight";
-      infoBar.innerHTML = window.__queueSkill.renderSkillInfoBar(kind, { cust, kr_label, lowlight });
+      infoBar.innerHTML = window.__queueSkill.renderSkillInfoBar("spotlight-create-execute", { cust, kr_label, lowlight });
       window.__queueSkill.hydrateSkillInfoBar(infoBar);
     }
     modal.classList.add("show");
@@ -8386,7 +8309,6 @@ document.addEventListener("click", (e) => {
   const btn = e.target.closest(".pec-open-btn");
   if (!btn) return;
   if (btn.classList.contains("queued")) return;
-  // Stop the legacy handler (queueSkill manage-pecs-create) from also firing.
   e.preventDefault(); e.stopImmediatePropagation();
   const cust = btn.dataset.cust;
   const kr   = btn.dataset.kr;
