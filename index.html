@@ -3016,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.75.1 hotfix 2026-06-22 09:40 EDT — counters now also re-render when completed_today increments (was only triggered when pending/running dropped, which missed heartbeat-driven syncs that ran while the user wasn't watching the cart). Tile values now stay live without manual page refresh.">v0.75.1 · Stable</span>
+      <span class="version-tag" title="Build version: v0.76 locked 2026-06-22 (Phase 1 expansion 2/4 — backlog-stall fix + real spotlight tile). (1) Split _AUTO_SAFE_KINDS: heartbeat now ONLY auto-runs truly unattended skills (spotlight-sync, insight-sync, heatmap-ftbi-sync, pec-note, dq-refresh, esn-refresh, krtracker-refresh, l1-status-unknown, roster-bind, compete-brief, plus future pec-*-execute skills). The 6 attended write-prompts (pec-draft, pec-advance, pec-disengage, spotlight, spotlight-draft, insight-draft) are now ATTENDED — they sit in cart with ✓ Approve button until the FTA is at the keyboard. Prevents heartbeat from queueing prompts that pause Clawpilot waiting for user input. (2) Spotlights tile drill now shows REAL per-customer spotlight details (mirroring v0.75 Insights tile): customer rows with published/draft counts + collapsible per-spotlight title + stage badge + direct FTOP URL link + 🔄 Sync from FTOP button. Replaces generic 'Portfolio rollup' line.">v0.76 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4573,40 +4573,84 @@ async function renderDrillPanel(tile) {
       <div class="drill-list"><div class="drill-empty">Loading portfolio spotlights…</div></div>`;
     document.getElementById("drillClose").onclick = closeDrill;
     try {
-      const r = await fetch("/api/spotlights/summary").then(x => x.json());
-      // Sub-fetch per-customer counts is too chatty; show portfolio rollup +
-      // hint to click into a customer card for per-cust detail.
-      const rows = [];
-      // Build a per-customer list from CUSTOMERS — assume spotlight count is
-      // recorded per c.spotlights_published (if backend joins it) — else
-      // we expose the portfolio numbers only.
-      CUSTOMERS.forEach(c => {
-        if (c.spotlights_count && c.spotlights_count > 0) {
-          rows.push({ cust: c.n, count: c.spotlights_count });
-        }
-      });
+      const [sumR, trackerR] = await Promise.all([
+        fetch("/api/spotlights/summary").then(x => x.json()),
+        fetch("/api/tracker").then(x => x.json()),
+      ]);
+      const customers = (trackerR.customers || []).map(c => c.nickname);
+      const perCust = await Promise.all(customers.map(async (n) => {
+        try {
+          const r = await fetch(`/api/customer/${encodeURIComponent(n)}/spotlights`).then(x => x.json());
+          return { nickname: n, total: r.total_spotlights || 0,
+                   published: r.published_count || 0,
+                   spotlights: r.spotlights || [] };
+        } catch (_) { return { nickname: n, total: 0, published: 0, spotlights: [] }; }
+      }));
+      const withSp = perCust.filter(p => p.total > 0)
+                            .sort((a, b) => b.published - a.published || b.total - a.total);
+      const stageBadge = (stage, kind) => {
+        const s = (stage || '').toLowerCase();
+        const icon = (kind === 'lowlight') ? '⚠' : '★';
+        if (s === 'publish')  return `<span style="color:#107C10;">${icon}</span>`;
+        if (s === 'review')   return `<span style="color:#8e44ad;">⏳</span>`;
+        if (s === 'draft')    return `<span style="color:#0078D4;">📝</span>`;
+        return `<span style="color:var(--text-muted);">${icon}</span>`;
+      };
       panel.innerHTML = `
         <div class="drill-hdr"><h3>Spotlights</h3>
-          <span class="count">${r.published || 0} published</span>
+          <span class="count">${sumR.published || 0} published</span>
           <button class="close" id="drillClose" title="Close">×</button></div>
-        <div class="drill-list">
-          <div class="drill-item" style="background:transparent;">
-            <span class="cust">Portfolio rollup</span>
-            <span class="kr">${r.published || 0} published · ${r.in_flight || 0} in flight · ${r.customers_with_spotlight || 0} customers · ${r.recommended || 0} recommended</span>
+        <div class="drill-actions" style="padding:8px 12px; border-bottom:1px solid var(--border);">
+          <button class="btn small primary" id="spotlightSyncBtn" title="Queue /spotlight-sync to pull latest from FTOP">🔄 Sync from FTOP</button>
+          <span style="margin-left:12px; color:var(--text-muted); font-size:11px;">
+            ${sumR.published || 0} published · ${sumR.in_flight || 0} in flight · ${sumR.customers_with_spotlight || 0} customers · ${sumR.recommended || 0} recommended
           </span>
-          </div>
-          ${rows.length === 0
-            ? `<div class="drill-empty">Click any customer card → header chip ✨ to see per-customer spotlight details.</div>`
-            : rows.sort((a,b)=>b.count-a.count).map(it => `
-              <div class="drill-item" data-cust="${escapeHtml(it.cust)}">
-                <span class="cust">${escapeHtml(it.cust)}</span>
-                <span class="kr">${it.count} spotlight${it.count>1?'s':''}</span>
-              </div>`).join("")}
+        </div>
+        <div class="drill-list">
+          ${withSp.length === 0
+            ? `<div class="drill-empty">No spotlights cached yet. Click <strong>🔄 Sync from FTOP</strong> above.</div>`
+            : withSp.map(p => `
+              <div class="drill-item" data-cust="${escapeHtml(p.nickname)}">
+                <span class="cust">${escapeHtml(p.nickname)}</span>
+                <span class="kr">${p.published} published${p.total > p.published ? ` · ${p.total - p.published} drafts` : ''}</span>
+              </div>
+              ${p.spotlights.slice(0, 6).map(sl => `
+                <div class="drill-item" data-cust="${escapeHtml(p.nickname)}" style="padding-left:24px; background:transparent;">
+                  <span class="cust" style="font-size:11px; color:var(--text-muted);">
+                    ${stageBadge(sl.stage, sl.kind)} ${sl.url ? `<a href="${escapeHtml(sl.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(sl.title || '(untitled)').slice(0, 70)}</a>` : escapeHtml(sl.title || '(untitled)').slice(0, 70)}
+                  </span>
+                  <span class="kr" style="font-size:10px;">${escapeHtml(sl.stage || '')}${sl.kr_label ? ' · ' + escapeHtml(sl.kr_label) : ''}</span>
+                </div>`).join("")}
+            `).join("")}
         </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
       panel.querySelectorAll(".drill-item[data-cust]").forEach(el => {
-        el.onclick = () => _jumpToCustomer(el.dataset.cust);
+        // Skip nested rows when clicking the spotlight title link
+        el.onclick = (ev) => {
+          if (ev.target.tagName === 'A') return;
+          _jumpToCustomer(el.dataset.cust);
+        };
       });
+      const syncBtn = document.getElementById("spotlightSyncBtn");
+      if (syncBtn) syncBtn.onclick = async () => {
+        syncBtn.disabled = true; syncBtn.textContent = "Queueing…";
+        try {
+          const r = await fetch("/api/clawpilot/queue", {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+              kind: "spotlight-sync",
+              label: "Spotlight sync — portfolio",
+              prompt: "/spotlight-sync",
+              cust: null,
+            }),
+          }).then(x => x.json());
+          syncBtn.textContent = r.id ? `Queued #${r.id} ✓` : "Failed";
+          setTimeout(() => { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync from FTOP"; }, 2000);
+        } catch (e) {
+          syncBtn.textContent = "Failed: " + e.message;
+          setTimeout(() => { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync from FTOP"; }, 3000);
+        }
+      };
     } catch (e) {
       panel.innerHTML = `<div class="drill-hdr"><h3>Spotlights</h3>
         <button class="close" id="drillClose" title="Close">×</button></div>
