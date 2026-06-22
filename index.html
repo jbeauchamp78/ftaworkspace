@@ -478,6 +478,51 @@ html[data-theme="win98"] .info-pill {
   padding: 2px 8px; border: 1px solid var(--cp-border); border-radius: 8px;
 }
 .drill-ftop-link:hover { background: var(--cp-surface-soft); }
+.dq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dq-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.dq-main { min-width: 0; }
+.dq-customer {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cp-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dq-workload {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--cp-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dq-open {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cp-link);
+  text-decoration: none;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: var(--cp-bg-elevated);
+}
+.dq-open:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent); }
+.dq-open-missing { color: var(--cp-text-muted); }
 .chip.ic-green   { background: #92D050; color: #1f1f1f; }
 .chip.ic-yellow  { background: #FFFF00; color: #1f1f1f; }
 .chip.ic-red     { background: #FF0000; color: #ffffff; }
@@ -3077,7 +3122,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.83 locked 2026-06-22 13:40 EDT — Removed superseded cart actions. Legacy /spotlight, /spotlight --lowlight, and /manage-pecs create registry actions were replaced by the current workspace modal-gated execute flows. Demo bundle rebuilt from the same v0.83 assets.">v0.83 · Stable</span>
+      <span class="version-tag" title="Build version: v0.84 locked 2026-06-22 13:55 EDT — Data Quality read-only cleanup. DQ tiles keep FTOP re-count/refresh but no longer expose cleanup skill actions. DQ drilldowns use a consistent Customer + Workload + FTOP link layout. Demo bundle rebuilt from the same v0.84 assets.">v0.84 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3117,7 +3162,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     🛒 Pending <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
   </button>
   <button class="btn secondary" id="btnWorkspaceFeedback" title="Send a bug / idea / question about the FTA Workspace itself (anonymized — install_id only). Different from 💡 Submit Insight which goes to FT Feedback on a customer's behalf.">💬 Feedback</button>
-  <button class="btn" id="btnRefresh" title="Verify health + comprehensive refresh: MIDAS snapshot + FTOP PECs/roster/DQ + Lynx Ideal Config + auto-queue maintenance skills. ~60 seconds.">↻ Refresh Now</button>
+  <button class="btn" id="btnRefresh" title="Verify health + comprehensive refresh: MIDAS snapshot + FTOP PECs/roster/DQ + Lynx Ideal Config. ~60 seconds.">↻ Refresh Now</button>
 </div>
 
 <div class="tabs" style="display:none;">
@@ -3201,9 +3246,8 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="section-hdr">
       <h2>Data Quality</h2>
       <div class="hdr-right">
-        <span class="src">FTOP · matches /dq-refresh</span>
+        <span class="src">FTOP · read-only views</span>
         <button class="section-refresh" id="btnRefreshDQ" title="Re-count Data Quality from FTOP (no skill run)">⟳</button>
-        <button class="section-refresh" id="btnRunDqSkill" title="Queue /dq-refresh on the bridge cart — heartbeat will run it within 30 min (the actual skill will still surface its own preview/confirm prompts in Scout when it runs)" style="width:auto;padding:0 8px;font-weight:600;">➕</button>
       </div>
     </div>
     <div class="tile-grid" style="--n: 5">
@@ -4591,18 +4635,6 @@ function _bridgePromptFor(tile, row) {
              prompt: `/copilot-blockers ${row.nickname}`,
              kind: "copilot-blockers", cust: row.nickname };
   }
-  if (tile === "dq-esn") {
-    return { label: `Refresh ESN · ${row.name}`,
-             prompt: `/esn-refresh "${row.name}"`,
-             kind: "esn-refresh", cust: row.name };
-  }
-  if (tile === "dq-l1-unknown" || tile === "dq-l1-no-engstart" ||
-      tile === "dq-l1-no-target" || tile === "dq-l1-blocked-late") {
-    // Single-action skill that walks the whole queue; row-specific arg not needed.
-    return { label: `Cleanup L1 intent · ${row.name}`,
-             prompt: `/l1-status-unknown`,
-             kind: "l1-cleanup", cust: row.name };
-  }
   return null;
 }
 
@@ -4931,30 +4963,24 @@ async function renderDrillPanel(tile) {
     try {
       const r = await fetch(`/api/counters/dq-list/${key}`).then(x => x.ok ? x.json() : x.json().then(e => Promise.reject(e)));
       const items = r.items || [];
-      const isL1 = tile.startsWith("dq-l1-");
       panel.innerHTML = `
         <div class="drill-hdr"><h3>${TILE_TITLES[tile]}</h3>
           <span class="count">${items.length}</span>
           <a href="${r.view_url}" target="_blank" class="drill-ftop-link" title="Open this view in FTOP">↗ Open in FTOP</a>
-          ${items.length && !isL1 ? `<button class="drill-bulk-btn" id="drillBulkBtn" title="Queue all">+ Queue all ${items.length}</button>` : ''}
-          ${items.length && isL1 ? `<button class="drill-bulk-btn" id="drillBulkBtn" title="Queue one /l1-status-unknown run (covers all rows)">+ Queue cleanup</button>` : ''}
           <button class="close" id="drillClose" title="Close">×</button></div>
-        <div class="drill-list">
+        <div class="dq-list">
           ${items.length === 0 ? `<div class="drill-empty">No rows. View is clean.</div>` :
             items.slice(0, 200).map(it => `
-              <div class="drill-item">
-                <span class="cust">${escapeHtml(it.name)}</span>
-                <span class="meta">${escapeHtml(it.extra || '')}</span>
-                ${it.id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=${it.entity}&id=${it.id}" target="_blank" class="kr">↗ open</a>` : ''}
-                ${!isL1 ? `<button class="drill-queue-btn" data-tile="${tile}" data-row='${escapeHtml(JSON.stringify({name: it.name, id: it.id, entity: it.entity}))}' title="Queue fix">+ Queue</button>` : ''}
+              <div class="dq-row">
+                <div class="dq-main">
+                  <div class="dq-customer">${escapeHtml(it.customer || it.name || '(customer not shown)')}</div>
+                  <div class="dq-workload">${escapeHtml(it.workload || it.extra || 'Data quality row')}</div>
+                </div>
+                ${it.id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=${it.entity}&id=${it.id}" target="_blank" class="dq-open">Open in FTOP ↗</a>` : `<span class="dq-open dq-open-missing">No direct link</span>`}
               </div>
             `).join("")}
         </div>`;
-      _wireDrillButtons(panel, tile,
-        () => isL1
-          ? [{name: "(all rows)"}]   // bulk for L1 is a single /l1-status-unknown run
-          : items.map(it => ({name: it.name, id: it.id, entity: it.entity}))
-      );
+      document.getElementById("drillClose").onclick = closeDrill;
     } catch (e) {
       panel.innerHTML = `<div class="drill-hdr"><h3>${TILE_TITLES[tile]}</h3>
         <button class="close" id="drillClose" title="Close">×</button></div>
@@ -6042,15 +6068,6 @@ window.__api = (function() {
       finally { _stop(rDQ); }
     };
 
-    // Run /dq-refresh via the shared queue-confirm modal.
-    const rRunDq = document.getElementById("btnRunDqSkill");
-    if (rRunDq) rRunDq.onclick = async (e) => {
-      e.stopPropagation();
-      _spin(rRunDq);
-      try {
-        await window.__queueSkill.queueSkill("dq-refresh", {});
-      } finally { _stop(rRunDq); }
-    };
   }
 
   // Patch the existing change-handler so status flips also POST to the backend.
@@ -6779,21 +6796,6 @@ window.__queueSkill = (function () {
       skill_path: "heatmap-ftbi-sync",
       cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/heatmap/ftbi-sync`,
       cart_body: () => ({ demo: /[?&]demo=1\b/.test(location.search) }),
-    },
-    "dq-refresh": {
-      title: "Run Data Quality refresh?",
-      short: "Re-counts ESN aging + L1 Status Unknown rows and queues fixes.",
-      sideEffects: [
-        { kind: "read", label: "Read FTOP DQ counters" },
-        { kind: "preview", label: "Sub-skills queued with their own preview gates" },
-      ],
-      requires_user_confirm: 1,
-      skill_path: "dq-refresh",
-      cart_endpoint: () => "/api/scout/queue",
-      cart_body: () => ({
-        kind: "dq-refresh", label: "Data Quality refresh",
-        prompt: "/dq-refresh", requires_user_confirm: 1,
-      }),
     },
     "insight-create": {
       title: "Submit a FastTrack Feedback Insight?",
@@ -9620,7 +9622,7 @@ window.__cartLogModal = (function () {
         <h5>Left sidebar</h5>
         <ul>
           <li><strong>Counter row</strong> — 6 portfolio-wide tiles (KR Wins · KPI Wins · Spotlights · KPI Regressions · Missing PECs · Copilot IC Wins). Click to drill. Tiles flash yellow and settle amber when values change between refreshes.</li>
-          <li><strong>Data Quality</strong> section — ESN aging, L1 Status Unknown, etc. ➕ button queues a maintenance skill to fix.</li>
+          <li><strong>Data Quality</strong> section — ESN aging, L1 Status Unknown, and other FTOP saved views. Use ⟳ to re-count and click a tile to open rows with direct FTOP links.</li>
           <li><strong>Customer list</strong> — your portfolio. Status chips on the right show per-customer roll-up.</li>
         </ul>
         <h5>Right panel (per customer)</h5>
@@ -9646,7 +9648,7 @@ window.__cartLogModal = (function () {
           <li><strong>Pulls FTOP</strong> via ftop-mcp — your active PECs, recent ESNs, account assignments, DQ counts.</li>
           <li><strong>Pulls Lynx</strong> via Playwright — the 10 Copilot Ideal Config settings per tenant.</li>
           <li><strong>Re-evaluates</strong> every KR row using FY26 H2 rules (epoch shown in the pill).</li>
-          <li><strong>Auto-queues</strong> safe maintenance skills (L1 cleanup, DQ refresh) when their triggers fire.</li>
+          <li><strong>Refreshes</strong> local counters and read-only drilldowns. DQ cleanup actions are intentionally not automated.</li>
           <li><strong>Pre-warms</strong> Recommended Actions per customer.</li>
         </ol>
         <h5>Automatic refreshes</h5>
@@ -9672,11 +9674,7 @@ window.__cartLogModal = (function () {
         <h5>Manual escape hatch</h5>
         <p>Each item has a <strong>Copy prompts</strong> button — copies the prompt + cart ID. Paste into Scout chat and run it yourself if you'd rather not wait for the next heartbeat.</p>
         <h5>What gets auto-queued</h5>
-        <ul>
-          <li><strong>l1-cleanup</strong> — Triggered when L1 Status Unknown rows exist in FTOP.</li>
-          <li><strong>dq-refresh</strong> — Triggered when ESN aging / DQ blockers exist.</li>
-        </ul>
-        <p><strong>Note:</strong> roster-bind is no longer auto-queued (4 portfolio accounts have permanently-NULL TPIDs in FTOP — the skill can't help them). When those FTOP records get fixed upstream, auto-queue returns.</p>
+        <p>Only deterministic sync/execute actions are auto-queued. Data Quality cleanup is read-only in Workspace; FTAs review rows and decide how to resolve them in FTOP.</p>
         <div class="help-callout"><strong>Why heartbeat instead of instant?</strong> Scout runs in a separate process. The 30-min cadence prevents your IDE from being interrupted and gives you a window to ✓ Approve in batches.</div>`,
 
       queueconfirm: `
@@ -9697,7 +9695,6 @@ window.__cartLogModal = (function () {
           <tr><td><code>/spotlight --lowlight</code></td><td>⚠ icon on a KR row in REGRESSION state</td></tr>
           <tr><td><code>/heatmap-ftbi-sync</code></td><td>"Sync from FTBI" button on the heatmap toggle</td></tr>
           <tr><td><code>single-customer-refresh</code></td><td>"🔄 Refresh This Customer" button under the heatmap</td></tr>
-          <tr><td><code>/dq-refresh</code></td><td>➕ button in the Data Quality sidebar section</td></tr>
           <tr><td><code>/manage-pecs --create</code></td><td>Open PEC click on a Missing PECs chip</td></tr>
         </table>
         <div class="help-callout tip"><strong>Why this exists.</strong> Before queue-confirm, different buttons queued items in different ways with different (or no) preview. Now every skill action goes through one code path — <code>window.__queueSkill</code> — backed by a registry, so adding a new skill action takes ~5 lines and inherits the full UX automatically.</div>`,
