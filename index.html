@@ -3122,7 +3122,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.84 locked 2026-06-22 13:55 EDT — Data Quality read-only cleanup. DQ tiles keep FTOP re-count/refresh but no longer expose cleanup skill actions. DQ drilldowns use a consistent Customer + Workload + FTOP link layout. Demo bundle rebuilt from the same v0.84 assets.">v0.84 · Stable</span>
+      <span class="version-tag" title="Build version: v0.85 locked 2026-06-22 14:05 EDT — Field Guide Roadmap. Added MVP2 Roadmap section to the Field Guide. Demo bundle rebuilt from the same v0.85 assets.">v0.85 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -9576,6 +9576,7 @@ window.__cartLogModal = (function () {
     { id: "themes",    title: "Themes & PWA" },
     { id: "trouble",   title: "Troubleshooting" },
     { id: "privacy",   title: "Privacy & Data" },
+    { id: "roadmap",   title: "Roadmap" },
   ];
 
   function content() {
@@ -9856,6 +9857,29 @@ window.__cartLogModal = (function () {
         <h5>Sensitivity labels</h5>
         <p>Files you read with Scout may carry MIP labels. The app itself doesn't read M365 content — only FTOP/MIDAS/Lynx via authenticated browser sessions, which are governed by your own role-based access.</p>
         <div class="help-callout tip"><strong>Bottom line:</strong> the app is local-first. Your portfolio data is in your OneDrive. Nothing customer-identifying leaves your environment.</div>`,
+
+      roadmap: `
+        <h4>Roadmap</h4>
+        <p>MVP2 backlog items captured from the original Clawpilot build logs plus current v0.84 decisions. These are intentionally deferred until the Stable surface is clean and validated.</p>
+        <table class="help-table">
+          <tr><th>ID</th><th>Description</th></tr>
+          <tr><td><code>mvp2-submit-insights-feedback</code></td><td>In-app Submit Insights/Feedback feature.</td></tr>
+          <tr><td><code>mvp2-scoped-refresh-server-filter</code></td><td>Scope single-customer refresh server-side to reduce runtime.</td></tr>
+          <tr><td><code>mvp2-non-kr-midas-pipeline</code></td><td>Pull MIDAS MAU/MoM for Non-KR workloads.</td></tr>
+          <tr><td><code>mvp2-dq-unattended-skill-development</code></td><td>Revisit DQ automation with safe read-only, preview, and gated execute contracts.</td></tr>
+          <tr><td><code>mvp2-bootstrap-pull-upstream-skills</code></td><td>Harden <code>/ftaworkspace</code> bootstrap to verify/pull required upstream skills.</td></tr>
+          <tr><td><code>mvp2-completion-teams-notify</code></td><td>Optional Teams notifications when cart items complete or fail.</td></tr>
+          <tr><td><code>mvp2-connect-builder</code></td><td>Build Connect/performance evidence summaries from Workspace data.</td></tr>
+          <tr><td><code>mvp2-failed-retry-button</code></td><td>Add retry controls for failed cart items with retry limits.</td></tr>
+          <tr><td><code>mvp2-https-mkcert</code></td><td>HTTPS plus friendly local hostname via mkcert.</td></tr>
+          <tr><td><code>mvp2-inner-skill-structured-exit</code></td><td>Standard <code>##EXITCODE {...}</code> contract from inner skills.</td></tr>
+          <tr><td><code>mvp2-nonkr-history</code></td><td>Non-KR history table/API for MoM charting.</td></tr>
+          <tr><td><code>mvp2-pec-cache</code></td><td>Cache PEC counts/details to reduce refresh cost.</td></tr>
+          <tr><td><code>mvp2-rec-action-queue-buttons</code></td><td>Revisit Recommended Action quick buttons using current modal-gated flows.</td></tr>
+          <tr><td><code>mvp2-resolve-missing-tpids</code></td><td>Resolve or surface customers with missing TPIDs.</td></tr>
+          <tr><td><code>mvp2-shell-only-sw</code></td><td>Restore shell-only service worker for server-down overlay reliability.</td></tr>
+          <tr><td><code>mvp2-stuck-running-watchdog</code></td><td>Timeout watchdog for cart rows stuck in <code>running</code>.</td></tr>
+        </table>`,
     };
   }
 
