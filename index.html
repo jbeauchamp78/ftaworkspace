@@ -3122,7 +3122,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.92 locked 2026-06-22 15:00 EDT — Insight copy-to-Scout handoff. Insight drafts no longer create cart rows; they stage the payload and show a full Scout prompt to copy/run manually.">v0.92 · Stable</span>
+      <span class="version-tag" title="Build version: v0.93 locked 2026-06-22 16:00 EDT — KPI Wins drilldown now lists individual KPI WIN rows across Stable, LAB, and DEMO. Insight drafts remain copy-to-Scout handoff only.">v0.93 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4547,25 +4547,25 @@ function getDrillItems(tile) {
     });
     return out.sort((a, b) => a.cust.localeCompare(b.cust) || a.kr.localeCompare(b.kr));
   }
-  // ---- KPI Wins: one row per customer, count of their KPI WIN rows ----
+  // ---- KPI Wins: one row per individual KPI WIN row ----
   if (tile === "kpi-wins") {
-    const byCust = new Map();
+    const out = [];
     CUSTOMERS.forEach(c => {
-      const wins = [];
       c.krs.forEach((k, i) => {
-        if (k.s === "KPI WIN") wins.push(KR_LABELS[i][0]);
+        if (k.s === "KPI WIN") {
+          const name = KR_LABELS[i][0];
+          const kind = name.includes("Admin Days") ? "days" : ((name.includes("Agents") || name === "Win365 POC") ? "" : "pct");
+          out.push({
+            cust: c.n,
+            full: c.full,
+            kr: name,
+            status: "KPI WIN",
+            meta: k.c != null ? `current ${fmt(k.c, kind)}` : "",
+          });
+        }
       });
-      if (wins.length) byCust.set(c.n, { cust: c.n, full: c.full, wins });
     });
-    return Array.from(byCust.values())
-      .sort((a, b) => b.wins.length - a.wins.length || a.cust.localeCompare(b.cust))
-      .map(x => ({
-        cust: x.cust, full: x.full,
-        kr: `${x.wins.length} KPI ${x.wins.length === 1 ? 'win' : 'wins'}`,
-        status: "KPI WIN",
-        meta: "",
-        aggregate: true,
-      }));
+    return out.sort((a, b) => a.cust.localeCompare(b.cust) || a.kr.localeCompare(b.kr));
   }
   const out = [];
   CUSTOMERS.forEach(c => {
