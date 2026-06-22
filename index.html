@@ -1075,6 +1075,33 @@ html[data-theme="win98"] .info-pill {
   text-decoration: underline; background: var(--cp-surface-soft);
 }
 .cust-header .kr-expand-btn { align-self: flex-end; }
+.cust-action-menu { position: relative; margin-left: auto; }
+.cust-actions-ellipsis {
+  width: 34px; height: 30px; padding: 0;
+  font-size: 18px; line-height: 1; font-weight: 700;
+}
+.cust-actions-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--cp-bg-elevated);
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+  z-index: 120;
+}
+.cust-action-menu.open .cust-actions-dropdown { display: flex; flex-direction: column; gap: 4px; }
+.cust-action-item {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+.cust-action-divider { height: 1px; background: var(--cp-border); margin: 4px 2px; }
 
 .cust-statusline {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -3175,7 +3202,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.98 locked 2026-06-22 16:35 EDT — Section gutters normalized with consistent 24px horizontal and 12px vertical spacing.">v0.98 · Stable</span>
+      <span class="version-tag" title="Build version: v0.99 locked 2026-06-22 16:40 EDT — Customer header actions consolidated into ellipsis menu with generic Submit PEC and Submit Spotlight.">v0.99 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3845,16 +3872,25 @@ function renderContent() {
         </div>
       </div>
       <span style="flex:1"></span>
-      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; margin-left:auto;">
-        <button class="btn secondary kr-expand-btn" id="btnExpandKR"
-                title="Expand current view: hides sidebar">⛶ Expand</button>
-        <button class="btn secondary" id="btnHeatmap"
-                title="Toggle between Customer Workspace and M365 Usage Heatmap">M365 Usage Heatmap</button>
-        <button class="btn secondary cust-insight-btn" data-cust="${c.n}"
-                title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
-        <button class="btn secondary" id="btnRefreshCustomer" data-cust="${c.n}"
-                data-stamp="${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}"
-                title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Scout bridge.&#10;&#10;Last refresh: ${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : 'Not yet pulled from MIDAS')}">🔄 Refresh This Customer</button>
+      <div class="cust-action-menu" data-cust="${c.n}">
+        <button class="btn secondary cust-actions-ellipsis" type="button"
+                title="Customer actions" aria-label="Customer actions">…</button>
+        <div class="cust-actions-dropdown" role="menu" aria-label="Customer actions">
+          <button class="btn secondary cust-action-item kr-expand-btn" id="btnExpandKR"
+                  title="Expand current view: hides sidebar">⛶ Expand</button>
+          <button class="btn secondary cust-action-item" id="btnHeatmap"
+                  title="Toggle between Customer Workspace and M365 Usage Heatmap">M365 Usage Heatmap</button>
+          <button class="btn secondary cust-action-item cust-insight-btn" data-cust="${c.n}"
+                  title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
+          <button class="btn secondary cust-action-item" id="btnRefreshCustomer" data-cust="${c.n}"
+                  data-stamp="${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}"
+                  title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Scout bridge.&#10;&#10;Last refresh: ${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : 'Not yet pulled from MIDAS')}">🔄 Refresh This Customer</button>
+          <div class="cust-action-divider"></div>
+          <button class="btn secondary cust-action-item cust-submit-pec-btn" data-cust="${c.n}"
+                  title="Open a generic PEC create modal for this customer. No workload is pre-selected.">+ Submit PEC</button>
+          <button class="btn secondary cust-action-item cust-submit-spotlight-btn" data-cust="${c.n}"
+                  title="Open a generic Spotlight draft modal for this customer. No workload is pre-selected.">✨ Submit Spotlight</button>
+        </div>
       </div>
     </div>
 
@@ -6324,6 +6360,35 @@ window.__api = (function() {
 // The kr-expanded class drives the layout collapse in BOTH modes (via stacked
 // CSS selectors `body.kr-expanded` and `body.heatmap-view.kr-expanded`).
 document.addEventListener("click", (e) => {
+  const menuBtn = e.target.closest(".cust-actions-ellipsis");
+  if (menuBtn) {
+    e.preventDefault(); e.stopPropagation();
+    const menu = menuBtn.closest(".cust-action-menu");
+    document.querySelectorAll(".cust-action-menu.open").forEach(m => { if (m !== menu) m.classList.remove("open"); });
+    if (menu) menu.classList.toggle("open");
+    return;
+  }
+  if (!e.target.closest(".cust-action-menu")) {
+    document.querySelectorAll(".cust-action-menu.open").forEach(m => m.classList.remove("open"));
+  }
+  const genericPec = e.target.closest(".cust-submit-pec-btn");
+  if (genericPec) {
+    e.preventDefault(); e.stopPropagation();
+    genericPec.closest(".cust-action-menu")?.classList.remove("open");
+    const cust = genericPec.dataset.cust || window.activeCust;
+    if (cust && window.__pecDraftForm) window.__pecDraftForm.open({ cust, kr_label: "", generic: true });
+    return;
+  }
+  const genericSpotlight = e.target.closest(".cust-submit-spotlight-btn");
+  if (genericSpotlight) {
+    e.preventDefault(); e.stopPropagation();
+    genericSpotlight.closest(".cust-action-menu")?.classList.remove("open");
+    const cust = genericSpotlight.dataset.cust || window.activeCust;
+    if (cust && window.__spotlightDraftForm) window.__spotlightDraftForm.open({ cust, kr_label: "", lowlight: false, generic: true });
+    return;
+  }
+  const actionItem = e.target.closest(".cust-action-item");
+  if (actionItem) actionItem.closest(".cust-action-menu")?.classList.remove("open");
   const btn = e.target.closest("#btnExpandKR");
   if (!btn) return;
   const content = document.querySelector(".content");
@@ -8235,6 +8300,7 @@ window.__pecDraftForm = (function () {
           <div class="pec-wl-single" id="pecfWlSingle">
             <div class="pec-wl-row pec-wl-single-row">
               <span class="pec-wl-label" id="pecfWlLabel">—</span>
+              <select class="pec-wl-label" id="pecfWlSelect" style="display:none;"></select>
               <select class="pec-wl-lead" id="pecfWlLead">
                 <option value="FastTrack" selected>FastTrack</option>
                 <option value="Unified/CSA">Unified/CSA</option>
@@ -8305,6 +8371,7 @@ window.__pecDraftForm = (function () {
     build();
     currentCtx = ctx;
     const { cust, kr_label } = ctx;
+    const isGeneric = !!ctx.generic || !kr_label;
     // Defensive: re-enable footer buttons in case prior submit bailed early
     ["#pecfQueue", "#pecfCancel", "#pecfAlready"].forEach(s => {
       const b = modal.querySelector(s);
@@ -8312,7 +8379,7 @@ window.__pecDraftForm = (function () {
     });
     modal.querySelectorAll("input[type='text'], textarea").forEach(el => el.value = "");
     setStatus("Loading suggested PEC payload…", false);
-    modal.querySelector("#pecDraftTitle").textContent = `Create PEC — ${cust}${kr_label ? " · " + kr_label : ""}`;
+    modal.querySelector("#pecDraftTitle").textContent = `Create PEC — ${cust}${!isGeneric && kr_label ? " · " + kr_label : ""}`;
     // Skill info bar
     const infoBar = modal.querySelector("#pecDraftInfoBar");
     if (infoBar && window.__queueSkill && window.__queueSkill.renderSkillInfoBar) {
@@ -8335,22 +8402,42 @@ window.__pecDraftForm = (function () {
       modal.querySelector("#pecfNotes").value = draft.notes || "";
       modal.querySelector("#pecfStage").value = (draft.stage === "engage") ? "engage" : "triage";
 
-      // Single workload — derived from kr_label that triggered the click.
-      // Lookup workload code from catalog if available; otherwise leave null
-      // (Non-KR workloads have no code by design).
-      const wlLabel = kr_label || (draft.workloads && draft.workloads[0] && draft.workloads[0].label) || "—";
-      const match = (currentCtx._catalog || []).find(w => w.label.toLowerCase() === wlLabel.toLowerCase());
-      currentCtx._wl = {
-        label: wlLabel,
-        code: match ? match.code : null,
-        category: match ? match.category : "non-kr",
-      };
-      modal.querySelector("#pecfWlLabel").textContent = wlLabel;
-      // Default deploy lead = FastTrack (already selected in HTML)
-      const draftLead = draft.workloads && draft.workloads[0] && draft.workloads[0].deploy_lead;
-      if (draftLead) modal.querySelector("#pecfWlLead").value = draftLead;
-
-      setStatus("Pre-filled from MIDAS + FTOP context. Review and edit before queueing.", false);
+      const labelEl = modal.querySelector("#pecfWlLabel");
+      const selectEl = modal.querySelector("#pecfWlSelect");
+      if (isGeneric) {
+        labelEl.style.display = "none";
+        selectEl.style.display = "";
+        const labels = [];
+        (currentCtx._catalog || []).forEach(w => { if (w.label && !labels.includes(w.label)) labels.push(w.label); });
+        KR_LABELS.forEach(([label]) => { if (label && !label.includes("Admin Days") && !labels.includes(label)) labels.push(label); });
+        if (window.NON_KR_WORKLOADS_OPTIONS) {
+          window.NON_KR_WORKLOADS_OPTIONS.forEach(label => { if (label && !labels.includes(label)) labels.push(label); });
+        }
+        selectEl.innerHTML = `<option value="" selected disabled>Choose a workload…</option>` +
+          labels.sort((a,b) => a.localeCompare(b)).map(label => `<option value="${label.replace(/"/g, '&quot;')}">${label}</option>`).join("");
+        currentCtx._wl = null;
+        selectEl.onchange = () => {
+          const wlLabel = selectEl.value;
+          const match = (currentCtx._catalog || []).find(w => w.label.toLowerCase() === wlLabel.toLowerCase());
+          currentCtx._wl = { label: wlLabel, code: match ? match.code : null, category: match ? match.category : "generic" };
+        };
+        modal.querySelector("#pecfTitle").value = draft.title || `${cust} — New PEC`;
+        setStatus("Choose a workload, then review and edit before queueing.", false);
+      } else {
+        labelEl.style.display = "";
+        selectEl.style.display = "none";
+        const wlLabel = kr_label || (draft.workloads && draft.workloads[0] && draft.workloads[0].label) || "—";
+        const match = (currentCtx._catalog || []).find(w => w.label.toLowerCase() === wlLabel.toLowerCase());
+        currentCtx._wl = {
+          label: wlLabel,
+          code: match ? match.code : null,
+          category: match ? match.category : "non-kr",
+        };
+        labelEl.textContent = wlLabel;
+        const draftLead = draft.workloads && draft.workloads[0] && draft.workloads[0].deploy_lead;
+        if (draftLead) modal.querySelector("#pecfWlLead").value = draftLead;
+        setStatus("Pre-filled from MIDAS + FTOP context. Review and edit before queueing.", false);
+      }
     } catch (e) {
       setStatus(`Failed to load draft: ${e.message}`, true);
     }
