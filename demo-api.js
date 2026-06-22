@@ -218,6 +218,36 @@
     });
   }
 
+  function FISCAL() {
+    return { label: "FY26", start: "2025-07-01", h2_start: "2026-01-01", end: "2026-07-01" };
+  }
+
+  function DEMO_INSIGHTS() {
+    const custs = STATE.customers || [];
+    const picks = [
+      { c: custs[0]?.nickname || "Acme", title: "Copilot assisted-hours calculation clarity", date: "2026-04-29T19:31:03Z", via: "portal" },
+      { c: null, title: "Automated provisioning for SharePoint / Copilot Lite agents", date: "2026-04-29T19:26:31Z", via: "portal" },
+      { c: custs[1]?.nickname || "Globex", title: "Copilot analytics need outcome-based leadership insights", date: "2026-04-10T14:00:57Z", via: "portal" },
+      { c: custs[2]?.nickname || "Initech", title: "SharePoint Agent deployment blocked by SPN and support ownership guidance", date: "2026-04-10T13:56:05Z", via: "portal" },
+    ];
+    return picks.map((x, i) => ({
+      cust_nickname: x.c,
+      insight_id: `demo-insight-${i + 1}`,
+      kr_label: i % 2 ? "Copilot Agents" : "M365 Copilot",
+      title: x.title,
+      stage: i === 1 ? "It's Draft" : "This needs upvotes!",
+      state: "active",
+      upvotes: i === 0 ? 2 : 0,
+      priority: "P3",
+      created_on: x.date,
+      last_modified: x.date,
+      url: "#demo-insight",
+      source: "demo",
+      submitted_via: x.via,
+      submitter_email: null,
+    }));
+  }
+
   function customerByNick(nick) {
     const n = decodeURIComponent(nick).toLowerCase();
     return STATE.customers.find(
@@ -288,9 +318,28 @@
     })],
     ["GET", /^\/api\/tracker$/, () =>
       jsonResp({ meta: STATE.meta, customers: STATE.customers })],
-    ["GET", /^\/api\/counters$/, () => jsonResp(STATE.counters)],
-    ["GET", /^\/api\/clawpilot\/queue$/, () => jsonResp(STATE.queue)],
-    ["GET", /^\/api\/clawpilot\/queue\/log/, (m, opts, search) => {
+    ["GET", /^\/api\/counters$/, () => {
+      const counters = structuredClone(STATE.counters);
+      let pub = 0;
+      const custsWithPub = new Set();
+      (STATE.customers || []).forEach((c) => {
+        (c.spotlights || []).forEach((s) => {
+          if ((s.stage || "").toLowerCase() === "publish") {
+            pub++;
+            custsWithPub.add(c.nickname);
+          }
+        });
+      });
+      counters.spotlights = Object.assign({}, counters.spotlights || {}, {
+        published: pub,
+        h1_published: 0,
+        h2_published: pub,
+        customers_with_spotlight: custsWithPub.size,
+      });
+      return jsonResp(counters);
+    }],
+    ["GET", /^\/api\/(?:scout|clawpilot)\/queue$/, () => jsonResp(STATE.queue)],
+    ["GET", /^\/api\/(?:scout|clawpilot)\/queue\/log/, (m, opts, search) => {
       const sp = new URLSearchParams(search || "");
       const days = parseInt(sp.get("days") || "30", 10);
       const statusFilter = sp.get("status") || "";
@@ -469,12 +518,19 @@
     ["GET", /^\/api\/insights\/summary$/, () => {
       // Demo: synthesize a small but believable count
       const inFlight = (STATE.queue.pending || []).filter(p => p.kind === "insight-draft").length;
+      const rows = DEMO_INSIGHTS();
       return jsonResp({
-        total_active: 8 + inFlight,
+        total_active: rows.length + inFlight,
+        h1_active: 0,
+        h2_active: rows.length,
         in_flight: inFlight,
-        from_workspace: 3 + inFlight,
-        customers_touched: 6 + (inFlight > 0 ? 1 : 0),
+        from_workspace: inFlight,
+        customers_touched: new Set(rows.map(r => r.cust_nickname).filter(Boolean)).size,
+        fiscal: FISCAL(),
       });
+    }],
+    ["GET", /^\/api\/insights\/portfolio$/, () => {
+      return jsonResp({ insights: DEMO_INSIGHTS(), count: DEMO_INSIGHTS().length, fiscal: FISCAL() });
     }],
     ["POST", /^\/api\/feedback\/submit$/, (m, opts) => {
       let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
@@ -1194,9 +1250,13 @@
       });
       queued = (STATE.queue.pending || []).filter((q) => q.kind === "spotlight").length;
       return jsonResp({
-        published: pub, customers_with_spotlight: custsWithPub.size,
+        published: pub,
+        h1_published: 0,
+        h2_published: pub,
+        customers_with_spotlight: custsWithPub.size,
         in_flight: draft + queued, in_flight_drafts: draft, in_flight_queued: queued,
         recommended,
+        fiscal: FISCAL(),
       });
     }],
     // ----- Spotlights: bulk index upsert (simulated) -----
@@ -1320,8 +1380,8 @@
       return jsonResp(STATE.counters.data_quality);
     }],
 
-    // ----- Clawpilot bridge (simulated) -----
-    ["POST", /^\/api\/clawpilot\/queue$/, async (_m, opts) => {
+    // ----- Scout bridge (simulated; accepts legacy Clawpilot route too) -----
+    ["POST", /^\/api\/(?:scout|clawpilot)\/queue$/, async (_m, opts) => {
       const b = JSON.parse(opts?.body || "{}");
       const item = {
         id: STATE.nextQueueId++,
@@ -1339,7 +1399,7 @@
       STATE.queue.needs_user_count = STATE.queue.pending.filter((p) => p.requires_user_confirm).length;
       return jsonResp(item);
     }],
-    ["PATCH", /^\/api\/clawpilot\/queue\/(\d+)\/approve$/, async (m) => {
+    ["PATCH", /^\/api\/(?:scout|clawpilot)\/queue\/(\d+)\/approve$/, async (m) => {
       const id = parseInt(m[1], 10);
       const it = STATE.queue.pending.find((p) => p.id === id);
       if (!it) return jsonResp({ error: "not found" }, 404);
@@ -1359,7 +1419,7 @@
       }, 3000);
       return jsonResp(it);
     }],
-    ["DELETE", /^\/api\/clawpilot\/queue\/(\d+)$/, async (m) => {
+    ["DELETE", /^\/api\/(?:scout|clawpilot)\/queue\/(\d+)$/, async (m) => {
       const id = parseInt(m[1], 10);
       const idx = STATE.queue.pending.findIndex((p) => p.id === id);
       if (idx >= 0) STATE.queue.pending.splice(idx, 1);
@@ -1369,13 +1429,13 @@
     }],
     // Clear all pending items (used by the cart panel's "Clear pending"
     // button). Mirrors the live backend's DELETE-where-status=pending.
-    ["POST", /^\/api\/clawpilot\/queue\/clear$/, async () => {
+    ["POST", /^\/api\/(?:scout|clawpilot)\/queue\/clear$/, async () => {
       STATE.queue.pending = [];
       STATE.queue.count = 0;
       STATE.queue.needs_user_count = 0;
       return jsonResp({ ok: true, count: 0 });
     }],
-    ["POST", /^\/api\/clawpilot\/queue\/(\d+)\/(start|complete|fail)$/, () => emptyOk()],
+    ["POST", /^\/api\/(?:scout|clawpilot)\/queue\/(\d+)\/(start|complete|fail)$/, () => emptyOk()],
 
     // ----- Telemetry POST is a no-op -----
     ["POST", /^\/api\/telemetry\/event$/, () => emptyOk()],
@@ -1419,7 +1479,7 @@
       tag.style.background = "#fff3cd";
       tag.style.color = "#7a4d00";
       tag.style.borderColor = "#e8b14a";
-      tag.title = "DEMO BUILD — shows synthetic data. No backend, no Clawpilot. Safe to share.";
+      tag.title = "DEMO BUILD — shows synthetic data. No backend, no Scout. Safe to share.";
     }
     document.title = "FTA Workspace · DEMO";
   }

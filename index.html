@@ -503,7 +503,7 @@ html[data-theme="win98"] .info-pill {
   background: var(--cp-accent-soft) !important;
 }
 
-/* ===== Clawpilot Cart (top-bar pending actions) ===== */
+/* ===== Scout Cart (top-bar pending actions) ===== */
 .cart-badge {
   position: absolute; top: -6px; right: -8px;
   background: var(--cp-accent); color: #ffffff;
@@ -799,6 +799,67 @@ html[data-theme="win98"] .info-pill {
 .drill-item .cust { font-weight: 600; min-width: 100px; }
 .drill-item .kr { color: var(--cp-text-muted); flex: 1; }
 .drill-item .meta { font-size: 10px; color: var(--cp-text-soft); }
+.story-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.story-customer {
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--cp-surface);
+}
+.story-customer-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--cp-bg-elevated);
+  border-bottom: 1px solid var(--cp-border);
+  cursor: pointer;
+}
+.story-customer-hdr:hover { background: var(--cp-accent-soft); }
+.story-customer-name { font-size: 12px; font-weight: 700; color: var(--cp-text); }
+.story-customer-meta { font-size: 11px; color: var(--cp-text-muted); white-space: nowrap; }
+.story-half {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 12px;
+  background: var(--cp-surface-soft);
+  color: var(--cp-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+}
+.story-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 7px 12px 7px 24px;
+  border-top: 1px solid var(--cp-border);
+  cursor: pointer;
+}
+.story-row:hover { background: var(--cp-accent-soft); }
+.story-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cp-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.story-title a { color: inherit; text-decoration: none; }
+.story-title a:hover { text-decoration: underline; }
+.story-meta {
+  font-size: 10.5px;
+  color: var(--cp-text-muted);
+  white-space: nowrap;
+}
 
 .tab-panel { display: none; flex: 1; min-height: 0; overflow: hidden; }
 .tab-panel.active { display: flex; }
@@ -2856,8 +2917,8 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 .sp-draft-status { font-size: 11px; color: var(--cp-text-muted); margin-top: 6px; }
 .sp-draft-status.err { color: #c0392b; }
 
-/* Reusable "Clawpilot prompt info bar" — used at the top of any modal
-   that queues a Clawpilot skill (spotlight draft, future modals, etc.).
+/* Reusable "Scout prompt info bar" — used at the top of any modal
+   that queues a Scout skill (spotlight draft, future modals, etc.).
    Same visual language as the queue-confirm dialog. */
 .skill-info-bar {
   padding: 12px 18px 14px;
@@ -3016,7 +3077,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.79 locked 2026-06-22 12:00 EDT — Consolidated automations + MCP-failure auto-retry. (1) New POST /api/clawpilot/queue/retry-failed endpoint flips cart rows that failed with transient errors (MCP unavailable, timeout, connection refused) back to pending. Filtered to auto-safe kinds + last 24h. Marks summary with [auto-retried]. (2) Replaced two separate Clawpilot automations ('FTA Workspace daily refresh' + 'FTA Workspace cart processor') with ONE consolidated 'FTA Workspace processor (consolidated)' running every 30 min. New prompt does 4 steps: retry-failed → daily refresh (if 20h since last + weekday 5-8am window) → drain auto-safe cart → Teams summary. Daily refresh becomes a self-gating check inside the processor instead of a separate schedule. Cleaner operational model — one automation to monitor.">v0.79 · Stable</span>
+      <span class="version-tag" title="Build version: v0.82 locked 2026-06-22 13:10 EDT — Spotlight FY date fix. (1) Normalizes FTOP spotlight dates from M/D/YYYY to ISO so SQLite FY/H1/H2 filters see synced spotlights. (2) Existing spotlight_index rows migrated in place. (3) Demo bundle rebuilt from the same v0.82 assets.">v0.82 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3142,7 +3203,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
       <div class="hdr-right">
         <span class="src">FTOP · matches /dq-refresh</span>
         <button class="section-refresh" id="btnRefreshDQ" title="Re-count Data Quality from FTOP (no skill run)">⟳</button>
-        <button class="section-refresh" id="btnRunDqSkill" title="Queue /dq-refresh on the bridge cart — heartbeat will run it within 30 min (the actual skill will still surface its own preview/confirm prompts in Clawpilot when it runs)" style="width:auto;padding:0 8px;font-weight:600;">➕</button>
+        <button class="section-refresh" id="btnRunDqSkill" title="Queue /dq-refresh on the bridge cart — heartbeat will run it within 30 min (the actual skill will still surface its own preview/confirm prompts in Scout when it runs)" style="width:auto;padding:0 8px;font-weight:600;">➕</button>
       </div>
     </div>
     <div class="tile-grid" style="--n: 5">
@@ -3552,7 +3613,7 @@ function renderContent() {
         <span class="pec yes" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Click to advance this PEC (Engage / Disengage)">● Yes</span>
         <button class="pec-note-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Post an engagement note to this PEC in FTOP">📝</button>
       </span>`;
-    else if ((k.s === "KPI WIN" || k.s === "KPI MET" || k.s === "IN PROGRESS")) pecCell = `<button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled — modal includes a ✓ Already created option">+ Open PEC</button>`;
+    else if ((k.s === "KPI WIN" || k.s === "KPI MET" || k.s === "IN PROGRESS")) pecCell = `<button class="pec missing pec-open-btn" data-cust="${c.n}" data-kr="${name.replace(/"/g, '&quot;')}" title="Open Scout with /manage-pecs prefilled — modal includes a ✓ Already created option">+ Open PEC</button>`;
     else pecCell = `<span class="pec na">—</span>`;
 
     // MoM cell — month-over-month growth derived by the backend from
@@ -3696,7 +3757,7 @@ function renderContent() {
                 title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
         <button class="btn secondary" id="btnRefreshCustomer" data-cust="${c.n}"
                 data-stamp="${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}"
-                title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Clawpilot bridge.&#10;&#10;Last refresh: ${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : 'Not yet pulled from MIDAS')}">🔄 Refresh This Customer</button>
+                title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Scout bridge.&#10;&#10;Last refresh: ${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : 'Not yet pulled from MIDAS')}">🔄 Refresh This Customer</button>
       </div>
     </div>
 
@@ -3722,7 +3783,7 @@ function renderContent() {
           <span class="hm-leg"><span class="hm-swatch" style="background:#92D050"></span> Onboarded</span>
         </div>
         <div class="hm-actions">
-          <button class="btn secondary" id="btnHeatmapFtbiSync" title="Pull live workload + feature usage from FTBI tenant-profile via Clawpilot. Auto-lights ~40 tiles. Manual overrides are preserved.">⟳ Sync from FTBI</button>
+          <button class="btn secondary" id="btnHeatmapFtbiSync" title="Pull live workload + feature usage from FTBI tenant-profile via Scout. Auto-lights ~40 tiles. Manual overrides are preserved.">⟳ Sync from FTBI</button>
           <button class="btn secondary" id="btnHeatmapPng"  title="Export rendered heatmap as PNG">⬇ PNG</button>
           <button class="btn secondary" id="btnHeatmapPptx" title="Export heatmap as a PowerPoint slide">⬇ PPTX</button>
         </div>
@@ -4551,13 +4612,54 @@ function _bridgePromptFor(tile, row) {
 }
 
 async function _enqueueBridge(payload) {
-  const r = await fetch("/api/clawpilot/queue", {
+  const r = await fetch("/api/scout/queue", {
     method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify(payload)
   }).then(x => x.json());
   refreshCartBadge();
   if (window.__api) window.__api.toast(`Queued. ${r.count} pending — open 🛒 to send.`, "ok");
   return r;
+}
+
+function currentStoryFiscal() {
+  const now = new Date();
+  const fy = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
+  return {
+    label: `FY${String(fy).slice(-2)}`,
+    start: new Date(fy - 1, 6, 1),
+    h2Start: new Date(fy, 0, 1),
+    end: new Date(fy, 6, 1),
+  };
+}
+
+function parseStoryDate(value) {
+  if (!value) return null;
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function storyFiscalHalf(value) {
+  const d = parseStoryDate(value);
+  if (!d) return null;
+  const fy = currentStoryFiscal();
+  if (d < fy.start || d >= fy.end) return null;
+  return d < fy.h2Start ? "H1" : "H2";
+}
+
+function storyDateLabel(value) {
+  const d = parseStoryDate(value);
+  if (!d) return "";
+  return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+}
+
+function storyHalfCounts(items) {
+  return {
+    H1: items.filter(x => x._half === "H1").length,
+    H2: items.filter(x => x._half === "H2").length,
+  };
 }
 
 async function renderDrillPanel(tile) {
@@ -4576,17 +4678,23 @@ async function renderDrillPanel(tile) {
         fetch("/api/spotlights/summary").then(x => x.json()),
         fetch("/api/tracker").then(x => x.json()),
       ]);
+      const fy = sumR.fiscal || currentStoryFiscal();
+      const fyLabel = fy.label || currentStoryFiscal().label;
       const customers = (trackerR.customers || []).map(c => c.nickname);
       const perCust = await Promise.all(customers.map(async (n) => {
         try {
           const r = await fetch(`/api/customer/${encodeURIComponent(n)}/spotlights`).then(x => x.json());
-          return { nickname: n, total: r.total_spotlights || 0,
-                   published: r.published_count || 0,
-                   spotlights: r.spotlights || [] };
+          const spotlights = (r.spotlights || [])
+            .map(sl => Object.assign({}, sl, { _half: storyFiscalHalf(sl.created_on), _createdLabel: storyDateLabel(sl.created_on) }))
+            .filter(sl => sl._half)
+            .sort((a, b) => (parseStoryDate(b.created_on) || 0) - (parseStoryDate(a.created_on) || 0));
+          const published = spotlights.filter(sl => (sl.stage || "").toLowerCase() === "publish").length;
+          return { nickname: n, total: spotlights.length, published, spotlights };
         } catch (_) { return { nickname: n, total: 0, published: 0, spotlights: [] }; }
       }));
       const withSp = perCust.filter(p => p.total > 0)
                             .sort((a, b) => b.published - a.published || b.total - a.total);
+      const allSpotlights = withSp.flatMap(p => p.spotlights.map(sl => Object.assign({}, sl, { _cust: p.nickname })));
       const stageBadge = (stage, kind) => {
         const s = (stage || '').toLowerCase();
         const icon = (kind === 'lowlight') ? '⚠' : '★';
@@ -4597,36 +4705,39 @@ async function renderDrillPanel(tile) {
       };
       panel.innerHTML = `
         <div class="drill-hdr"><h3>Spotlights</h3>
-          <span class="count">${sumR.published || 0} published</span>
+          <span class="count">${fyLabel} · ${sumR.published || 0} published</span>
           <button class="close" id="drillClose" title="Close">×</button></div>
         <div class="drill-actions" style="padding:8px 12px; border-bottom:1px solid var(--border);">
           <button class="btn small primary" id="spotlightSyncBtn" title="Queue /spotlight-sync to pull latest from FTOP">🔄 Sync from FTOP</button>
           <span style="margin-left:12px; color:var(--text-muted); font-size:11px;">
-            ${sumR.published || 0} published · ${sumR.in_flight || 0} in flight · ${sumR.customers_with_spotlight || 0} customers · ${sumR.recommended || 0} recommended
+            ${sumR.h1_published || 0} H1 · ${sumR.h2_published || 0} H2 · ${sumR.in_flight || 0} in flight · ${sumR.customers_with_spotlight || 0} customers · ${sumR.recommended || 0} recommended
           </span>
         </div>
-        <div class="drill-list">
+        <div class="story-list">
           ${withSp.length === 0
-            ? `<div class="drill-empty">No spotlights cached yet. Click <strong>🔄 Sync from FTOP</strong> above.</div>`
-            : withSp.map(p => `
-              <div class="drill-item" data-cust="${escapeHtml(p.nickname)}">
-                <span class="cust">${escapeHtml(p.nickname)}</span>
-                <span class="kr">${p.published} published${p.total > p.published ? ` · ${p.total - p.published} drafts` : ''}</span>
-              </div>
-              ${p.spotlights.slice(0, 6).map(sl => {
-                const isDraft = (sl.stage || '').toLowerCase() === 'draft';
+            ? `<div class="drill-empty">No ${fyLabel} spotlights cached yet. Click <strong>🔄 Sync from FTOP</strong> above.</div>`
+            : ["H1", "H2"].map(half => {
+                const rows = allSpotlights.filter(sl => sl._half === half);
+                if (rows.length === 0) return "";
                 return `
-                <div class="drill-item" data-cust="${escapeHtml(p.nickname)}" data-sl-id="${escapeHtml(sl.spotlight_id || '')}" style="padding-left:24px; background:transparent;">
-                  <span class="cust" style="font-size:11px; color:var(--text-muted);">
-                    ${stageBadge(sl.stage, sl.kind)} ${sl.url ? `<a href="${escapeHtml(sl.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(sl.title || '(untitled)').slice(0, 70)}</a>` : escapeHtml(sl.title || '(untitled)').slice(0, 70)}
-                  </span>
-                  <span class="kr" style="font-size:10px;">${escapeHtml(sl.stage || '')}${sl.kr_label ? ' · ' + escapeHtml(sl.kr_label) : ''}${isDraft ? ` <button class="btn small primary sp-publish-btn" data-sl-id="${escapeHtml(sl.spotlight_id || '')}" data-cust="${escapeHtml(p.nickname)}" style="margin-left:6px; padding:2px 8px; font-size:10px;">Publish</button>` : ''}</span>
-                </div>`;
+                  <div class="story-half">
+                    <span>${fyLabel} ${half}</span>
+                    <span>${rows.length} entr${rows.length === 1 ? 'y' : 'ies'}</span>
+                  </div>
+                  ${rows.map(sl => {
+                    const isDraft = (sl.stage || '').toLowerCase() === 'draft';
+                    return `
+                    <div class="story-row" data-cust="${escapeHtml(sl._cust)}" data-sl-id="${escapeHtml(sl.spotlight_id || '')}">
+                      <span class="story-title">
+                        <strong>${escapeHtml(sl._cust)}</strong> · ${stageBadge(sl.stage, sl.kind)} ${sl.url ? `<a href="${escapeHtml(sl.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(sl.title || '(untitled)').slice(0, 90)}</a>` : escapeHtml(sl.title || '(untitled)').slice(0, 90)}
+                      </span>
+                      <span class="story-meta">${escapeHtml(sl._createdLabel || '')}${sl.stage ? ' · ' + escapeHtml(sl.stage) : ''}${sl.kr_label ? ' · ' + escapeHtml(sl.kr_label) : ''}${isDraft ? ` <button class="btn small primary sp-publish-btn" data-sl-id="${escapeHtml(sl.spotlight_id || '')}" data-cust="${escapeHtml(sl._cust)}" style="margin-left:6px; padding:2px 8px; font-size:10px;">Publish</button>` : ''}</span>
+                    </div>`;
+                  }).join("")}`;
               }).join("")}
-            `).join("")}
         </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
-      panel.querySelectorAll(".drill-item[data-cust]").forEach(el => {
+      panel.querySelectorAll(".story-customer-hdr[data-cust], .story-row[data-cust]").forEach(el => {
         // Skip nested rows when clicking the spotlight title link OR Publish button
         el.onclick = (ev) => {
           if (ev.target.tagName === 'A') return;
@@ -4659,7 +4770,7 @@ async function renderDrillPanel(tile) {
       if (syncBtn) syncBtn.onclick = async () => {
         syncBtn.disabled = true; syncBtn.textContent = "Queueing…";
         try {
-          const r = await fetch("/api/clawpilot/queue", {
+          const r = await fetch("/api/scout/queue", {
             method: "POST", headers: {"Content-Type": "application/json"},
             body: JSON.stringify({
               kind: "spotlight-sync",
@@ -4692,20 +4803,20 @@ async function renderDrillPanel(tile) {
       <div class="drill-list"><div class="drill-empty">Loading FT Feedback rollup…</div></div>`;
     document.getElementById("drillClose").onclick = closeDrill;
     try {
-      const [sumR, trackerR] = await Promise.all([
+      const [sumR, portfolioR] = await Promise.all([
         fetch("/api/insights/summary").then(x => x.json()),
-        fetch("/api/tracker").then(x => x.json()),
+        fetch("/api/insights/portfolio").then(x => x.json()),
       ]);
-      const customers = (trackerR.customers || []).map(c => c.nickname);
-      const perCust = await Promise.all(customers.map(async (n) => {
-        try {
-          const r = await fetch(`/api/customer/${encodeURIComponent(n)}/insights`).then(x => x.json());
-          return { nickname: n, total: r.total_active || 0, in_flight: r.in_flight || 0,
-                   insights: r.insights || [] };
-        } catch (_) { return { nickname: n, total: 0, in_flight: 0, insights: [] }; }
-      }));
-      const withInsights = perCust.filter(p => p.total > 0 || p.in_flight > 0)
-                                  .sort((a, b) => (b.total + b.in_flight) - (a.total + a.in_flight));
+      const fy = sumR.fiscal || currentStoryFiscal();
+      const fyLabel = fy.label || currentStoryFiscal().label;
+      const allInsights = (portfolioR.insights || [])
+        .map(ix => Object.assign({}, ix, {
+          _cust: ix.cust_nickname || "Unassigned",
+          _half: storyFiscalHalf(ix.created_on),
+          _createdLabel: storyDateLabel(ix.created_on),
+        }))
+        .filter(ix => ix._half)
+        .sort((a, b) => (parseStoryDate(b.created_on) || 0) - (parseStoryDate(a.created_on) || 0));
       const stageBadge = (stage, state) => {
         const s = (stage || '').toLowerCase();
         const st = (state || '').toLowerCase();
@@ -4717,33 +4828,36 @@ async function renderDrillPanel(tile) {
       };
       panel.innerHTML = `
         <div class="drill-hdr"><h3>Insights</h3>
-          <span class="count">${sumR.total_active || 0} active</span>
+          <span class="count">${fyLabel} · ${sumR.total_active || 0} active</span>
           <button class="close" id="drillClose" title="Close">×</button></div>
         <div class="drill-actions" style="padding:8px 12px; border-bottom:1px solid var(--border);">
           <button class="btn small primary" id="insightSyncBtn" title="Queue /insight-sync to pull latest from FT Feedback">🔄 Sync from FT Feedback</button>
           <span style="margin-left:12px; color:var(--text-muted); font-size:11px;">
-            ${sumR.total_active || 0} active · ${sumR.in_flight || 0} in flight · ${sumR.from_workspace || 0} from workspace · ${sumR.customers_touched || 0} customers
+            ${sumR.h1_active || 0} H1 · ${sumR.h2_active || 0} H2 · ${sumR.in_flight || 0} in flight · ${sumR.from_workspace || 0} from workspace · ${sumR.customers_touched || 0} customers
           </span>
         </div>
-        <div class="drill-list">
-          ${withInsights.length === 0 ?
-            `<div class="drill-empty">No insights cached yet. Click <strong>🔄 Sync from FT Feedback</strong> above, or click <strong>💡</strong> on any customer card to draft a new one.</div>` :
-            withInsights.map(p => `
-              <div class="drill-item" data-cust="${escapeHtml(p.nickname)}">
-                <span class="cust">${escapeHtml(p.nickname)}</span>
-                <span class="kr">${p.total} active${p.in_flight ? ` · ${p.in_flight} ⏳` : ''}</span>
-              </div>
-              ${p.insights.slice(0, 6).map(ix => `
-                <div class="drill-item" data-cust="${escapeHtml(p.nickname)}" style="padding-left:24px; background:transparent;">
-                  <span class="cust" style="font-size:11px; color:var(--text-muted);">
-                    ${stageBadge(ix.stage, ix.state)} ${ix.url ? `<a href="${escapeHtml(ix.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(ix.title || '(untitled)').slice(0, 70)}</a>` : escapeHtml(ix.title || '(untitled)').slice(0, 70)}
-                  </span>
-                  <span class="kr" style="font-size:10px;">${escapeHtml(ix.stage || '')}${ix.upvotes ? ' · ' + ix.upvotes + ' 👍' : ''}${ix.submitted_via === 'portal' ? ' · 🌐 portal' : (ix.submitted_via === 'powerapps' ? ' · ⚡ Power Apps' : '')}${ix.kr_label ? ' · ' + escapeHtml(ix.kr_label) : ''}</span>
-                </div>`).join("")}
-            `).join("")}
+        <div class="story-list">
+          ${allInsights.length === 0 ?
+            `<div class="drill-empty">No ${fyLabel} insights cached yet. Click <strong>🔄 Sync from FT Feedback</strong> above, or click <strong>💡</strong> on any customer card to draft a new one.</div>` :
+            ["H1", "H2"].map(half => {
+                const rows = allInsights.filter(ix => ix._half === half);
+                if (rows.length === 0) return "";
+                return `
+                  <div class="story-half">
+                    <span>${fyLabel} ${half}</span>
+                    <span>${rows.length} entr${rows.length === 1 ? 'y' : 'ies'}</span>
+                  </div>
+                  ${rows.map(ix => `
+                    <div class="story-row" data-cust="${escapeHtml(ix._cust)}">
+                      <span class="story-title">
+                        <strong>${escapeHtml(ix._cust)}</strong> · ${stageBadge(ix.stage, ix.state)} ${ix.url ? `<a href="${escapeHtml(ix.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(ix.title || '(untitled)').slice(0, 90)}</a>` : escapeHtml(ix.title || '(untitled)').slice(0, 90)}
+                      </span>
+                      <span class="story-meta">${escapeHtml(ix._createdLabel || '')}${ix.upvotes ? ' · ' + ix.upvotes + ' 👍' : ''}${ix.submitted_via === 'portal' ? ' · 🌐 portal' : (ix.submitted_via === 'powerapps' ? ' · ⚡ Power Apps' : '')}${ix.kr_label ? ' · ' + escapeHtml(ix.kr_label) : ''}</span>
+                    </div>`).join("")}`;
+              }).join("")}
         </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
-      panel.querySelectorAll(".drill-item[data-cust]").forEach(el => {
+      panel.querySelectorAll(".story-customer-hdr[data-cust], .story-row[data-cust]").forEach(el => {
         el.onclick = (ev) => {
           if (ev.target.tagName === 'A') return;
           _jumpToCustomer(el.dataset.cust);
@@ -4754,7 +4868,7 @@ async function renderDrillPanel(tile) {
         syncBtn.disabled = true;
         syncBtn.textContent = "Queueing…";
         try {
-          const r = await fetch("/api/clawpilot/queue", {
+          const r = await fetch("/api/scout/queue", {
             method: "POST", headers: {"Content-Type": "application/json"},
             body: JSON.stringify({
               kind: "insight-sync",
@@ -4934,7 +5048,7 @@ function closeDrill() {
 }
 
 window.activeTile = null;
-// ===== Open PEC button: queue a Clawpilot /manage-pecs action via shared confirm =====
+// ===== Open PEC button: queue a Scout /manage-pecs action via shared confirm =====
 document.addEventListener("click", async e => {
   const btn = e.target.closest(".pec-open-btn");
   if (!btn) return;
@@ -4977,10 +5091,10 @@ document.addEventListener("click", async e => {
   }
 });
 
-// ===== Clawpilot Cart inline panel (between topbar and counter row) =====
+// ===== Scout Cart inline panel (between topbar and counter row) =====
 async function refreshCartBadge() {
   try {
-    const r = await fetch("/api/clawpilot/queue").then(x => x.json());
+    const r = await fetch("/api/scout/queue").then(x => x.json());
     const badge = document.getElementById("cartBadge");
     const cartBtn = document.getElementById("btnCart");
     if (!badge) return;
@@ -5115,7 +5229,7 @@ async function renderCartInline() {
   if (!panel) return;
   let r;
   try {
-    r = await fetch("/api/clawpilot/queue").then(x => x.json());
+    r = await fetch("/api/scout/queue").then(x => x.json());
   } catch (e) {
     panel.innerHTML = `<div class="cart-inline-card"><div class="cart-empty">Failed to load: ${e.message}</div></div>`;
     return;
@@ -5149,10 +5263,10 @@ async function renderCartInline() {
       if (needsUser) {
         dot = "▶"; dotCls = "needs-user";
         extra = ` <span class="cart-flag needs-user">▶ needs you</span>`;
-        approveBtn = `<button class="cart-approve" data-id="${it.id}" title="Approve this item so the next 30-min heartbeat will run it. The skill itself may still ask for its own confirms in Clawpilot when it executes.">✓ Approve</button>`;
+        approveBtn = `<button class="cart-approve" data-id="${it.id}" title="Approve this item so the next 30-min heartbeat will run it. The skill itself may still ask for its own confirms in Scout when it executes.">✓ Approve</button>`;
       } else if (it.status === "sent") {
         dot = "→"; dotCls = "sent";
-        extra = ` <span class="cart-flag">awaiting Clawpilot</span>`;
+        extra = ` <span class="cart-flag">awaiting Scout</span>`;
       } else {
         // approved item awaiting heartbeat — show a check chip
         dot = "✓"; dotCls = "approved";
@@ -5218,7 +5332,7 @@ async function renderCartInline() {
         <button class="btn secondary cart-btn-sm" id="cartRefresh" title="Refresh now (auto-refresh every 30s)">⟳</button>
         <button class="btn secondary cart-btn-sm" id="cartLog" title="View cart history — items processed in the last 30 days, grouped by date">📜 Log</button>
         <button class="btn secondary cart-btn-sm" id="cartClear" ${pending.length === 0 ? "disabled" : ""}>Clear pending</button>
-        <button class="btn secondary cart-btn-sm" id="cartCopy" ${pending.length === 0 ? "disabled" : ""} title="Copy /bridge-run prompts to clipboard. Paste into Clawpilot if you want to run something manually before the next heartbeat tick.">📋 Copy prompts</button>
+        <button class="btn secondary cart-btn-sm" id="cartCopy" ${pending.length === 0 ? "disabled" : ""} title="Copy /bridge-run prompts to clipboard. Paste into Scout if you want to run something manually before the next heartbeat tick.">📋 Copy prompts</button>
         <button class="close" id="cartClose" title="Hide">×</button>
       </div>
       <div class="cart-inline-grid cart-inline-grid-3">
@@ -5250,18 +5364,18 @@ async function renderCartInline() {
   const refreshBtn = panel.querySelector("#cartRefresh");
   if (refreshBtn) refreshBtn.onclick = () => { refreshCartBadge(); renderCartInline(); };
   panel.querySelectorAll(".cart-remove").forEach(b => b.onclick = async () => {
-    await fetch(`/api/clawpilot/queue/${b.dataset.id}`, { method: "DELETE" });
+    await fetch(`/api/scout/queue/${b.dataset.id}`, { method: "DELETE" });
     refreshCartBadge();
     renderCartInline();
   });
   // ✓ Approve: flips requires_user_confirm=false so the next 30-min
   // heartbeat picks the item up. Inner skill confirm gates still apply
-  // when it actually runs in Clawpilot.
+  // when it actually runs in Scout.
   panel.querySelectorAll(".cart-approve").forEach(b => b.onclick = async () => {
     b.disabled = true;
     b.textContent = "approving…";
     try {
-      const r2 = await fetch(`/api/clawpilot/queue/${b.dataset.id}/approve`, { method: "PATCH" }).then(x => x.json());
+      const r2 = await fetch(`/api/scout/queue/${b.dataset.id}/approve`, { method: "PATCH" }).then(x => x.json());
       if (r2 && r2.ok) {
         if (window.__api) window.__api.toast(`✓ Approved. Heartbeat will run this within ~30 min.`, "ok");
         refreshCartBadge();
@@ -5278,7 +5392,7 @@ async function renderCartInline() {
   const clr = panel.querySelector("#cartClear");
   if (clr) clr.onclick = async () => {
     try {
-      const r = await fetch("/api/clawpilot/queue/clear", { method: "POST" });
+      const r = await fetch("/api/scout/queue/clear", { method: "POST" });
       if (!r.ok) throw new Error("HTTP " + r.status);
       const data = await r.json().catch(() => ({}));
       if (window.__api && window.__api.toast) window.__api.toast("🗑️ Pending queue cleared", "ok");
@@ -5288,11 +5402,11 @@ async function renderCartInline() {
       if (window.__api && window.__api.toast) window.__api.toast("Clear failed: " + e.message, "err");
     }
   };
-  // Copy-only path: clipboard fill but don't focus Clawpilot.
+  // Copy-only path: clipboard fill but don't focus Scout.
   const cpy = panel.querySelector("#cartCopy");
   if (cpy) cpy.onclick = async () => {
     try {
-      const q = await fetch("/api/clawpilot/queue").then(x => x.json());
+      const q = await fetch("/api/scout/queue").then(x => x.json());
       const lines = (q.pending || []).map(it => `/bridge-run --id=${it.id} -- ${it.prompt}`);
       if (!lines.length) {
         if (window.__api) window.__api.toast("Nothing to copy.", "err");
@@ -5745,11 +5859,7 @@ window.__api = (function() {
       const sp = c.spotlights || {published:0, recommended:0, in_flight:0, customers_with_spotlight:0};
       _flashCounter('#ct-sp-wins', sp.published);
       const spHint = document.querySelector('#ct-sp-hint');
-      if (spHint) spHint.textContent = sp.in_flight > 0
-        ? `${sp.in_flight} in flight · ${sp.customers_with_spotlight} customers`
-        : (sp.customers_with_spotlight > 0
-            ? `${sp.customers_with_spotlight} customers w/ spotlight`
-            : 'published this FY');
+      if (spHint) spHint.textContent = `${sp.h1_published || 0} H1 · ${sp.h2_published || 0} H2`;
       // v0.68: Insights — fetch from dedicated endpoint (lazy, swallow failures)
       try {
         const insR = await fetch("/api/insights/summary");
@@ -5758,13 +5868,7 @@ window.__api = (function() {
           _flashCounter('#ct-insights', ins.total_active);
           const insHint = document.querySelector('#ct-insights-hint');
           if (insHint) {
-            if (ins.in_flight > 0) {
-              insHint.textContent = `${ins.in_flight} in flight · ${ins.customers_touched} customers`;
-            } else if (ins.customers_touched > 0) {
-              insHint.textContent = `${ins.customers_touched} customers · ${ins.from_workspace} from workspace`;
-            } else {
-              insHint.textContent = 'FT Feedback submitted';
-            }
+            insHint.textContent = `${ins.h1_active || 0} H1 · ${ins.h2_active || 0} H2`;
           }
         }
       } catch { /* non-fatal */ }
@@ -6655,7 +6759,7 @@ document.addEventListener("click", (e) => {
 
 // ---------- Shared queue-confirm modal ----------
 // Single source of truth for confirming that an action is about to add a
-// /skill run to the Clawpilot bridge cart. Spotlight, FTBI sync, DQ
+// /skill run to the Scout bridge cart. Spotlight, FTBI sync, DQ
 // refresh, Open PEC, and any future skill-queueing button route through
 // this so the UX is consistent and the FTA always knows what's about to
 // happen — including whether the underlying skill is even installed.
@@ -6711,7 +6815,7 @@ window.__queueSkill = (function () {
       ],
       requires_user_confirm: 1,
       skill_path: "dq-refresh",
-      cart_endpoint: () => "/api/clawpilot/queue",
+      cart_endpoint: () => "/api/scout/queue",
       cart_body: () => ({
         kind: "dq-refresh", label: "Data Quality refresh",
         prompt: "/dq-refresh", requires_user_confirm: 1,
@@ -6727,7 +6831,7 @@ window.__queueSkill = (function () {
       ],
       requires_user_confirm: 1,
       skill_path: "manage-pecs",
-      cart_endpoint: () => "/api/clawpilot/queue",
+      cart_endpoint: () => "/api/scout/queue",
       cart_body: (ctx) => ({
         kind: "open-pec", cust: ctx.cust,
         label: `Open PEC - ${ctx.cust}${ctx.kr_label ? " - " + ctx.kr_label : ""}`,
@@ -6786,7 +6890,7 @@ window.__queueSkill = (function () {
       ],
       requires_user_confirm: 0,
       skill_path: "spotlight-sync",
-      cart_endpoint: () => "/api/clawpilot/queue",
+      cart_endpoint: () => "/api/scout/queue",
       cart_body: (ctx) => ({
         kind: "spotlight-sync",
         label: ctx.cust ? `Spotlight sync - ${ctx.cust}` : "Spotlight sync (portfolio)",
@@ -6818,7 +6922,7 @@ window.__queueSkill = (function () {
     back.innerHTML = `
       <div class="sp-confirm-body" style="max-width:520px;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-          <h4 id="qsTitle" style="margin:0;flex:1;">Queue Clawpilot skill?</h4>
+          <h4 id="qsTitle" style="margin:0;flex:1;">Queue Scout skill?</h4>
           <span id="qsSkillBadge" style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid;"></span>
         </div>
         <p id="qsShort"></p>
@@ -6830,7 +6934,7 @@ window.__queueSkill = (function () {
           <input type="checkbox" id="qsDontAsk" style="margin:0;"> Don't ask again for this skill
         </label>
         <div class="sp-confirm-actions">
-          <button class="btn secondary" id="qsAlready" style="display:none;border:1px dashed var(--cp-border);" title="Already done in FTOP? Mark it locally as manual without queueing a Clawpilot run.">✓ Already created</button>
+          <button class="btn secondary" id="qsAlready" style="display:none;border:1px dashed var(--cp-border);" title="Already done in FTOP? Mark it locally as manual without queueing a Scout run.">✓ Already created</button>
           <button class="btn secondary" id="qsCancel">Cancel</button>
           <button class="btn" id="qsOk">Queue ⚡</button>
         </div>
@@ -6926,7 +7030,7 @@ window.__queueSkill = (function () {
       };
       const already = async () => {
         // No-queue path — mark the underlying artifact as manually-created
-        // in the local DB instead of running a Clawpilot skill.
+        // in the local DB instead of running a Scout skill.
         let r, label;
         if (kind === "manage-pecs-create") {
           if (!ctx.cust || !ctx.kr_label) {
@@ -6997,7 +7101,7 @@ window.__queueSkill = (function () {
   }
 
   // Reusable helper — renders an HTML "skill info bar" that any modal
-  // queueing a Clawpilot skill can drop in. Same visual language as the
+  // queueing a Scout skill can drop in. Same visual language as the
   // queue-confirm dialog: title + side-effect icons + skill-installed
   // badge + prompt preview. Caller passes the kind + ctx.
   function renderSkillInfoBar(kind, ctx) {
@@ -7018,7 +7122,7 @@ window.__queueSkill = (function () {
         </div>
         <div class="skill-info-short">${reg.short || ""}</div>
         <div class="skill-info-se">${seHtml}</div>
-        <div class="skill-info-prompt-label">Clawpilot prompt</div>
+        <div class="skill-info-prompt-label">Scout prompt</div>
         <code class="skill-info-prompt">${promptText.replace(/</g, '&lt;')}</code>
       </div>`;
   }
@@ -7653,7 +7757,7 @@ window.__queueSkill = (function () {
         } else if (w.status === "DEFERRED") {
           pecHtml = `<span class="pec na">—</span>`;
         } else {
-          pecHtml = `<button class="pec missing pec-open-btn" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="Open Clawpilot with /manage-pecs prefilled — modal includes a ✓ Already created option">+ Open PEC</button>`;
+          pecHtml = `<button class="pec missing pec-open-btn" data-cust="${cust}" data-kr="${w.workload.replace(/"/g, '&quot;')}" title="Open Scout with /manage-pecs prefilled — modal includes a ✓ Already created option">+ Open PEC</button>`;
         }
         return `<tr>
           <td class="kr-name">${w.workload}</td>
@@ -7675,7 +7779,7 @@ window.__queueSkill = (function () {
       if (refreshBtn) {
         const stamp = fmtFetched(maxFetched);
         refreshBtn.dataset.stamp = stamp;
-        const baseTitle = "Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Clawpilot bridge.";
+        const baseTitle = "Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Scout bridge.";
         refreshBtn.title = `${baseTitle}\n\nLast refresh: ${stamp || 'Not yet pulled from MIDAS'}`;
       }
     } catch (e) {
@@ -7914,7 +8018,7 @@ window.__spotlightDraftForm = (function () {
     modal.querySelector("#spKindBadge").textContent = lowlight ? "⚠ LOWLIGHT" : "✨ HIGHLIGHT";
     modal.querySelector("#spKindBadge").className = "sp-kind-badge " + (lowlight ? "lowlight" : "highlight");
     modal.querySelector("#spDraftTitle").textContent = `Draft Spotlight — ${cust}${kr_label ? " · " + kr_label : ""}`;
-    // Render the shared "Clawpilot prompt info bar" — same visual language
+    // Render the shared "Scout prompt info bar" — same visual language
     // as the queue-confirm modal. Title/short/side-effects/installed/badge/prompt.
     const infoBar = modal.querySelector("#spDraftInfoBar");
     if (infoBar && window.__queueSkill && window.__queueSkill.renderSkillInfoBar) {
@@ -7953,7 +8057,7 @@ window.__spotlightDraftForm = (function () {
     const cust = currentCtx.cust;
     const title = (modal.querySelector("#spfTitle").value || "").trim();
     if (!title) { setStatus("Title is required to log an existing spotlight.", true); return; }
-    if (!confirm(`Log "${title}" as an existing spotlight in FTOP for ${cust}?\n\nThis does NOT queue a Clawpilot run — it just records that you already created the spotlight directly in FTOP. The row will be marked source='manual' until the next sync confirms it from FTOP.`)) return;
+    if (!confirm(`Log "${title}" as an existing spotlight in FTOP for ${cust}?\n\nThis does NOT queue a Scout run — it just records that you already created the spotlight directly in FTOP. The row will be marked source='manual' until the next sync confirms it from FTOP.`)) return;
     const all = ["#spfAlready", "#spfQueue", "#spfCancel"].map(s => modal.querySelector(s));
     all.forEach(b => b && (b.disabled = true));
     setStatus("Logging existing spotlight…", false);
@@ -9475,7 +9579,7 @@ window.__cartLogModal = (function () {
     const params = new URLSearchParams({ days: state.window_days, limit: 500 });
     if (state.status && state.status !== "all") params.set("status", state.status);
     try {
-      const r = await fetch("/api/clawpilot/queue/log?" + params.toString());
+      const r = await fetch("/api/scout/queue/log?" + params.toString());
       const data = await r.json();
       const m = data.meta || {};
       meta.textContent = `${m.filtered ?? 0}/${m.total ?? 0} rows · DB ${m.db_size_kb ?? "?"} KB`;
@@ -9538,7 +9642,7 @@ window.__cartLogModal = (function () {
     { id: "quickstart", title: "Quick Start" },
     { id: "tour",      title: "UI Tour" },
     { id: "refresh",   title: "Refresh & Data" },
-    { id: "cart",      title: "Clawpilot Bridge" },
+    { id: "cart",      title: "Scout Bridge" },
     { id: "queueconfirm", title: "Queue-Confirm" },
     { id: "spotlights", title: "Spotlights" },
     { id: "nonkr",     title: "Non-KR Tracking" },
@@ -9559,9 +9663,9 @@ window.__cartLogModal = (function () {
           <div><h6>MIDAS</h6><p>OKR adoption data per (customer × workload × month). Source of truth for KR status, MoM growth, threshold crossings.</p></div>
           <div><h6>FTOP / Dataverse</h6><p>Engagement state — PECs, ESNs, account assignments, contacts, Workload Intent.</p></div>
           <div><h6>Lynx</h6><p>Tenant fundamentals + the 10 Copilot Ideal Config admin settings + license posture.</p></div>
-          <div><h6>Clawpilot Bridge</h6><p>The action layer — pending skill executions queued from this UI, executed every 30 min by Clawpilot automations.</p></div>
+          <div><h6>Scout Bridge</h6><p>The action layer — pending skill executions queued from this UI, executed every 30 min by Scout automations.</p></div>
         </div>
-        <div class="help-callout tip"><strong>Read-only by default.</strong> Nothing writes back to MIDAS / FTOP / Lynx. The only writes are: KR notes you type, customer nicknames, and items you queue to the Clawpilot bridge (and those still require your approval before they run).</div>
+        <div class="help-callout tip"><strong>Read-only by default.</strong> Nothing writes back to MIDAS / FTOP / Lynx. The only writes are: KR notes you type, customer nicknames, and items you queue to the Scout bridge (and those still require your approval before they run).</div>
         <h5>Who built this</h5>
         <p>This is an internal FastTrack Architect tool. Backend = FastAPI + SQLite (lives in OneDrive under <code>FastTrack Items/OKR Cx Assessments/Cx-KR-Tracker.db</code> for cross-device sync). Frontend = vanilla JS SPA served from localhost:8765. No server in the cloud — everything runs on your machine.</p>`,
 
@@ -9571,7 +9675,7 @@ window.__cartLogModal = (function () {
           <li><strong>Hit <kbd>↻ Refresh Now</kbd></strong> in the topbar. Runs ~60s, pulls fresh data from MIDAS + FTOP + Lynx + DQ, regenerates Recommended Actions per customer.</li>
           <li><strong>Scan the 6-tile counter row</strong> at top of left sidebar — KR Wins, KPI Wins, Spotlights, KPI Regressions, Missing PECs, Copilot IC Wins. Click any tile to drill into the customer list.</li>
           <li><strong>Click a customer</strong> in the left list. The right panel populates with: header (name + TPID, editable), KR Status table (sortable), Copilot Ideal Config table, To Dos, Recommended Actions.</li>
-          <li><strong>Look at the 🛒 Pending badge</strong> next to your name. Red = items awaiting your ✓ Approve (Clawpilot skills queued by auto-maintenance or by you).</li>
+          <li><strong>Look at the 🛒 Pending badge</strong> next to your name. Red = items awaiting your ✓ Approve (Scout skills queued by auto-maintenance or by you).</li>
           <li><strong>Pick a theme</strong> from the dropdown — defaults to Workspace blue but Win98 is the most fun for 4 PM.</li>
           <li><strong>Don't want this Field Guide every launch?</strong> Uncheck the <em>"Show on startup"</em> checkbox in the header — re-open any time via the <span class="pill">i</span> pill.</li>
         </ol>
@@ -9587,7 +9691,7 @@ window.__cartLogModal = (function () {
           <tr><td><span class="pill">📋 KR Rules · FY26 H2</span></td><td>The active fiscal epoch's KR scoring rules. Click for full scope + changelog.</td></tr>
           <tr><td><span class="pill">⚙️ Copilot IC Rules · FY26 H2</span></td><td>The 10-setting Copilot Ideal Config rules currently being evaluated.</td></tr>
           <tr><td><strong>MIDAS snapshot</strong></td><td>Latest MIDAS publish date. Shows "(in progress)" when current month bucket isn't closed.</td></tr>
-          <tr><td><strong>🛒 Pending N</strong></td><td>Items waiting in the Clawpilot bridge cart. Click to expand the cart panel.</td></tr>
+          <tr><td><strong>🛒 Pending N</strong></td><td>Items waiting in the Scout bridge cart. Click to expand the cart panel.</td></tr>
           <tr><td><strong>Theme dropdown</strong></td><td>Switch between 6 themes — selection persists.</td></tr>
           <tr><td><kbd>↻ Refresh Now</kbd></td><td>Verifies health, then ~60s full refresh of all data sources.</td></tr>
         </table>
@@ -9625,7 +9729,7 @@ window.__cartLogModal = (function () {
         </ol>
         <h5>Automatic refreshes</h5>
         <ul>
-          <li><strong>Daily 6 AM weekdays</strong> — Clawpilot automation "FTA Workspace daily refresh" runs the full pipeline + posts a Teams summary.</li>
+          <li><strong>Daily weekday refresh window</strong> — Scout automation "FTA Workspace processor (consolidated)" self-gates the full pipeline + Teams summary during the morning window.</li>
           <li><strong>Every 30 min</strong> — Cart processor automation drains any auto-safe pending items.</li>
           <li><strong>Once per page-day</strong> — Background check refreshes the MIDAS snapshot date so the topbar doesn't go stale on a long-running tab.</li>
         </ul>
@@ -9634,32 +9738,32 @@ window.__cartLogModal = (function () {
         <div class="help-callout warn"><strong>If Refresh fails with "Edge / MIDAS / FTOP / 502"</strong> — your Edge instance must be running with <code>--remote-debugging-port=9222</code> and signed in to fasttrack365 + msit.powerbi.com. The skills that scrape these portals piggyback on your authenticated browser session.</div>`,
 
       cart: `
-        <h4>Clawpilot Bridge (the 🛒 cart)</h4>
-        <p>The cart is how this UI tells <strong>Clawpilot</strong> (the desktop AI assistant) to run a skill on your behalf — without disrupting whatever you're doing in chat.</p>
+        <h4>Scout Bridge (the 🛒 cart)</h4>
+        <p>The cart is how this UI tells <strong>Microsoft Scout</strong> to run a skill on your behalf — without disrupting whatever you're doing in chat.</p>
         <h5>How an item flows</h5>
         <ol>
           <li><strong>Queued</strong> — Auto-maintenance or you queues an item. It lands in the cart with <span class="pill">▶ needs you</span> if it's a skill that has a preview-confirm gate (most of them).</li>
           <li><strong>Approve</strong> — Click ✓ Approve on a needs-you item to flip <code>requires_user_confirm</code> to 0. Heartbeat picks it up next tick.</li>
-          <li><strong>Heartbeat</strong> — Every 30 min the "FTA Workspace cart processor" Clawpilot automation drains the cart: <code>/start</code> → run the skill → <code>/complete</code>.</li>
+          <li><strong>Heartbeat</strong> — Every 30 min the "FTA Workspace processor (consolidated)" Scout automation drains the cart: <code>/start</code> → run the skill → <code>/complete</code>.</li>
           <li><strong>Completed Today</strong> — Successes + non-user-confirm failures show in the panel until midnight.</li>
         </ol>
         <h5>Manual escape hatch</h5>
-        <p>Each item has a <strong>Copy prompts</strong> button — copies the prompt + cart ID. Paste into Clawpilot chat and run it yourself if you'd rather not wait for the next heartbeat.</p>
+        <p>Each item has a <strong>Copy prompts</strong> button — copies the prompt + cart ID. Paste into Scout chat and run it yourself if you'd rather not wait for the next heartbeat.</p>
         <h5>What gets auto-queued</h5>
         <ul>
           <li><strong>l1-cleanup</strong> — Triggered when L1 Status Unknown rows exist in FTOP.</li>
           <li><strong>dq-refresh</strong> — Triggered when ESN aging / DQ blockers exist.</li>
         </ul>
         <p><strong>Note:</strong> roster-bind is no longer auto-queued (4 portfolio accounts have permanently-NULL TPIDs in FTOP — the skill can't help them). When those FTOP records get fixed upstream, auto-queue returns.</p>
-        <div class="help-callout"><strong>Why heartbeat instead of instant?</strong> Clawpilot runs in a separate process. The 30-min cadence prevents your IDE from being interrupted and gives you a window to ✓ Approve in batches.</div>`,
+        <div class="help-callout"><strong>Why heartbeat instead of instant?</strong> Scout runs in a separate process. The 30-min cadence prevents your IDE from being interrupted and gives you a window to ✓ Approve in batches.</div>`,
 
       queueconfirm: `
         <h4>Queue-Confirm Modal</h4>
-        <p>Any action in the UI that <strong>queues a Clawpilot skill</strong> routes through a single, consistent confirm modal so you always see exactly what's about to happen before it lands in the cart.</p>
+        <p>Any action in the UI that <strong>queues a Scout skill</strong> routes through a single, consistent confirm modal so you always see exactly what's about to happen before it lands in the cart.</p>
         <h5>What you see</h5>
         <ul>
           <li><strong>Title</strong> — Skill name + the customer/context this run targets.</li>
-          <li><strong>Prompt preview</strong> — The exact prompt Clawpilot will execute, in a scrollable monospace box.</li>
+          <li><strong>Prompt preview</strong> — The exact prompt Scout will execute, in a scrollable monospace box.</li>
           <li><strong>Side effects</strong> — Color-coded icons describing what the skill will touch: 👁 read-only · 📋 cart-only · ✏️ writes to FTOP/Dataverse · 🛡 sensitive (customer-facing).</li>
           <li><strong>Skill installed badge</strong> — ✓ green if the skill is present in <code>~/.copilot/skills/</code>, ⚠ yellow if missing (you'll need to install it first).</li>
           <li><strong>"Don't ask again for this skill"</strong> — Per-skill opt-out checkbox. Sets <code>fta-workspace-skip-confirm-{kind}</code> in localStorage. Re-enable by clearing the key in DevTools.</li>
@@ -9750,7 +9854,7 @@ window.__cartLogModal = (function () {
 
       actions: `
         <h4>Recommended Actions</h4>
-        <p>The right-panel "Recommended Actions" section per customer is AI-generated by an Azure OpenAI model (reusing Clawpilot's model wiring — no separate key). It fuses these inputs per customer:</p>
+        <p>The right-panel "Recommended Actions" section per customer is AI-generated by an Azure OpenAI model (reusing Scout's model wiring — no separate key). It fuses these inputs per customer:</p>
         <ul>
           <li>MIDAS snapshot: current vs Jul baseline per workload, MoM growth, AtTarget flags</li>
           <li>FTOP active PECs (workload, stage, last-touch, days-idle)</li>
@@ -9813,7 +9917,7 @@ window.__cartLogModal = (function () {
           <tr><td>App icon shows generic Edge globe on taskbar</td><td>Install as PWA (Themes & PWA section) — gives the app its own taskbar identity.</td></tr>
         </table>
         <h5>Server not running?</h5>
-        <p>Open Clawpilot and run <code>/ftaworkspace</code>. The skill health-checks the localhost:8765 server and restarts it if down.</p>
+        <p>Open Scout and run <code>/ftaworkspace</code>. The skill health-checks the localhost:8765 server and restarts it if down.</p>
         <h5>Database location</h5>
         <p>SQLite DB lives at:</p>
         <p><code>~\\OneDrive - Microsoft\\Documents\\FastTrack Items\\OKR Cx Assessments\\Cx-KR-Tracker.db</code></p>
@@ -9825,13 +9929,13 @@ window.__cartLogModal = (function () {
         <ul>
           <li>The SQLite DB (your KR notes, customer nicknames, all per-customer data) — lives in your OneDrive, syncs across your devices, never leaves Microsoft tenancy.</li>
           <li>All API calls — localhost only. No external services.</li>
-          <li>Your Recommended Actions prompts/responses — Azure OpenAI via Clawpilot's existing model wiring (governed by Microsoft AI policy, same as Clawpilot chat).</li>
+          <li>Your Recommended Actions prompts/responses — Azure OpenAI via Scout's existing model wiring (governed by Microsoft AI policy, same as Scout chat).</li>
         </ul>
         <h5>Telemetry (anonymous, opt-in by deployment)</h5>
         <p>The app logs two events to a shared OneDrive CSV (FTA-Visibility deployment): <code>open</code> (throttled 5 min/session) and <code>refresh</code>. The record stores an <strong>install_id</strong> (random UUID4 generated at first launch) and an event type — <strong>never</strong> your name, email, tenant list, customer names, or any portfolio data.</p>
         <p>This lets the deployment owner answer "how many FTAs are using the tool?" without exposing who you are or what's in your portfolio.</p>
         <h5>Sensitivity labels</h5>
-        <p>Files you read with Clawpilot may carry MIP labels. The app itself doesn't read M365 content — only FTOP/MIDAS/Lynx via authenticated browser sessions, which are governed by your own role-based access.</p>
+        <p>Files you read with Scout may carry MIP labels. The app itself doesn't read M365 content — only FTOP/MIDAS/Lynx via authenticated browser sessions, which are governed by your own role-based access.</p>
         <div class="help-callout tip"><strong>Bottom line:</strong> the app is local-first. Your portfolio data is in your OneDrive. Nothing customer-identifying leaves your environment.</div>`,
     };
   }
@@ -9978,7 +10082,7 @@ window.__cartLogModal = (function () {
     const text =
       "Required FastTrack skills missing on this machine.\n\n" +
       "These skills live in the bap-microsoft/FT-CitizenDev-Claw-Pilot GitHub repo. " +
-      "In a Clawpilot chat run:\n\n  /update-skills\n\n" +
+      "In a Scout chat run:\n\n  /update-skills\n\n" +
       "That clones (or pulls) the upstream repo into ~/.copilot/skills/ and the " +
       "workspace's cart actions will start running cleanly. Until then, queued " +
       "items for the missing skills will fail on the heartbeat.";
