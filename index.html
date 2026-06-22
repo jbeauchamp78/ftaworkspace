@@ -1007,7 +1007,7 @@ html[data-theme="win98"] .info-pill {
   flex: 1; overflow-y: auto; padding: 24px;
   background: var(--cp-bg);
 }
-.cust-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 6px; }
+.cust-header { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
 .cust-header-names { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
 .cust-header-names .cust-subline { margin-bottom: 8px; }
 .cust-header-names .cust-statusline { margin: 4px 0 6px 0; }
@@ -1077,8 +1077,8 @@ html[data-theme="win98"] .info-pill {
 .cust-header .kr-expand-btn { align-self: flex-end; }
 .cust-action-menu { position: relative; margin-left: auto; }
 .cust-actions-ellipsis {
-  width: 34px; height: 30px; padding: 0;
-  font-size: 18px; line-height: 1; font-weight: 700;
+  width: 34px; height: 34px; padding: 0;
+  font-size: 20px; line-height: 1; font-weight: 700;
 }
 .cust-actions-dropdown {
   display: none;
@@ -1093,12 +1093,15 @@ html[data-theme="win98"] .info-pill {
   box-shadow: 0 8px 24px rgba(0,0,0,0.22);
   z-index: 120;
 }
-.cust-action-menu.open .cust-actions-dropdown { display: flex; flex-direction: column; gap: 4px; }
+.cust-action-menu.open .cust-actions-dropdown { display: flex; flex-direction: column; gap: 6px; }
 .cust-action-item {
   width: 100%;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-start;
   text-align: left;
-  padding: 8px 10px;
+  padding: 0 10px;
   border-radius: 8px;
 }
 .cust-action-divider { height: 1px; background: var(--cp-border); margin: 4px 2px; }
@@ -1113,7 +1116,7 @@ html[data-theme="win98"] .info-pill {
   border-radius: 16px;
   box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
   overflow: hidden;
-  margin: 12px 0 16px;
+  margin: 0 0 24px;
 }
 .fta-notes-hdr-bar {
   display: flex; align-items: center; gap: 10px;
@@ -1209,6 +1212,7 @@ html[data-theme="win98"] .info-pill {
   border-radius: 16px; padding: 0;
   box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
   overflow: hidden;
+  margin-bottom: 24px;
 }
 table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .kr-table th {
@@ -1366,7 +1370,7 @@ table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .todo-card {
   background: var(--cp-surface); border: 1px solid var(--cp-border);
   border-radius: 16px;
-  margin: 0 0 20px 0;
+  margin: 0 0 24px 0;
   box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
   overflow: hidden;
 }
@@ -1494,7 +1498,7 @@ table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   border-left: 3px solid var(--cp-accent);
   border-radius: 16px;
   padding: 14px 18px;
-  margin: 0 0 20px 0;
+  margin: 0 0 24px 0;
   box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
 }
 .ai-card.collapsed .ai-body { display: none; }
@@ -1936,7 +1940,7 @@ table.heatmap {
    * keep tile widths roughly even across sections so nothing looks
    * cramped or stretched. */
   grid-template-columns: auto 5fr 2fr 5fr;
-  gap: 18px; align-items: stretch;
+  gap: 24px; align-items: stretch;
   margin: 0 24px 12px;
   padding: 0;
   background: var(--cp-bg);
@@ -1946,7 +1950,7 @@ table.heatmap {
   background: var(--cp-bg-elevated);
   border: 1px solid var(--cp-border);
   border-radius: 14px;
-  padding: 10px 12px 12px;
+  padding: 14px 12px 24px;
   display: flex; flex-direction: column; gap: 8px;
   min-width: 0;
 }
@@ -1990,15 +1994,16 @@ table.heatmap {
 
 /* Tighten counter tiles when they live inside the new grid (mockup default is bigger) */
 .counter-row .counter {
-  padding: 8px 10px;
+  padding: 8px 10px 24px;
   min-width: 0;
   border-radius: 10px;
+  text-align: center;
 }
 .counter-row .counter .label {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-size: 10.5px;
 }
-.counter-row .counter .value { font-size: 22px; }
+.counter-row .counter .value { font-size: 22px; text-align: center; }
 .counter-row .counter .hint {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-size: 10.5px;
@@ -2699,7 +2704,7 @@ body.heatmap-view.kr-expanded .content { margin-left: 24px !important; }
   background: var(--cp-surface);
   border: 1px solid var(--cp-border);
   border-radius: 14px;
-  margin: 0 0 14px 0;
+  margin: 0 0 24px 0;
   box-shadow: 0 0 2px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08);
   overflow: hidden;
 }
@@ -3202,7 +3207,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.99 locked 2026-06-22 16:40 EDT — Customer header actions consolidated into ellipsis menu with generic Submit PEC and Submit Spotlight.">v0.99 · Stable</span>
+      <span class="version-tag" title="Build version: v1.01 locked 2026-06-22 16:45 EDT — Main tile bottom padding aligned to the 24px gutter standard.">v1.01 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3874,18 +3879,18 @@ function renderContent() {
       <span style="flex:1"></span>
       <div class="cust-action-menu" data-cust="${c.n}">
         <button class="btn secondary cust-actions-ellipsis" type="button"
-                title="Customer actions" aria-label="Customer actions">…</button>
+                title="Customer actions" aria-label="Customer actions">⋮</button>
         <div class="cust-actions-dropdown" role="menu" aria-label="Customer actions">
           <button class="btn secondary cust-action-item kr-expand-btn" id="btnExpandKR"
                   title="Expand current view: hides sidebar">⛶ Expand</button>
           <button class="btn secondary cust-action-item" id="btnHeatmap"
-                  title="Toggle between Customer Workspace and M365 Usage Heatmap">M365 Usage Heatmap</button>
-          <button class="btn secondary cust-action-item cust-insight-btn" data-cust="${c.n}"
-                  title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
+                  title="Toggle between Customer Workspace and M365 Usage Heatmap">🗺️ M365 Usage Heatmap</button>
           <button class="btn secondary cust-action-item" id="btnRefreshCustomer" data-cust="${c.n}"
                   data-stamp="${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}"
                   title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Scout bridge.&#10;&#10;Last refresh: ${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : 'Not yet pulled from MIDAS')}">🔄 Refresh This Customer</button>
           <div class="cust-action-divider"></div>
+          <button class="btn secondary cust-action-item cust-insight-btn" data-cust="${c.n}"
+                  title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
           <button class="btn secondary cust-action-item cust-submit-pec-btn" data-cust="${c.n}"
                   title="Open a generic PEC create modal for this customer. No workload is pre-selected.">+ Submit PEC</button>
           <button class="btn secondary cust-action-item cust-submit-spotlight-btn" data-cust="${c.n}"
