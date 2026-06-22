@@ -3122,7 +3122,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.85 locked 2026-06-22 14:05 EDT — Field Guide Roadmap. Added MVP2 Roadmap section to the Field Guide. Demo bundle rebuilt from the same v0.85 assets.">v0.85 · Stable</span>
+      <span class="version-tag" title="Build version: v0.86 locked 2026-06-22 14:15 EDT — Full Test contract alignment. Insight create is now attended because the underlying /insight skill requires preview/portal interaction; helper skill contracts aligned with staged payloads.">v0.86 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -6774,7 +6774,7 @@ window.__queueSkill = (function () {
         { kind: "preview", label: "Workspace modal is the review gate" },
         { kind: "write", label: "Creates FTOP Spotlight in Draft stage" },
       ],
-      requires_user_confirm: 0,
+      requires_user_confirm: 1,
       skill_path: "spotlight-create-execute",
       cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/spotlights/queue`,
       cart_body: (ctx) => ({
@@ -9250,7 +9250,7 @@ window.__insightDraftForm = (function () {
         { method: "POST", headers: {"content-type":"application/json"}, body: JSON.stringify(payload) });
       const data = await r.json();
       if (!data.ok) { setStatus(`Queue failed: ${data.error || 'unknown'}`, true); btn.disabled = false; cancel.disabled = false; return; }
-      setStatus(`✓ Queued — heartbeat will submit within 30 min (cart id ${data.id}).`, false);
+      setStatus(`✓ Queued — approve it from the cart when you're ready to run the attended /insight flow (cart id ${data.id}).`, false);
       if (typeof toast === "function") toast(`Insight queued — cart id ${data.id}`, "ok");
       if (typeof refreshCartBadge === "function") refreshCartBadge();
       btn.disabled = false; cancel.disabled = false;
