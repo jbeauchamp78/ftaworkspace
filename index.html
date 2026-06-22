@@ -3016,7 +3016,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.78.2 hotfix 2026-06-22 11:45 EDT — DEMO bundle no longer shows the 'Some FastTrack skills are missing' banner. Bail-out now also matches document.documentElement.dataset.demoMode === '1' (the marker the demo bootstrap script sets on page load). Previous bail-out only matched ?demo=1 query or /demo path, neither of which matches the GitHub Pages URL.">v0.78.2 · Stable</span>
+      <span class="version-tag" title="Build version: v0.78.3 hotfix 2026-06-22 11:55 EDT — Insight sync now handles portal-submitted insights. ROOT CAUSE: ftfeedback-mcp's insight_list_mine filters createdby on the FTA's INTERACTIVE systemuser GUID. FT Feedback portal submissions stamp createdby = portal service-account GUID (4b414552-…), so insight_list_mine returns 0 for portal-authored insights even though they belong to you. FIX: /insight-sync now runs TWO passes — (A) insight_list_mine for Power Apps direct, (B) insight_search filtered by the portal GUID 4b414552-0000-0000-0000-000000000000, with portfolio-roster matching in step 4 catching only insights for YOUR customers. New insight_index columns: submitted_via ('portal' | 'powerapps') + submitter_email. /api/insights/bulk now accepts these fields. Insights tile drill shows 🌐 portal / ⚡ Power Apps badge on each row.">v0.78.3 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4738,7 +4738,7 @@ async function renderDrillPanel(tile) {
                   <span class="cust" style="font-size:11px; color:var(--text-muted);">
                     ${stageBadge(ix.stage, ix.state)} ${ix.url ? `<a href="${escapeHtml(ix.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(ix.title || '(untitled)').slice(0, 70)}</a>` : escapeHtml(ix.title || '(untitled)').slice(0, 70)}
                   </span>
-                  <span class="kr" style="font-size:10px;">${escapeHtml(ix.stage || '')}${ix.upvotes ? ' · ' + ix.upvotes + ' 👍' : ''}${ix.kr_label ? ' · ' + escapeHtml(ix.kr_label) : ''}</span>
+                  <span class="kr" style="font-size:10px;">${escapeHtml(ix.stage || '')}${ix.upvotes ? ' · ' + ix.upvotes + ' 👍' : ''}${ix.submitted_via === 'portal' ? ' · 🌐 portal' : (ix.submitted_via === 'powerapps' ? ' · ⚡ Power Apps' : '')}${ix.kr_label ? ' · ' + escapeHtml(ix.kr_label) : ''}</span>
                 </div>`).join("")}
             `).join("")}
         </div>`;
