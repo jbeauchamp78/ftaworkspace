@@ -509,11 +509,11 @@
         id, kind: "insight-draft",
         label: `Insight - ${cust}${body.kr_label ? " - " + body.kr_label : ""}`,
         prompt: `/insight create "${cust}"\n# Workspace pre-fill draft staged at: [demo-staged]/${cust}-${id}.json`,
-        cust, status: "pending", requires_user_confirm: 0,
+        cust, status: "pending", requires_user_confirm: 1,
         trigger: "ui_insight_draft", created_at: nowSql,
       });
       STATE.queue.count = (STATE.queue.count || 0) + 1;
-      return jsonResp({ ok: true, id, prompt: `/insight create "${cust}"`, requires_user_confirm: 0 });
+      return jsonResp({ ok: true, id, prompt: `/insight create "${cust}"`, requires_user_confirm: 1 });
     }],
     ["GET", /^\/api\/insights\/summary$/, () => {
       // Demo: synthesize a small but believable count

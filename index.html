@@ -3122,7 +3122,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v0.87 locked 2026-06-22 14:20 EDT — DQ demo parity. Demo DQ rows now expose the same Customer + Workload/context fields as Stable.">v0.87 · Stable</span>
+      <span class="version-tag" title="Build version: v0.88 locked 2026-06-22 14:25 EDT — Full Test follow-up. Insight create is consistently attended in Stable and DEMO; DQ demo rows expose Customer + Workload/context fields.">v0.88 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -6792,7 +6792,7 @@ window.__queueSkill = (function () {
         { kind: "write", label: "Writes only to local heatmap_overrides" },
         { kind: "preserve", label: "Manual overrides are preserved" },
       ],
-      requires_user_confirm: 0,
+      requires_user_confirm: 1,
       skill_path: "heatmap-ftbi-sync",
       cart_endpoint: (ctx) => `/api/customer/${encodeURIComponent(ctx.cust)}/heatmap/ftbi-sync`,
       cart_body: () => ({ demo: /[?&]demo=1\b/.test(location.search) }),
