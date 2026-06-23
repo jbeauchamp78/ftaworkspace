@@ -1997,6 +1997,7 @@ table.heatmap {
   display: grid;
   grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
   gap: 12px;
+  align-items: start;
 }
 
 /* Tighten counter tiles when they live inside the new grid (mockup default is bigger) */
@@ -2005,11 +2006,7 @@ table.heatmap {
   min-width: 0;
   border-radius: 10px;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+  display: block;
 }
 .counter-row .counter .label {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -3219,7 +3216,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.09 locked 2026-06-23 10:05 EDT — Daily Focus height doubled and Main Tile cards use uniform centered padding.">v1.09 · Stable</span>
+      <span class="version-tag" title="Build version: v1.10 locked 2026-06-23 10:10 EDT — Main Tile cards use compact content-height spacing instead of vertical stretch.">v1.10 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
