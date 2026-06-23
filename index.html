@@ -3221,7 +3221,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.16 locked 2026-06-23 10:45 EDT — Removed per-drilldown story sync buttons and wired Stories refresh.">v1.16 · Stable</span>
+      <span class="version-tag" title="Build version: v1.17 locked 2026-06-23 12:15 EDT — Ask AI suggestion prompts aligned to supported portfolio/customer answers.">v1.17 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3293,11 +3293,11 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     </div>
     <div class="aichat-suggestions">
       <span style="color: var(--cp-text-muted);">Try:</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Top 3 risks in my portfolio</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Why is TELADOC at N/A on Copilot Agents?</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Draft a QDR storyline for HCSC</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Compare BCBS NC and BCBS LA on adoption</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Summarize this week's biggest movers</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">How does my portfolio look?</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Top priority customers in my portfolio</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Why is TELADOC prioritized?</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Compare BCBS NC and BCBS LA</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Show TELADOC customer summary</span>
     </div>
     <div class="aichat-response" id="aichatResponse" style="display:none;"></div>
   </div>
@@ -4546,45 +4546,40 @@ function mockAiSend() {
   setTimeout(() => {
     let body = "";
     const p = prompt.toLowerCase();
-    if (p.includes("top") && (p.includes("risk") || p.includes("at risk"))) {
-      body = `Top 3 portfolio risks (based on May 31 snapshot):
+    if (p.includes("portfolio") && (p.includes("look") || p.includes("summary") || p.includes("health"))) {
+      body = `<strong>Portfolio snapshot</strong>
 
-1. <strong>BCBS FL</strong> — 1 REGRESSION on M365 Copilot (47% → 36%, ratio drop tied to 300 new licenses unactivated in Q1). 3 IN PROGRESS rows with no PEC. Renewal window opens Aug 2026.
+- 25 customers in the workspace
+- 44 KPI WIN rows
+- 6 KPI regressions
+- 7 sampled rows missing PEC coverage
+- 20 customers with non-green Ideal Config posture
 
-2. <strong>HEALTHFIRST</strong> — REGRESSION on MDA Usage + 2 KPI WIN cells without PECs. CSAM cadence not established (per To Do). Highest risk of slippage.
+<strong>Top Daily Focus customers:</strong>
+1. BCBS NC — 141 pts
+2. BAPTIST HCS — 123 pts
+3. CARESOURCE — 117 pts
 
-3. <strong>CHRISTUS</strong> — 2 NO INTENT statuses and 0 active PECs across the security stack. Adoption stalled since Q3.
+<strong>Suggested move:</strong> start from Daily Focus, then open the top customer and work regression / PEC / Ideal Config blockers first.`;
+    } else if (p.includes("top") && (p.includes("risk") || p.includes("at risk") || p.includes("priority") || p.includes("focus"))) {
+      body = `Top priority customers from Daily Focus:
 
-<strong>Recommendation:</strong> prioritize BCBS FL — it's the only one with renewal pressure.`;
-    } else if (p.includes("teladoc") && p.includes("agents")) {
-      body = `TELADOC × Copilot Agents is at N/A because:
+1. <strong>BCBS NC</strong> — 141 pts: prior-day Teams signal, 3 missing PECs, Ideal Config unknown, 5 KPI wins to harvest.
 
-- <strong>PAU = 1,751</strong> (entitled seats deployed)
-- <strong>MAU = 0</strong> (no monthly active users)
-- <strong>KPI Win threshold = MAU ≥ 750</strong>
-- Source: KR Notes says "PAU 1751 / MAU 0 — re-engage"
+2. <strong>BAPTIST HCS</strong> — 123 pts: 1 regression, prior-day Teams signal, 1 missing PEC, Ideal Config red, 4 KPI wins.
 
-This is a classic "shelfware" pattern — licenses paid, deployment done, but no clinical workflow tied to the agents yet.
+3. <strong>CARESOURCE</strong> — 117 pts: 2 regressions, prior-day Teams signal, Ideal Config red, 2 KPI wins.
 
-<strong>Suggested move:</strong> Pair with David L. (TELADOC Innovation team contact from your last call). Propose a 30-day pilot with 3-5 named clinical use cases. If you can get MAU to 750 in this fiscal year, it flips to KPI WIN.`;
-    } else if (p.includes("qdr") || p.includes("storyline")) {
-      body = `HCSC QDR storyline draft (3 acts):
+<strong>Recommendation:</strong> prioritize customers where a recent Teams/Email signal overlaps with adoption risk or missing PEC coverage.`;
+    } else if (p.includes("teladoc")) {
+      body = `TELADOC summary from Workspace context:
 
-<strong>Act 1: Where we've been</strong>
-HCSC entered FY26 with strong Defender posture but soft Copilot adoption (M365 Copilot ratio at 18%). 6 KRs were KPI MET at baseline.
+- <strong>Priority score:</strong> 65 pts
+- <strong>Signals:</strong> 1 prior-day Teams signal, Ideal Config red, 3 KPI wins to harvest
+- <strong>Ideal Config:</strong> red, 7/10 settings green
+- <strong>Likely action:</strong> harvest KPI wins and check whether any follow-up Spotlight, Insight, or PEC hygiene is needed.
 
-<strong>Act 2: What we delivered this quarter</strong>
-- Copilot Agents pilot launched May → 47% MAU growth
-- IRM moved to KPI WIN (28% threshold cross)
-- 2 PECs closed: M365 Copilot expansion, MDA usage cadence
-- 9 KRs now at KPI MET or above
-
-<strong>Act 3: What's next</strong>
-- Open IP P2 PEC by end of June (currently IN PROGRESS, no PEC)
-- Re-engage on Copilot Chat (gap of 3 points to threshold)
-- Set Q3 QDR cadence (next ask: workshop on Sentinel for security operations)
-
-Recommend leading with the IRM win and the Copilot Agents pilot — both differentiate vs prior FTA tenure.`;
+<strong>Suggested next step:</strong> open TELADOC and review the action menu options for Spotlight / Insight / PEC follow-up.`;
     } else if (p.includes("compare") && p.includes("bcbs nc") && p.includes("bcbs la")) {
       body = `BCBS NC vs BCBS LA — adoption comparison (May 31):
 
