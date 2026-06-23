@@ -3227,7 +3227,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.25 locked 2026-06-23 14:40 EDT — Ask AI is local workspace-context only for pilot.">v1.25 · Stable</span>
+      <span class="version-tag" title="Build version: v1.26 locked 2026-06-23 15:00 EDT — Scout action QC updates automation naming/status.">v1.26 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -9912,8 +9912,8 @@ window.__cartLogModal = (function () {
         </ol>
         <h5>Automatic refreshes</h5>
         <ul>
-          <li><strong>Daily weekday refresh window</strong> — Scout automation "FTA Workspace processor (consolidated)" self-gates the full pipeline + Teams summary during the morning window.</li>
-          <li><strong>Every 30 min</strong> — Cart processor automation drains any auto-safe pending items.</li>
+          <li><strong>Daily weekday refresh window</strong> — Scout automation "FTA Workspace Processor" self-gates the full pipeline + Teams summary during the morning window.</li>
+          <li><strong>Every 30 min</strong> — The same processor drains any auto-safe pending cart items.</li>
           <li><strong>Once per page-day</strong> — Background check refreshes the MIDAS snapshot date so the topbar doesn't go stale on a long-running tab.</li>
         </ul>
         <h5>MIDAS snapshot dates explained</h5>
@@ -9927,7 +9927,7 @@ window.__cartLogModal = (function () {
         <ol>
           <li><strong>Queued</strong> — Auto-maintenance or you queues an item. It lands in the cart with <span class="pill">▶ needs you</span> if it's a skill that has a preview-confirm gate (most of them).</li>
           <li><strong>Approve</strong> — Click ✓ Approve on a needs-you item to flip <code>requires_user_confirm</code> to 0. Heartbeat picks it up next tick.</li>
-          <li><strong>Heartbeat</strong> — Every 30 min the "FTA Workspace processor (consolidated)" Scout automation drains the cart: <code>/start</code> → run the skill → <code>/complete</code>.</li>
+          <li><strong>Heartbeat</strong> — Every 30 min the "FTA Workspace Processor" Scout automation drains the cart: <code>/start</code> → run the skill → <code>/complete</code>.</li>
           <li><strong>Completed Today</strong> — Successes + non-user-confirm failures show in the panel until midnight.</li>
         </ol>
         <h5>Manual escape hatch</h5>
