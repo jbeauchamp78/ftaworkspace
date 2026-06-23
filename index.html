@@ -1084,6 +1084,14 @@ html[data-theme="win98"] .info-pill {
 }
 body.kr-expanded .cust-collapse-btn { display: inline-flex; }
 body.kr-expanded .cust-actions-dropdown .kr-expand-toggle { display: none; }
+.cust-workspace-btn {
+  display: none;
+  height: 34px;
+  align-items: center;
+  white-space: nowrap;
+}
+body.heatmap-view .cust-workspace-btn { display: inline-flex; }
+body.heatmap-view .cust-actions-dropdown #btnHeatmap { display: none; }
 .cust-action-menu { position: relative; margin-left: auto; }
 .cust-actions-ellipsis {
   width: 34px; height: 34px; padding: 0;
@@ -3221,7 +3229,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.21 locked 2026-06-23 12:35 EDT — Ask AI suggestion prompts are customer-agnostic for pilot users.">v1.21 · Stable</span>
+      <span class="version-tag" title="Build version: v1.22 locked 2026-06-23 12:45 EDT — Heatmap mode exposes Customer Workspace next to header actions.">v1.22 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3897,6 +3905,8 @@ function renderContent() {
       <span style="flex:1"></span>
       <button class="btn secondary cust-collapse-btn kr-expand-toggle" type="button"
               title="Collapse current expanded view">⛶ Collapse</button>
+      <button class="btn secondary cust-workspace-btn" type="button"
+              title="Return to the Customer Workspace view">Customer Workspace</button>
       <div class="cust-action-menu" data-cust="${c.n}">
         <button class="btn secondary cust-actions-ellipsis" type="button"
                 title="Customer actions" aria-label="Customer actions">⋮</button>
@@ -6788,7 +6798,10 @@ document.addEventListener("click", (e) => {
       : "M365 Usage Heatmap";
   }
   document.addEventListener("click", (e) => {
-    if (e.target.id === "btnHeatmap" || e.target.closest("#btnHeatmap")) {
+    if (e.target.closest(".cust-workspace-btn")) {
+      closeHeatmap();
+      setTimeout(updateHeatmapButtonLabel, 0);
+    } else if (e.target.id === "btnHeatmap" || e.target.closest("#btnHeatmap")) {
       const isOpen = document.body.classList.contains("heatmap-view");
       if (isOpen) {
         closeHeatmap();
