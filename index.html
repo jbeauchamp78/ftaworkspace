@@ -1960,9 +1960,10 @@ table.heatmap {
   padding: 12px;
   display: flex; flex-direction: column; gap: 6px;
   min-width: 0;
+  min-height: 142px;
 }
 .counter-section.solo {
-  background: transparent; border: none; padding: 0; display: flex;
+  background: transparent; border: none; padding: 0; display: flex; min-height: 0;
 }
 .counter-row .section-hdr {
   display: flex; align-items: center; justify-content: space-between;
@@ -2004,9 +2005,13 @@ table.heatmap {
 .counter-row .counter {
   padding: 10px;
   min-width: 0;
+  min-height: 86px;
   border-radius: 10px;
   text-align: center;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 .counter-row .counter .label {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -3216,7 +3221,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.12 locked 2026-06-23 10:20 EDT — Main Tile section gutters equalized by top-aligning sections.">v1.12 · Stable</span>
+      <span class="version-tag" title="Build version: v1.13 locked 2026-06-23 10:25 EDT — Main Tile sections match Customers tile height while preserving equal section gutters.">v1.13 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
