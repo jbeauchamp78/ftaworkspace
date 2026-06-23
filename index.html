@@ -3221,7 +3221,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.18 locked 2026-06-23 12:25 EDT — KR chart plots MAU-only workload history instead of blanking or zeroing ratio series.">v1.18 · Stable</span>
+      <span class="version-tag" title="Build version: v1.20 locked 2026-06-23 12:35 EDT — Single-workload charts stay MAU-first and draw inferred KPI MAU thresholds.">v1.20 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -8684,7 +8684,7 @@ window.__workloadChart = (function () {
       const color = COLORS[idx % COLORS.length];
       const checked = state.selected.has(s.kr_label) ? "checked" : "";
       const last = s.points[s.points.length - 1];
-      const valStr = formatValue(last && last.value, last && last.mau, s.threshold);
+      const valStr = formatValue(last && last.value, last && last.mau, s.threshold, s);
       return `<label class="wl-leg-row" data-kr="${s.kr_label.replace(/"/g, '&quot;')}">
         <input type="radio" name="wl-leg-radio" class="wl-leg-chk" ${checked} />
         <span class="wl-leg-swatch" style="background:${color}"></span>
@@ -8728,24 +8728,45 @@ window.__workloadChart = (function () {
   // already-percentage value (e.g., Win365 Paid stored as 284 instead of
   // 0.284). When value > 5 on a ratio scale, treat it as already-percent.
   // Non-KR series (no threshold) get a plain MAU value.
-  function formatValue(value, mau, threshold) {
+  function formatValue(value, mau, threshold, series) {
     if (!threshold) {
       const v = mau != null ? mau : value;
       if (v == null) return "—";
       return `${Math.round(v)} MAU`;
     }
     if (threshold.scale === "ratio") {
+      if (mau != null) {
+        const target = inferredMauThreshold(series, threshold);
+        return target ? `${Math.round(mau)} / ~${Math.round(target)} MAU` : `${Math.round(mau)} MAU`;
+      }
       if (value == null) {
-        if (mau != null) return `${Math.round(mau)} MAU`;
         return "—";
       }
-      const pct = (Math.abs(value) > 5) ? value : value * 100;
+      const pct = normalRatioValue(value) * 100;
       return `${Math.round(pct)}% / ${Math.round(threshold.value * 100)}%`;
     }
     // absolute
     const v = mau != null ? mau : value;
     if (v == null) return "—";
     return `${Math.round(v)} / ${threshold.value}`;
+  }
+
+  function normalRatioValue(value) {
+    if (value == null || isNaN(value)) return null;
+    return Math.abs(value) > 5 ? value / 100 : value;
+  }
+
+  function inferredMauThreshold(series, threshold) {
+    if (!series || !threshold || threshold.scale !== "ratio") return null;
+    const points = [...(series.points || [])].reverse();
+    for (const p of points) {
+      const ratio = normalRatioValue(p.value);
+      const mau = p.mau;
+      if (ratio != null && ratio > 0 && mau != null && !isNaN(mau)) {
+        return (mau / ratio) * threshold.value;
+      }
+    }
+    return null;
   }
 
   // Normalize a point to "% of threshold" — same defensive ratio clamp.
@@ -8802,10 +8823,8 @@ window.__workloadChart = (function () {
       yLabel = "MAU";
     } else if (singleMode) {
       const t = onlyKr.threshold;
-      const latestPoint = onlyKr.points[onlyKr.points.length - 1] || {};
       const useMauFallback = !!(
         t && t.scale === "ratio" &&
-        latestPoint.value == null &&
         onlyKr.points.some(p => p.mau != null)
       );
       const vals = onlyKr.points.map(p => {
@@ -8818,7 +8837,8 @@ window.__workloadChart = (function () {
         }
         return p.mau != null ? p.mau : (p.value || 0);
       });
-      const tval = t && !useMauFallback ? (t.scale === "ratio" ? t.value * 100 : t.value) : 0;
+      const mauThreshold = useMauFallback ? inferredMauThreshold(onlyKr, t) : null;
+      const tval = t ? (useMauFallback ? (mauThreshold || 0) : (t.scale === "ratio" ? t.value * 100 : t.value)) : 0;
       yMax = Math.max(...vals, tval, 1) * 1.15;
       yLabel = useMauFallback ? "MAU" : (t ? (t.scale === "ratio" ? "% MAU/PAU" : (t.unit || "MAU")) : "value");
     } else {
@@ -8856,20 +8876,20 @@ window.__workloadChart = (function () {
     parts.push(`<text x="${PAD.left - 50}" y="${PAD.top + innerH / 2}" transform="rotate(-90 ${PAD.left - 50} ${PAD.top + innerH / 2})" text-anchor="middle" fill="var(--cp-text-muted)" font-size="11">${yLabel}</text>`);
 
     // Threshold reference line — single KR mode (KPI line at the threshold)
-    const singleLatestPoint = singleMode ? (onlyKr.points[onlyKr.points.length - 1] || {}) : {};
     const singleRatioMauFallback = !!(
       !nonKrMode && singleMode &&
       onlyKr.threshold && onlyKr.threshold.scale === "ratio" &&
-      singleLatestPoint.value == null &&
       onlyKr.points.some(p => p.mau != null)
     );
-    if (!nonKrMode && singleMode && onlyKr.threshold && !singleRatioMauFallback) {
+    if (!nonKrMode && singleMode && onlyKr.threshold) {
       const t = onlyKr.threshold;
-      const tval = t.scale === "ratio" ? t.value * 100 : t.value;
+      const inferredTarget = singleRatioMauFallback ? inferredMauThreshold(onlyKr, t) : null;
+      const tval = singleRatioMauFallback ? inferredTarget : (t.scale === "ratio" ? t.value * 100 : t.value);
       if (tval >= yMin && tval <= yMax) {
         const yy = y(tval);
         parts.push(`<line x1="${PAD.left}" y1="${yy}" x2="${PAD.left + innerW}" y2="${yy}" stroke="#D83B01" stroke-width="1.5" stroke-dasharray="6 4"/>`);
-        parts.push(`<text x="${PAD.left + innerW - 4}" y="${yy - 4}" text-anchor="end" fill="#D83B01" font-size="10" font-weight="600">KPI threshold (${formatTick(tval, yLabel)})</text>`);
+        const approx = singleRatioMauFallback ? "~" : "";
+        parts.push(`<text x="${PAD.left + innerW - 4}" y="${yy - 4}" text-anchor="end" fill="#D83B01" font-size="10" font-weight="600">KPI threshold (${approx}${formatTick(tval, yLabel)})</text>`);
       }
     }
     // KR multi-line mode: draw a "100%" reference line if axis spans it
