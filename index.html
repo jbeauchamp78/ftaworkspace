@@ -3229,7 +3229,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.23 locked 2026-06-23 12:45 EDT — Expanded views use the standard top gutter below the title bar.">v1.23 · Stable</span>
+      <span class="version-tag" title="Build version: v1.24 locked 2026-06-23 14:15 EDT — Ask AI uses the immediate backend endpoint in Prod.">v1.24 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3297,7 +3297,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   <div class="aichat-body">
     <div class="aichat-input-row">
       <textarea class="aichat-input" id="aichatInput" placeholder="e.g. 'Which customers need attention today?' or 'Summarize the selected customer's KPI, PEC, and Ideal Config posture.'"></textarea>
-      <button class="btn" onclick="mockAiSend()" title="Send prompt to selected model">Send →</button>
+      <button class="btn" onclick="mockAiSend()" title="Send prompt to Ask AI">Send →</button>
     </div>
     <div class="aichat-suggestions">
       <span style="color: var(--cp-text-muted);">Try:</span>
@@ -4644,6 +4644,46 @@ Try one of the suggested prompts above to see a realistic-looking mock response.
       </div>
     `;
   }, 800);
+}
+
+// Prod override: keep the same button hook but use the immediate backend
+// endpoint instead of the static mock.
+mockAiSend = async function() {
+  const input = document.getElementById("aichatInput");
+  const model = document.getElementById("aichatModel").value;
+  const out = document.getElementById("aichatResponse");
+  const prompt = input.value.trim();
+  if (!prompt) return;
+  out.style.display = "block";
+  out.innerHTML = `
+    <div class="meta"><span>Thinking...</span><span>Model: ${model}</span></div>
+    <em style="color: var(--cp-text-muted);">Asking workspace context engine...</em>
+  `;
+  try {
+    const started = performance.now();
+    const r = await fetch("/api/ask-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, model, active_customer: window.activeCust || null }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) throw new Error(data.error || data.detail || `HTTP ${r.status}`);
+    const elapsed = data.elapsed_ms != null ? data.elapsed_ms : Math.round(performance.now() - started);
+    out.innerHTML = `
+      <div class="meta"><span>Answer · ${data.mode || "workspace"}</span><span>${data.model || model} · ${elapsed}ms</span></div>
+      <div>${data.answer_html || ""}</div>
+      <div class="actions">
+        <button title="Copy response">Copy</button>
+        <button title="Queue as a Scout action">Queue Action</button>
+        <button title="Re-run with current model" onclick="mockAiSend()">↻ Regenerate</button>
+      </div>
+    `;
+  } catch (err) {
+    out.innerHTML = `
+      <div class="meta"><span>Ask AI failed</span><span>Model: ${model}</span></div>
+      <div style="color:var(--cp-danger)">Failed: ${escapeHtml(err.message || String(err))}</div>
+    `;
+  }
 }
 
 // ===== Sidebar collapse toggle (removed 2026-06-16 per UI batch request) =====

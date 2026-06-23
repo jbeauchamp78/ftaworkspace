@@ -318,6 +318,42 @@
     })],
     ["GET", /^\/api\/tracker$/, () =>
       jsonResp({ meta: STATE.meta, customers: STATE.customers })],
+    ["POST", /^\/api\/ask-ai$/, (m, opts) => {
+      let body = {}; try { body = JSON.parse(opts?.body || "{}"); } catch {}
+      const prompt = String(body.prompt || "").trim();
+      const p = prompt.toLowerCase();
+      const model = body.model || "workspace-demo";
+      let answer = "";
+      if (p.includes("attention") || p.includes("top") || p.includes("priority") || p.includes("focus")) {
+        answer = `<p><strong>Top Daily Focus priorities</strong> are ranked from the demo workspace score.</p>
+          <ol>
+            <li><strong>Customer A</strong> — high priority: recent signal, missing PEC coverage, and KPI wins to harvest.</li>
+            <li><strong>Customer B</strong> — medium priority: regression and non-green Ideal Config posture.</li>
+            <li><strong>Customer C</strong> — medium priority: active workload motion without enough follow-up coverage.</li>
+          </ol>
+          <p><strong>Suggested first move:</strong> open Daily Focus, then drill into the highest-scoring customer.</p>`;
+      } else if (p.includes("compare")) {
+        answer = `<p><strong>Comparison needs two selected customers.</strong> In the live workspace, Ask AI compares focus score, regressions, missing PECs, KPI wins, and Ideal Config posture for the named customers.</p>`;
+      } else if (p.includes("selected customer") || p.includes("this customer") || p.includes("summarize")) {
+        answer = `<p><strong>Selected customer summary</strong></p>
+          <ul>
+            <li>Priority score is driven by recent engagement signal, adoption posture, and action gaps.</li>
+            <li>Review regressions and missing PEC coverage first.</li>
+            <li>Then harvest KPI wins through Spotlight, Insight, or PEC hygiene where appropriate.</li>
+          </ul>`;
+      } else {
+        answer = `<p><strong>Portfolio snapshot:</strong> the demo workspace is ready for portfolio triage.</p>
+          <p><strong>Suggested use:</strong> start with Daily Focus, inspect the top customer, chart workload momentum, then use the action menu for follow-up.</p>`;
+      }
+      return jsonResp({
+        ok: true,
+        mode: "demo-local-context",
+        model,
+        elapsed_ms: 35,
+        answer_html: answer,
+        context: { demo: true, prompt },
+      });
+    }],
     ["GET", /^\/api\/(?:daily-focus|lab\/daily-focus)$/, () => {
       const demoSignals = {
         "BCBS NC": { email_metadata_mentions: 1, teams_metadata_mentions: 1 },
