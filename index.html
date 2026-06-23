@@ -456,6 +456,7 @@ html[data-theme="win98"] .info-pill {
   max-height: 240px;
   overflow-y: auto;
 }
+.drill-panel.daily-focus-drill { max-height: 480px; }
 .drill-empty { color: var(--cp-text-muted); font-size: 12px; padding: 14px 4px; font-style: italic; }
 .drill-queue-btn {
   background: var(--cp-accent-soft); color: var(--cp-accent);
@@ -2000,16 +2001,21 @@ table.heatmap {
 
 /* Tighten counter tiles when they live inside the new grid (mockup default is bigger) */
 .counter-row .counter {
-  padding: 8px 10px 10px;
+  padding: 10px;
   min-width: 0;
   border-radius: 10px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
 }
 .counter-row .counter .label {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-size: 10.5px;
 }
-.counter-row .counter .value { font-size: 22px; text-align: center; }
+.counter-row .counter .value { font-size: 22px; line-height: 1; margin-top: 0; text-align: center; }
 .counter-row .counter .hint {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   font-size: 10.5px;
@@ -3213,7 +3219,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.08 locked 2026-06-23 10:00 EDT — Bridge Log opens above Ask AI.">v1.08 · Stable</span>
+      <span class="version-tag" title="Build version: v1.09 locked 2026-06-23 10:05 EDT — Daily Focus height doubled and Main Tile cards use uniform centered padding.">v1.09 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4866,6 +4872,7 @@ function showFocusScoreModal(nickname) {
 
 async function renderDrillPanel(tile) {
   const panel = document.getElementById("drillPanel");
+  panel.classList.toggle("daily-focus-drill", tile === "customers");
   panel.style.display = "block";
 
   if (tile === "customers") {
