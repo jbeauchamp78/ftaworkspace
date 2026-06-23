@@ -1660,18 +1660,16 @@ table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .aichat-hdr h2 { font-size: 14px; font-weight: 600; margin: 0; letter-spacing: -0.2px; }
 .aichat-hdr .desc { color: var(--cp-text-muted); font-size: 12px; }
 .aichat-hdr .spacer { flex: 1; }
-.aichat-hdr .model-pick {
+.aichat-hdr .context-badge {
   background: var(--cp-surface);
   border: 1px solid var(--cp-border);
-  border-radius: 6px;
+  border-radius: 999px;
   padding: 4px 10px;
   font-size: 12px;
-  font-family: inherit;
-  color: var(--cp-text);
-  cursor: pointer;
+  font-weight: 600;
+  color: var(--cp-text-muted);
+  white-space: nowrap;
 }
-.aichat-hdr .model-pick:hover { border-color: var(--cp-accent); }
-.aichat-hdr .model-pick:focus { outline: none; border-color: var(--cp-accent); }
 
 .aichat-body {
   padding: 14px 18px 16px 18px;
@@ -3229,7 +3227,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.24 locked 2026-06-23 14:15 EDT — Ask AI uses the immediate backend endpoint in Prod.">v1.24 · Stable</span>
+      <span class="version-tag" title="Build version: v1.25 locked 2026-06-23 14:40 EDT — Ask AI is local workspace-context only for pilot.">v1.25 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3286,13 +3284,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <h2>Ask AI</h2>
     <span class="desc">Question your portfolio or a specific customer — context is auto-attached</span>
     <span class="spacer"></span>
-    <select class="model-pick" id="aichatModel" title="Choose which model handles the prompt">
-      <option value="gpt-5">GPT-5 (default)</option>
-      <option value="gpt-5-mini">GPT-5 mini (faster, cheaper)</option>
-      <option value="gpt-4.1">GPT-4.1 (legacy fallback)</option>
-      <option value="claude-sonnet-4.6">Claude Sonnet 4.6 (long-form)</option>
-      <option value="o1-preview">o1-preview (deep reasoning)</option>
-    </select>
+    <span class="context-badge" title="Pilot mode: Ask AI answers from local workspace context. True LLM provider is deferred to MVP2.">Workspace Local Context</span>
   </div>
   <div class="aichat-body">
     <div class="aichat-input-row">
@@ -4511,19 +4503,6 @@ renderSidebar();
 renderContent();
 // Heatmap is collapsed by default — render lazily on first expand
 
-// ===== Remember last-used AI model =====
-(function setupAiModelPersistence() {
-  const sel = document.getElementById("aichatModel");
-  if (!sel) return;
-  const saved = localStorage.getItem("fta-workspace-ai-model");
-  if (saved && Array.from(sel.options).some(o => o.value === saved)) {
-    sel.value = saved;
-  }
-  sel.addEventListener("change", () => {
-    localStorage.setItem("fta-workspace-ai-model", sel.value);
-  });
-})();
-
 // ===== Last refresh timestamp =====
 (function setLastRefresh() {
   const el = document.getElementById("lastRefresh");
@@ -4544,13 +4523,13 @@ renderContent();
 // ===== Ask AI chat handler =====
 async function mockAiSend() {
   const input = document.getElementById("aichatInput");
-  const model = document.getElementById("aichatModel").value;
+  const model = "workspace-local";
   const out = document.getElementById("aichatResponse");
   const prompt = input.value.trim();
   if (!prompt) return;
   out.style.display = "block";
   out.innerHTML = `
-    <div class="meta"><span>Thinking...</span><span>Model: ${model}</span></div>
+    <div class="meta"><span>Thinking...</span><span>Workspace Local Context</span></div>
     <em style="color: var(--cp-text-muted);">Asking workspace context engine...</em>
   `;
   try {
@@ -4564,7 +4543,7 @@ async function mockAiSend() {
     if (!r.ok || !data.ok) throw new Error(data.error || data.detail || `HTTP ${r.status}`);
     const elapsed = data.elapsed_ms != null ? data.elapsed_ms : Math.round(performance.now() - started);
     out.innerHTML = `
-      <div class="meta"><span>Answer · ${data.mode || "workspace"}</span><span>${data.model || model} · ${elapsed}ms</span></div>
+      <div class="meta"><span>Answer · ${data.mode || "workspace"}</span><span>Workspace Local Context · ${elapsed}ms</span></div>
       <div>${data.answer_html || ""}</div>
       <div class="actions">
         <button title="Copy response">Copy</button>
@@ -4574,7 +4553,7 @@ async function mockAiSend() {
     `;
   } catch (err) {
     out.innerHTML = `
-      <div class="meta"><span>Ask AI failed</span><span>Model: ${model}</span></div>
+      <div class="meta"><span>Ask AI failed</span><span>Workspace Local Context</span></div>
       <div style="color:var(--cp-danger)">Failed: ${escapeHtml(err.message || String(err))}</div>
     `;
   }
