@@ -3221,7 +3221,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.20 locked 2026-06-23 12:35 EDT — Single-workload charts stay MAU-first and draw inferred KPI MAU thresholds.">v1.20 · Stable</span>
+      <span class="version-tag" title="Build version: v1.21 locked 2026-06-23 12:35 EDT — Ask AI suggestion prompts are customer-agnostic for pilot users.">v1.21 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3288,16 +3288,16 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   </div>
   <div class="aichat-body">
     <div class="aichat-input-row">
-      <textarea class="aichat-input" id="aichatInput" placeholder="e.g. 'Draft an email to the CSAM proposing a 30-day Copilot Agents activation push for TELADOC' or 'Which 3 customers have the most KPI Win opportunity this quarter?'"></textarea>
+      <textarea class="aichat-input" id="aichatInput" placeholder="e.g. 'Which customers need attention today?' or 'Summarize the selected customer's KPI, PEC, and Ideal Config posture.'"></textarea>
       <button class="btn" onclick="mockAiSend()" title="Send prompt to selected model">Send →</button>
     </div>
     <div class="aichat-suggestions">
       <span style="color: var(--cp-text-muted);">Try:</span>
       <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">How does my portfolio look?</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Top priority customers in my portfolio</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Why is TELADOC prioritized?</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Compare BCBS NC and BCBS LA</span>
-      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Show TELADOC customer summary</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Which customers need attention today?</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Why is this customer prioritized?</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Compare two selected customers</span>
+      <span class="chip-sugg" onclick="document.getElementById('aichatInput').value=this.textContent">Summarize the selected customer</span>
     </div>
     <div class="aichat-response" id="aichatResponse" style="display:none;"></div>
   </div>
@@ -4556,64 +4556,64 @@ function mockAiSend() {
 - 20 customers with non-green Ideal Config posture
 
 <strong>Top Daily Focus customers:</strong>
-1. BCBS NC — 141 pts
-2. BAPTIST HCS — 123 pts
-3. CARESOURCE — 117 pts
+1. Customer A — 141 pts
+2. Customer B — 123 pts
+3. Customer C — 117 pts
 
 <strong>Suggested move:</strong> start from Daily Focus, then open the top customer and work regression / PEC / Ideal Config blockers first.`;
     } else if (p.includes("top") && (p.includes("risk") || p.includes("at risk") || p.includes("priority") || p.includes("focus"))) {
       body = `Top priority customers from Daily Focus:
 
-1. <strong>BCBS NC</strong> — 141 pts: prior-day Teams signal, 3 missing PECs, Ideal Config unknown, 5 KPI wins to harvest.
+1. <strong>Customer A</strong> — 141 pts: prior-day Teams signal, 3 missing PECs, Ideal Config unknown, 5 KPI wins to harvest.
 
-2. <strong>BAPTIST HCS</strong> — 123 pts: 1 regression, prior-day Teams signal, 1 missing PEC, Ideal Config red, 4 KPI wins.
+2. <strong>Customer B</strong> — 123 pts: 1 regression, prior-day Teams signal, 1 missing PEC, Ideal Config red, 4 KPI wins.
 
-3. <strong>CARESOURCE</strong> — 117 pts: 2 regressions, prior-day Teams signal, Ideal Config red, 2 KPI wins.
+3. <strong>Customer C</strong> — 117 pts: 2 regressions, prior-day Teams signal, Ideal Config red, 2 KPI wins.
 
 <strong>Recommendation:</strong> prioritize customers where a recent Teams/Email signal overlaps with adoption risk or missing PEC coverage.`;
-    } else if (p.includes("teladoc")) {
-      body = `TELADOC summary from Workspace context:
+    } else if (p.includes("selected customer") || p.includes("this customer")) {
+      body = `Selected customer summary from Workspace context:
 
 - <strong>Priority score:</strong> 65 pts
 - <strong>Signals:</strong> 1 prior-day Teams signal, Ideal Config red, 3 KPI wins to harvest
 - <strong>Ideal Config:</strong> red, 7/10 settings green
 - <strong>Likely action:</strong> harvest KPI wins and check whether any follow-up Spotlight, Insight, or PEC hygiene is needed.
 
-<strong>Suggested next step:</strong> open TELADOC and review the action menu options for Spotlight / Insight / PEC follow-up.`;
-    } else if (p.includes("compare") && p.includes("bcbs nc") && p.includes("bcbs la")) {
-      body = `BCBS NC vs BCBS LA — adoption comparison (May 31):
+<strong>Suggested next step:</strong> open the customer card and review the action menu options for Spotlight / Insight / PEC follow-up.`;
+    } else if (p.includes("compare")) {
+      body = `Selected Customer A vs Selected Customer B — adoption comparison:
 
-| Metric              | BCBS NC | BCBS LA | Edge      |
+| Metric              | Customer A | Customer B | Edge      |
 |---------------------|---------|---------|-----------|
 | Total KPI Wins      | 5       | 5       | tied      |
 | KR Wins             | 1       | 1       | tied      |
-| Regressions         | 0       | 1       | BCBS NC   |
-| Active PECs         | 4       | 3       | BCBS NC   |
-| Missing PECs        | 2       | 0       | BCBS LA   |
-| M365 Copilot ratio  | 38%     | 22%     | BCBS NC   |
-| MDA Usage           | KPI MET | KPI WIN | BCBS LA   |
-| MDI Usage           | KPI MET | REGR    | BCBS NC   |
+| Regressions         | 0       | 1       | Customer A |
+| Active PECs         | 4       | 3       | Customer A |
+| Missing PECs        | 2       | 0       | Customer B |
+| M365 Copilot ratio  | 38%     | 22%     | Customer A |
+| MDA Usage           | KPI MET | KPI WIN | Customer B |
+| MDI Usage           | KPI MET | REGR    | Customer A |
 
-<strong>Takeaway:</strong> Similar headline numbers, but BCBS NC is structurally healthier (cleaner regression profile, more active PECs). BCBS LA needs urgent attention on the MDI regression — likely a recent license churn or admin-rights loss.
+<strong>Takeaway:</strong> Similar headline numbers, but Customer A is structurally healthier (cleaner regression profile, more active PECs). Customer B needs attention on the MDI regression.
 
-Suggested action: schedule a security review with BCBS LA in the next 2 weeks.`;
+Suggested action: review the customer with the regression first, then decide whether a PEC, note, or account-team follow-up is needed.`;
     } else if (p.includes("movers") || (p.includes("week") && p.includes("biggest"))) {
       body = `Week-over-week movers (vs Apr 30 snapshot):
 
 <strong>Up ↑</strong>
-- TELADOC IRM: 18% → 23% (+5pts) — flipped to KPI WIN, new PEC opened
-- HCSC Copilot Agents: 0 → 1,234 MAU — first big activation
-- BCBS SC Copilot Chat: 41% → 48% (+7pts)
-- BAPTIST M365 Copilot: 42% → 50% (+8pts) — biggest single move
+- Customer A IRM: 18% → 23% (+5pts) — flipped to KPI WIN, new PEC opened
+- Customer B Copilot Agents: 0 → 1,234 MAU — first big activation
+- Customer C Copilot Chat: 41% → 48% (+7pts)
+- Customer D M365 Copilot: 42% → 50% (+8pts) — biggest single move
 
 <strong>Down ↓</strong>
-- BCBS FL M365 Copilot: 47% → 36% (-11pts) — regression flag
-- HEALTHFIRST MDA: 28% → 22% — sliding toward threshold
-- CHRISTUS Win365 Paid: 35% → 28%
+- Customer E M365 Copilot: 47% → 36% (-11pts) — regression flag
+- Customer F MDA: 28% → 22% — sliding toward threshold
+- Customer G Win365 Paid: 35% → 28%
 
 <strong>Net portfolio:</strong> +2 KPI WINs, -1 (regression), 1 fresh PEC opened.
 
-Highlight for your Monday email: TELADOC's IRM win + BAPTIST's M365 push.`;
+Highlight for your Monday email: Customer A's IRM win + Customer D's M365 push.`;
     } else {
       body = `(mocked) This is where the model's response would render. In the live build, the prompt is sent to the selected model with the full portfolio context as system prompt, and the response streams back here.
 
