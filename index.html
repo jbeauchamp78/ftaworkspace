@@ -3221,7 +3221,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.17 locked 2026-06-23 12:15 EDT — Ask AI suggestion prompts aligned to supported portfolio/customer answers.">v1.17 · Stable</span>
+      <span class="version-tag" title="Build version: v1.18 locked 2026-06-23 12:25 EDT — KR chart plots MAU-only workload history instead of blanking or zeroing ratio series.">v1.18 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -8735,7 +8735,10 @@ window.__workloadChart = (function () {
       return `${Math.round(v)} MAU`;
     }
     if (threshold.scale === "ratio") {
-      if (value == null) return "—";
+      if (value == null) {
+        if (mau != null) return `${Math.round(mau)} MAU`;
+        return "—";
+      }
       const pct = (Math.abs(value) > 5) ? value : value * 100;
       return `${Math.round(pct)}% / ${Math.round(threshold.value * 100)}%`;
     }
@@ -8751,6 +8754,7 @@ window.__workloadChart = (function () {
     let raw;
     if (threshold.scale === "ratio") {
       raw = point.value;
+      if (raw == null) return null;
       // Defensive: if a "ratio" workload's value is already in percent
       // (>5), treat as percent and convert back to ratio for consistency
       // with the threshold value (which is always 0..1 for ratio scale).
@@ -8798,17 +8802,25 @@ window.__workloadChart = (function () {
       yLabel = "MAU";
     } else if (singleMode) {
       const t = onlyKr.threshold;
+      const latestPoint = onlyKr.points[onlyKr.points.length - 1] || {};
+      const useMauFallback = !!(
+        t && t.scale === "ratio" &&
+        latestPoint.value == null &&
+        onlyKr.points.some(p => p.mau != null)
+      );
       const vals = onlyKr.points.map(p => {
         if (!t) return p.mau || 0;
+        if (useMauFallback) return p.mau || 0;
         if (t.scale === "ratio") {
-          const raw = p.value || 0;
+          const raw = p.value;
+          if (raw == null) return 0;
           return Math.abs(raw) > 5 ? raw : raw * 100;
         }
         return p.mau != null ? p.mau : (p.value || 0);
       });
-      const tval = t ? (t.scale === "ratio" ? t.value * 100 : t.value) : 0;
+      const tval = t && !useMauFallback ? (t.scale === "ratio" ? t.value * 100 : t.value) : 0;
       yMax = Math.max(...vals, tval, 1) * 1.15;
-      yLabel = t ? (t.scale === "ratio" ? "% MAU/PAU" : (t.unit || "MAU")) : "value";
+      yLabel = useMauFallback ? "MAU" : (t ? (t.scale === "ratio" ? "% MAU/PAU" : (t.unit || "MAU")) : "value");
     } else {
       // KR multi: normalized
       let maxPct = 100;
@@ -8844,7 +8856,14 @@ window.__workloadChart = (function () {
     parts.push(`<text x="${PAD.left - 50}" y="${PAD.top + innerH / 2}" transform="rotate(-90 ${PAD.left - 50} ${PAD.top + innerH / 2})" text-anchor="middle" fill="var(--cp-text-muted)" font-size="11">${yLabel}</text>`);
 
     // Threshold reference line — single KR mode (KPI line at the threshold)
-    if (!nonKrMode && singleMode && onlyKr.threshold) {
+    const singleLatestPoint = singleMode ? (onlyKr.points[onlyKr.points.length - 1] || {}) : {};
+    const singleRatioMauFallback = !!(
+      !nonKrMode && singleMode &&
+      onlyKr.threshold && onlyKr.threshold.scale === "ratio" &&
+      singleLatestPoint.value == null &&
+      onlyKr.points.some(p => p.mau != null)
+    );
+    if (!nonKrMode && singleMode && onlyKr.threshold && !singleRatioMauFallback) {
       const t = onlyKr.threshold;
       const tval = t.scale === "ratio" ? t.value * 100 : t.value;
       if (tval >= yMin && tval <= yMax) {
@@ -8876,9 +8895,13 @@ window.__workloadChart = (function () {
         } else if (singleMode) {
           const t = onlyKr.threshold;
           if (!t) v = p.mau || 0;
+          else if (t.scale === "ratio" && singleRatioMauFallback) {
+            v = p.mau;
+          }
           else if (t.scale === "ratio") {
-            const raw = p.value || 0;
-            v = Math.abs(raw) > 5 ? raw : raw * 100;
+            const raw = p.value;
+            if (raw == null) v = null;
+            else v = Math.abs(raw) > 5 ? raw : raw * 100;
           }
           else v = p.mau != null ? p.mau : (p.value || 0);
         } else {
