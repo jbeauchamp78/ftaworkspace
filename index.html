@@ -3221,7 +3221,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.15 locked 2026-06-23 10:35 EDT — Main Tile numbers enlarged for readability.">v1.15 · Stable</span>
+      <span class="version-tag" title="Build version: v1.16 locked 2026-06-23 10:45 EDT — Removed per-drilldown story sync buttons and wired Stories refresh.">v1.16 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4936,15 +4936,10 @@ async function renderDrillPanel(tile) {
         <div class="drill-hdr"><h3>Spotlights</h3>
           <span class="count">${fyLabel} · ${sumR.published || 0} published</span>
           <button class="close" id="drillClose" title="Close">×</button></div>
-        <div class="drill-actions" style="padding:8px 12px; border-bottom:1px solid var(--border);">
-          <button class="btn small primary" id="spotlightSyncBtn" title="Queue /spotlight-sync to pull latest from FTOP">🔄 Sync from FTOP</button>
-          <span style="margin-left:12px; color:var(--text-muted); font-size:11px;">
-            ${sumR.h1_published || 0} H1 · ${sumR.h2_published || 0} H2 · ${sumR.in_flight || 0} in flight · ${sumR.customers_with_spotlight || 0} customers · ${sumR.recommended || 0} recommended
-          </span>
-        </div>
+        <div class="story-half"><span>${sumR.h1_published || 0} H1 · ${sumR.h2_published || 0} H2</span><span>${sumR.in_flight || 0} in flight · ${sumR.customers_with_spotlight || 0} customers</span></div>
         <div class="story-list">
           ${withSp.length === 0
-            ? `<div class="drill-empty">No ${fyLabel} spotlights cached yet. Click <strong>🔄 Sync from FTOP</strong> above.</div>`
+            ? `<div class="drill-empty">No ${fyLabel} spotlights cached yet. Use Refresh Now or the Stories refresh button to update cached counts.</div>`
             : ["H1", "H2"].map(half => {
                 const rows = allSpotlights.filter(sl => sl._half === half);
                 if (rows.length === 0) return "";
@@ -4995,26 +4990,6 @@ async function renderDrillPanel(tile) {
           }
         };
       });
-      const syncBtn = document.getElementById("spotlightSyncBtn");
-      if (syncBtn) syncBtn.onclick = async () => {
-        syncBtn.disabled = true; syncBtn.textContent = "Queueing…";
-        try {
-          const r = await fetch("/api/scout/queue", {
-            method: "POST", headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-              kind: "spotlight-sync",
-              label: "Spotlight sync — portfolio",
-              prompt: "/spotlight-sync",
-              cust: null,
-            }),
-          }).then(x => x.json());
-          syncBtn.textContent = r.id ? `Queued #${r.id} ✓` : "Failed";
-          setTimeout(() => { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync from FTOP"; }, 2000);
-        } catch (e) {
-          syncBtn.textContent = "Failed: " + e.message;
-          setTimeout(() => { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync from FTOP"; }, 3000);
-        }
-      };
     } catch (e) {
       panel.innerHTML = `<div class="drill-hdr"><h3>Spotlights</h3>
         <button class="close" id="drillClose" title="Close">×</button></div>
@@ -5059,15 +5034,10 @@ async function renderDrillPanel(tile) {
         <div class="drill-hdr"><h3>Insights</h3>
           <span class="count">${fyLabel} · ${sumR.total_active || 0} active</span>
           <button class="close" id="drillClose" title="Close">×</button></div>
-        <div class="drill-actions" style="padding:8px 12px; border-bottom:1px solid var(--border);">
-          <button class="btn small primary" id="insightSyncBtn" title="Queue /insight-sync to pull latest from FT Feedback">🔄 Sync from FT Feedback</button>
-          <span style="margin-left:12px; color:var(--text-muted); font-size:11px;">
-            ${sumR.h1_active || 0} H1 · ${sumR.h2_active || 0} H2 · ${sumR.in_flight || 0} in flight · ${sumR.from_workspace || 0} from workspace · ${sumR.customers_touched || 0} customers
-          </span>
-        </div>
+        <div class="story-half"><span>${sumR.h1_active || 0} H1 · ${sumR.h2_active || 0} H2</span><span>${sumR.in_flight || 0} in flight · ${sumR.customers_touched || 0} customers</span></div>
         <div class="story-list">
           ${allInsights.length === 0 ?
-            `<div class="drill-empty">No ${fyLabel} insights cached yet. Click <strong>🔄 Sync from FT Feedback</strong> above, or click <strong>💡</strong> on any customer card to draft a new one.</div>` :
+            `<div class="drill-empty">No ${fyLabel} insights cached yet. Use Refresh Now or the Stories refresh button to update cached counts, or click <strong>💡</strong> on any customer card to draft a new one.</div>` :
             ["H1", "H2"].map(half => {
                 const rows = allInsights.filter(ix => ix._half === half);
                 if (rows.length === 0) return "";
@@ -5092,27 +5062,6 @@ async function renderDrillPanel(tile) {
           _jumpToCustomer(el.dataset.cust);
         };
       });
-      const syncBtn = document.getElementById("insightSyncBtn");
-      if (syncBtn) syncBtn.onclick = async () => {
-        syncBtn.disabled = true;
-        syncBtn.textContent = "Queueing…";
-        try {
-          const r = await fetch("/api/scout/queue", {
-            method: "POST", headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-              kind: "insight-sync",
-              label: "Insight sync — portfolio",
-              prompt: "/insight-sync",
-              cust: null,
-            }),
-          }).then(x => x.json());
-          syncBtn.textContent = r.id ? `Queued #${r.id} ✓` : "Failed";
-          setTimeout(() => { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync from FT Feedback"; }, 2000);
-        } catch (e) {
-          syncBtn.textContent = "Failed: " + e.message;
-          setTimeout(() => { syncBtn.disabled = false; syncBtn.textContent = "🔄 Sync from FT Feedback"; }, 3000);
-        }
-      };
     } catch (e) {
       panel.innerHTML = `<div class="drill-hdr"><h3>Insights</h3>
         <button class="close" id="drillClose" title="Close">×</button></div>
@@ -6249,6 +6198,17 @@ window.__api = (function() {
         if (/Edge|MIDAS|FTOP|502/i.test(msg)) msg += " — Edge must be running with --remote-debugging-port=9222 + signed in to fasttrack365.";
         toast(msg, "err");
       } finally { _stop(rKR); }
+    };
+    const rStories = document.getElementById("btnRefreshStories");
+    if (rStories) rStories.onclick = async (e) => {
+      e.stopPropagation();
+      _spin(rStories); toast("Refreshing Stories counts…");
+      try {
+        await updateCounters();
+        toast("Stories refreshed", "ok");
+      } catch (e) {
+        toast("Stories refresh failed: " + e.message, "err");
+      } finally { _stop(rStories); }
     };
     const rDQ = document.getElementById("btnRefreshDQ");
     if (rDQ) rDQ.onclick = async (e) => {
