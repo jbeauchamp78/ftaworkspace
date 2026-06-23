@@ -3213,7 +3213,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.07 locked 2026-06-23 09:50 EDT — Bridge Log gutter aligned with main tile spacing.">v1.07 · Stable</span>
+      <span class="version-tag" title="Build version: v1.08 locked 2026-06-23 10:00 EDT — Bridge Log opens above Ask AI.">v1.08 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3260,6 +3260,8 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   <div class="tab active" data-tab="detail">Customer Detail</div>
 </div>
 
+<section id="cartInlinePanel" class="cart-inline" hidden></section>
+
 <!-- ===== AI chat (always-available, collapsible) ===== -->
 <section class="aichat-section collapsed" id="aichatSection">
   <div class="aichat-hdr" onclick="if (!['SELECT','OPTION','BUTTON','TEXTAREA'].includes(event.target.tagName)) document.getElementById('aichatSection').classList.toggle('collapsed')">
@@ -3294,8 +3296,6 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 </section>
 
 <!-- ===== Three-section counter row (CUSTOMERS solo · KR Status · Data Quality) ===== -->
-<section id="cartInlinePanel" class="cart-inline" hidden></section>
-
 <section class="counter-row" id="counter-row" aria-label="Portfolio counters">
 
   <div class="counter-section solo">
