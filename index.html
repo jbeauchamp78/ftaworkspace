@@ -3227,7 +3227,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.26 locked 2026-06-23 15:00 EDT — Scout action QC updates automation naming/status.">v1.26 · Stable</span>
+      <span class="version-tag" title="Build version: v1.27 locked 2026-06-24 11:20 EDT — Submit ESN attended handoff added to customer and ESN DQ actions.">v1.27 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3917,6 +3917,8 @@ function renderContent() {
                   title="Open a generic PEC create modal for this customer. No workload is pre-selected.">+ Submit PEC</button>
           <button class="btn secondary cust-action-item cust-submit-spotlight-btn" data-cust="${c.n}"
                   title="Open a generic Spotlight draft modal for this customer. No workload is pre-selected.">✨ Submit Spotlight</button>
+          <button class="btn secondary cust-action-item cust-submit-esn-btn" data-cust="${c.n}"
+                  title="Start an attended ESN refresh for this customer in Scout. Drafts must be reviewed/submitted through the ESN editor.">📝 Submit ESN</button>
         </div>
       </div>
     </div>
@@ -5045,7 +5047,10 @@ async function renderDrillPanel(tile) {
                   <div class="dq-customer">${escapeHtml(it.customer || it.name || '(customer not shown)')}</div>
                   <div class="dq-workload">Workload/context: ${escapeHtml(it.workload || it.extra || 'Data quality row')}</div>
                 </div>
-                ${it.id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=${it.entity}&id=${it.id}" target="_blank" class="dq-open">Open in FTOP ↗</a>` : `<span class="dq-open dq-open-missing">No direct link</span>`}
+                <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
+                  ${tile === "dq-esn" ? `<button class="btn secondary dq-esn-submit-btn" data-cust="${escapeHtml(it.customer || it.name || '')}" title="Start an attended ESN refresh for this customer in Scout">📝 Submit ESN</button>` : ""}
+                  ${it.id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=${it.entity}&id=${it.id}" target="_blank" class="dq-open">Open in FTOP ↗</a>` : `<span class="dq-open dq-open-missing">No direct link</span>`}
+                </div>
               </div>
             `).join("")}
         </div>`;
@@ -6289,6 +6294,14 @@ document.addEventListener("click", (e) => {
     genericSpotlight.closest(".cust-action-menu")?.classList.remove("open");
     const cust = genericSpotlight.dataset.cust || window.activeCust;
     if (cust && window.__spotlightDraftForm) window.__spotlightDraftForm.open({ cust, kr_label: "", lowlight: false, generic: true });
+    return;
+  }
+  const genericEsn = e.target.closest(".cust-submit-esn-btn");
+  if (genericEsn) {
+    e.preventDefault(); e.stopPropagation();
+    genericEsn.closest(".cust-action-menu")?.classList.remove("open");
+    const cust = genericEsn.dataset.cust || window.activeCust;
+    if (cust) openEsnRefreshPrompt(cust, "customer-menu");
     return;
   }
   const actionItem = e.target.closest(".cust-action-item");
@@ -9225,7 +9238,7 @@ window.__scoutPromptModal = (function () {
         </div>
         <div class="sp-draft-body">
           <p class="sp-hint" style="margin:0 0 10px;">
-            Copy this prompt into Scout to continue the attended workflow. Workspace has staged your draft locally as reference material.
+            Copy this prompt into Scout to continue the attended workflow. Workspace keeps the action user-gated so review and submit steps stay in Scout.
           </p>
           <label class="fld">Prompt to run in Scout</label>
           <textarea id="scoutPromptText" rows="7" readonly style="font-family:Consolas,monospace;font-size:12px;"></textarea>
@@ -9275,7 +9288,7 @@ window.__scoutPromptModal = (function () {
     modal.querySelector("#scoutPromptTitle").textContent = title || "Scout Prompt";
     modal.querySelector("#scoutPromptText").value = prompt || "";
     modal.querySelector("#scoutPromptPath").innerHTML = staged_path
-      ? `Draft staged at: <code>${escapeHtml(staged_path)}</code>`
+      ? `Reference: <code>${escapeHtml(staged_path)}</code>`
       : "";
     setStatus("", false);
     modal.classList.add("show");
@@ -9283,6 +9296,36 @@ window.__scoutPromptModal = (function () {
   }
   return { open, close };
 })();
+
+// ---------- ESN refresh attended handoff ----------
+// ESN generation/submission is intentionally NOT unattended. This starts the
+// /esn-refresh flow in Scout; the ESN web editor remains the approval gate.
+function openEsnRefreshPrompt(cust, source) {
+  const customer = (cust || window.activeCust || "").trim();
+  if (!customer) {
+    if (typeof toast === "function") toast("No customer selected for ESN refresh.", "warn");
+    return;
+  }
+  const safeCustomer = customer.replace(/"/g, '\\"');
+  const prompt = `/esn-refresh "${safeCustomer}"`;
+  if (window.__scoutPromptModal) {
+    window.__scoutPromptModal.open({
+      title: `ESN refresh prompt — ${customer}`,
+      prompt,
+      staged_path: source === "dq-esn"
+        ? "Source: Data Quality > ESN Missing / Expired"
+        : "Source: Customer Workspace action menu",
+    });
+  }
+  if (typeof toast === "function") toast("ESN Scout prompt ready", "ok");
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".dq-esn-submit-btn");
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  openEsnRefreshPrompt(btn.dataset.cust, "dq-esn");
+});
 
 // ---------- Insight (FT Feedback) draft modal ----------
 // 💡 Submit Insight button on customer card → opens this. Pre-fills from
