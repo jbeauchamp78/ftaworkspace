@@ -2359,17 +2359,28 @@ body.heatmap-view.kr-expanded .content { margin: 24px 24px 12px 24px !important;
 .hm-tile {
   position: relative;
   border: 1px solid var(--cp-border); border-radius: 6px;
-  padding: 6px 8px 22px; min-height: 56px;
+  padding: 6px 8px 24px; min-height: 60px;
   background: var(--cp-surface); cursor: pointer;
   transition: transform 0.10s ease, box-shadow 0.10s ease, background-color 0.20s ease;
   font-size: 11.5px; line-height: 1.25;
   overflow: hidden;
 }
 .hm-tile:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-.hm-tile .hm-name { font-weight: 600; padding-right: 28px; }
+.hm-tile .hm-name {
+  display: block;
+  font-weight: 600;
+  padding-right: 44px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
 .hm-tile .hm-sku {
   position: absolute; top: 4px; right: 4px;
+  max-width: 40px;
+  text-align: center;
   font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+  line-height: 1.15;
+  white-space: nowrap;
   background: rgba(255, 255, 255, 0.85); color: #2a2a2a;
   border: 1px solid rgba(0, 0, 0, 0.12);
 }
@@ -2416,9 +2427,12 @@ body.heatmap-view.kr-expanded .content { margin: 24px 24px 12px 24px !important;
 .hm-tile.s-ONBOARDED .hm-state { background: rgba(0,0,0,0.18); color: #1f1f1f; }
 
 .hm-tile .hm-lead {
-  position: absolute; bottom: 20px; left: 4px;
+  position: absolute; bottom: 20px; left: 4px; right: 4px;
   font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
   background: rgba(255, 255, 255, 0.90); color: #0078d4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .hm-tile.hm-override::after {
   content: ""; position: absolute; top: 4px; left: 4px;
@@ -3227,7 +3241,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.27 locked 2026-06-24 11:20 EDT — Submit ESN attended handoff added to customer and ESN DQ actions.">v1.27 · Stable</span>
+      <span class="version-tag" title="Build version: v1.28 locked 2026-06-24 11:55 EDT — Heatmap workload labels reserve space for SKU badges.">v1.28 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
