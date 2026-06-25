@@ -3241,7 +3241,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.28 locked 2026-06-24 11:55 EDT — Heatmap workload labels reserve space for SKU badges.">v1.28 · Stable</span>
+      <span class="version-tag" title="Build version: v1.29 locked 2026-06-25 09:15 EDT — Total KR Wins dropdown labels aggregate rows as KR WIN.">v1.29 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3645,6 +3645,7 @@ const STATUS_OPTIONS = [
 
 // Icon per status — provides redundant coding for colorblind users
 const STATUS_ICONS = {
+  "KR WIN":      "★",
   "KPI WIN":     "★",
   "KPI MET":     "✓",
   "IN PROGRESS": "↻",
@@ -3672,7 +3673,7 @@ function missingCount(c) {
   }).length;
 }
 function chipClass(s) {
-  return { "KPI WIN":"win","KPI MET":"met","IN PROGRESS":"prog","REGRESSION":"regr","INTENT":"intent","NO INTENT":"noint","N/A":"na" }[s] || "na";
+  return { "KR WIN":"win","KPI WIN":"win","KPI MET":"met","IN PROGRESS":"prog","REGRESSION":"regr","INTENT":"intent","NO INTENT":"noint","N/A":"na" }[s] || "na";
 }
 function fmt(v, kind) {
   if (v == null) return "—";
@@ -4587,7 +4588,7 @@ function getDrillItems(tile) {
         out.push({
           cust: c.n, full: c.full,
           kr: g.name,
-          status: "KPI WIN",
+          status: "KR WIN",
           meta: "",
           aggregate: true,
         });
@@ -4607,7 +4608,7 @@ function getDrillItems(tile) {
             cust: c.n,
             full: c.full,
             kr: name,
-            status: "KPI WIN",
+          status: "KR WIN",
             meta: k.c != null ? `current ${fmt(k.c, kind)}` : "",
           });
         }
