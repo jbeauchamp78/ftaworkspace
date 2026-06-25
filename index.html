@@ -3241,7 +3241,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.33 locked 2026-06-25 16:45 EDT — Customer and counter pills respect selected rule sets.">v1.33 · Stable</span>
+      <span class="version-tag" title="Build version: v1.34 locked 2026-06-25 16:55 EDT — Demo portfolio heatmap handles ratio vs count workloads correctly.">v1.34 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4446,7 +4446,7 @@ function shortLabel(name) {
 }
 function hmCellValue(k, kr) {
   if (k.s === "N/A") return { val: "—" };
-  if (kr.includes("Admin Days")) {
+  if (kr.includes("Admin Days") || kr === "Win365 POC") {
     const v = k.b != null ? Math.round(Math.max(k.b, k.c)) : null;
     return { val: v != null ? v : "—" };
   }
@@ -4454,7 +4454,13 @@ function hmCellValue(k, kr) {
     const v = k.b != null ? Math.round(Math.max(k.b, k.c)) : null;
     return { val: v != null ? v.toLocaleString() : "—" };
   }
-  return { val: (k.c != null ? Math.round(k.c*100) + "%" : "—") };
+  if (kr === "Win365 Paid" && k.c != null && Math.abs(k.c) > 100) {
+    return { val: Math.round(k.c).toLocaleString() };
+  }
+  if (k.c == null) return { val: "—" };
+  const raw = Number(k.c);
+  const pct = Math.abs(raw) > 5 ? raw : raw * 100;
+  return { val: Math.round(pct) + "%" };
 }
 
 function renderHeatmap() {
