@@ -3241,7 +3241,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.30 locked 2026-06-25 09:20 EDT — KR and KPI dropdown pills use distinct labels.">v1.30 · Stable</span>
+      <span class="version-tag" title="Build version: v1.31 locked 2026-06-25 09:25 EDT — KR/KPI drilldown pill labels are tile-scoped.">v1.31 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -5085,6 +5085,11 @@ async function renderDrillPanel(tile) {
   // Open PEC writes always go through the per-customer Open PEC modal
   // so the FTA collects workload + title + deploy lead first.
   const actionable = false;
+  const displayStatusForTile = (it) => {
+    if (tile === "kr-wins") return "KR WIN";
+    if (tile === "kpi-wins") return "KPI WIN";
+    return it.status;
+  };
   panel.innerHTML = `
     <div class="drill-hdr">
       <h3>${TILE_TITLES[tile]}</h3>
@@ -5093,14 +5098,16 @@ async function renderDrillPanel(tile) {
     </div>
     <div class="drill-list">
       ${items.length === 0 ? `<div class="drill-empty">No matching rows.</div>` :
-        items.map(it => `
+        items.map(it => {
+          const displayStatus = displayStatusForTile(it);
+          return `
           <div class="drill-item" data-cust="${it.cust}">
-            <span class="chip ${chipClass(it.status)}" style="padding: 1px 6px; font-size: 9px;">${STATUS_ICONS[it.status]} ${it.status}</span>
+            <span class="chip ${chipClass(displayStatus)}" style="padding: 1px 6px; font-size: 9px;">${STATUS_ICONS[displayStatus]} ${displayStatus}</span>
             <span class="cust">${it.cust}</span>
             <span class="kr">${it.kr}</span>
             <span class="meta">${it.meta}</span>
           </div>
-        `).join("")}
+        `}).join("")}
     </div>
   `;
   _wireDrillButtons(panel, tile, () => items);
