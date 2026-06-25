@@ -3241,7 +3241,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.32 locked 2026-06-25 09:30 EDT — Recommended Actions removes manual regenerate/email controls.">v1.32 · Stable</span>
+      <span class="version-tag" title="Build version: v1.33 locked 2026-06-25 16:45 EDT — Customer and counter pills respect selected rule sets.">v1.33 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3875,9 +3875,10 @@ function renderContent() {
         </div>
         <div class="cust-statusline">
           ${(() => {
-            const krWins  = customerKrWins(c).length;
-            const kpiWins = c.krs.filter(k => k.s === 'KPI WIN').length;
-            const kpiRegr = c.krs.filter(k => k.s === 'REGRESSION').length;
+            const krRuleLive = !window.__epochs || window.__epochs.get("kr") === window.__epochs.LIVE;
+            const krWins  = krRuleLive ? customerKrWins(c).length : 0;
+            const kpiWins = krRuleLive ? c.krs.filter(k => k.s === 'KPI WIN').length : 0;
+            const kpiRegr = krRuleLive ? c.krs.filter(k => k.s === 'REGRESSION').length : 0;
             const missPec = c.krs.filter((k, i) => {
               const lbl = KR_LABELS[i][0];
               if (lbl.includes('Admin Days')) return false;
@@ -3890,8 +3891,8 @@ function renderContent() {
               <div class="cust-status-row">
                 <span class="csl-chip csl-win"   title="KRs at KPI WIN">★ ${krWins} KR wins</span>
                 <span class="csl-chip csl-met"   title="KRs at KPI WIN or KPI MET">✓ ${kpiWins} KPI wins</span>
-                <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${c.n.replace(/[^a-z0-9]/gi,'_')}" data-cust="${c.n}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
                 <span class="csl-chip csl-regr ${kpiRegr ? '' : 'csl-zero'}" title="KRs at REGRESSION">▼ ${kpiRegr} KPI regressions</span>
+                <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${c.n.replace(/[^a-z0-9]/gi,'_')}" data-cust="${c.n}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
               </div>
               <div class="cust-status-row">
                 <span class="csl-chip csl-pec-combined" data-cust="${c.n}"
@@ -4586,7 +4587,7 @@ function getDrillItems(tile) {
         out.push({
           cust: c.n, full: c.full,
           kr: g.name,
-            status: "KPI WIN",
+          status: "KR WIN",
           meta: "",
           aggregate: true,
         });
@@ -4606,7 +4607,7 @@ function getDrillItems(tile) {
             cust: c.n,
             full: c.full,
             kr: name,
-          status: "KR WIN",
+          status: "KPI WIN",
             meta: k.c != null ? `current ${fmt(k.c, kind)}` : "",
           });
         }
@@ -5941,16 +5942,20 @@ window.__api = (function() {
         .forEach(el => el.classList.remove("recent-update"));
       // KR Status
       _flashCounter('#ct-customers',     c.customers);
-      _flashCounter('#ct-kr-wins',       c.kr_status.total_kr_wins);
-      _flashCounter('#ct-kpi-wins',      c.kr_status.total_kpi_wins);
-      _flashCounter('#ct-kpi-regr',      c.kr_status.kpi_regressions);
+      const krRuleLive = !window.__epochs || window.__epochs.get("kr") === window.__epochs.LIVE;
+      _flashCounter('#ct-kr-wins',       krRuleLive ? c.kr_status.total_kr_wins : 0);
+      _flashCounter('#ct-kpi-wins',      krRuleLive ? c.kr_status.total_kpi_wins : 0);
+      _flashCounter('#ct-kpi-regr',      krRuleLive ? c.kr_status.kpi_regressions : 0);
       _flashCounter('#ct-missing-pecs',  c.kr_status.missing_pecs);
       // Ideal Config rollup — show wins only
       const ic = c.ideal_config || {wins:0,total:0};
       const totalCusts = c.customers || 0;
-      _flashCounter('#ct-ic-wins',  ic.wins);
+      const icRuleLive = !window.__epochs || window.__epochs.get("ideal_config") === window.__epochs.LIVE;
+      _flashCounter('#ct-ic-wins',  icRuleLive ? ic.wins : 0);
       const hint = document.querySelector('#ct-ic-hint');
-      if (hint) hint.textContent = ic.total === 0
+      if (hint) hint.textContent = !icRuleLive
+        ? 'FY27 rules pending'
+        : ic.total === 0
         ? 'run refresh to populate'
         : `of ${totalCusts} customers GREEN`;
       // Spotlights — show published count only
@@ -6214,6 +6219,15 @@ window.__api = (function() {
     const badge = document.getElementById('icHealthBadge');
     const source = document.getElementById('icSourceBadge');
     if (!body || !badge) return ret;
+    const icRuleLive = !window.__epochs || window.__epochs.get("ideal_config") === window.__epochs.LIVE;
+    if (!icRuleLive) {
+      body.innerHTML = "";
+      badge.textContent = "IC 0/0";
+      badge.className = "csl-chip ic-health ic-health-unknown";
+      badge.title = `${window.__epochs.get("ideal_config")} Copilot Ideal Config rules are pending.`;
+      if (source) source.textContent = "source: pending rules";
+      return ret;
+    }
 
     body.innerHTML = `<tr><td colspan="4" style="padding:14px;color:var(--cp-text-muted)">loading Ideal Config…</td></tr>`;
     badge.textContent = '— loading IC';
@@ -7538,6 +7552,8 @@ window.__queueSkill = (function () {
     if (!EPOCHS.includes(value)) value = LIVE_EPOCH;
     localStorage.setItem(kind === "kr" ? LS_KR : LS_IC, value);
     syncEpochUI(kind);
+    try { if (typeof window.renderContent === "function") window.renderContent(); } catch {}
+    try { if (typeof updateCounters === "function") updateCounters(); } catch {}
   }
 
   function syncEpochUI(kind) {
@@ -7575,7 +7591,14 @@ window.__queueSkill = (function () {
       const health = document.getElementById("icHealthBadge");
       if (empty) empty.style.display = isLive ? "none" : "";
       if (icBody) icBody.style.display = isLive ? "" : "none";
-      if (health) health.style.visibility = isLive ? "" : "hidden";
+      if (health) {
+        health.style.visibility = "";
+        if (!isLive) {
+          health.className = "csl-chip ic-health ic-health-unknown";
+          health.textContent = "IC 0/0";
+          health.title = `${epoch} Copilot Ideal Config rules are pending.`;
+        }
+      }
     }
     // Update topbar epoch select if present
     const sel = document.getElementById(kind === "kr" ? "krEpochSelect" : "cfgEpochSelect");
