@@ -3241,7 +3241,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.29 locked 2026-06-25 09:15 EDT — Total KR Wins dropdown labels aggregate rows as KR WIN.">v1.29 · Stable</span>
+      <span class="version-tag" title="Build version: v1.30 locked 2026-06-25 09:20 EDT — KR and KPI dropdown pills use distinct labels.">v1.30 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4588,7 +4588,7 @@ function getDrillItems(tile) {
         out.push({
           cust: c.n, full: c.full,
           kr: g.name,
-          status: "KR WIN",
+            status: "KPI WIN",
           meta: "",
           aggregate: true,
         });
