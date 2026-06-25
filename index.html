@@ -3241,7 +3241,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.31 locked 2026-06-25 09:25 EDT — KR/KPI drilldown pill labels are tile-scoped.">v1.31 · Stable</span>
+      <span class="version-tag" title="Build version: v1.32 locked 2026-06-25 09:30 EDT — Recommended Actions removes manual regenerate/email controls.">v1.32 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4278,8 +4278,6 @@ function renderAiCard(c) {
         <span class="badge">AI · ${totalCount} total</span>
         <div class="actions">
           <button title="View the prompt that will be sent to AI" onclick="event.stopPropagation(); document.getElementById('promptModal').style.display='flex'">⌨ View prompt</button>
-          <button title="Regenerate recommendations" onclick="event.stopPropagation()">↻ Regenerate</button>
-          <button title="Send to Outlook" onclick="event.stopPropagation()">✉ Email me</button>
         </div>
       </div>
       <div class="ai-body">
