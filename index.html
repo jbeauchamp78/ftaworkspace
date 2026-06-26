@@ -1973,15 +1973,22 @@ table.heatmap {
 }
 .counter-row .section-hdr {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 2px; gap: 8px;
+  padding: 0 2px; gap: 6px; min-width: 0; overflow: hidden;
 }
 .counter-row .section-hdr h2 {
   margin: 0; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.6px;
   color: var(--cp-text-muted);
+  flex: 0 1 auto; min-width: 0;
 }
-.counter-row .section-hdr .hdr-right { display: flex; align-items: center; gap: 8px; }
-.counter-row .section-hdr .src { font-size: 10px; color: var(--cp-text-soft); font-style: italic; }
+.counter-row .section-hdr .hdr-right {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 6px; flex: 1 1 auto; min-width: 0; max-width: 100%;
+}
+.counter-row .section-hdr .src {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 10px; color: var(--cp-text-soft); font-style: italic;
+}
 .section-refresh {
   background: var(--cp-surface);
   border: 1px solid var(--cp-border);
@@ -1989,7 +1996,7 @@ table.heatmap {
   width: 24px; height: 24px; border-radius: 6px;
   font-size: 13px; line-height: 1;
   cursor: pointer; font-family: inherit;
-  display: inline-flex; align-items: center; justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px;
   transition: color 120ms, border-color 120ms, background 120ms, transform 200ms;
 }
 .section-refresh:hover {
@@ -3252,7 +3259,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.36 locked 2026-06-26 10:10 EDT — Restored Customers tile and shortened counter/source labels.">v1.36 · Stable</span>
+      <span class="version-tag" title="Build version: v1.37 locked 2026-06-26 10:35 EDT — Keeps counter section refresh buttons inside narrow headers.">v1.37 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
