@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.42 locked 2026-06-26 11:50 EDT — Shows only KR WIN text in Portfolio Heatmap cells.">v1.42 · Stable</span>
+      <span class="version-tag" title="Build version: v1.43 locked 2026-06-26 16:00 EDT — Adds Edge CDP recovery for FTOP-backed Data Quality dropdowns.">v1.43 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -5126,10 +5126,36 @@ async function renderDrillPanel(tile) {
         </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
     } catch (e) {
+      const detail = e.detail || e.message || "unknown";
+      const needsCdp = /9222|Edge CDP|remote-debugging|FastTrack365|ConnectError/i.test(detail);
       panel.innerHTML = `<div class="drill-hdr"><h3>${TILE_TITLES[tile]}</h3>
         <button class="close" id="drillClose" title="Close">×</button></div>
-        <div class="drill-empty">FTOP fetch failed: ${e.detail || e.message || 'unknown'}. Ensure Edge is running with --remote-debugging-port=9222.</div>`;
+        <div class="drill-empty">
+          <div style="margin-bottom:10px;">${escapeHtml(needsCdp
+            ? "FTOP live data needs the dedicated Edge CDP window. Start Edge CDP, sign in to FastTrack365 if prompted, then retry this dropdown."
+            : `FTOP fetch failed: ${detail}`)}</div>
+          ${needsCdp ? `<button class="btn secondary" id="btnStartEdgeCdp">Start Edge CDP</button>
+            <button class="btn secondary" id="btnRetryDqList">Retry</button>` : ""}
+        </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
+      const start = document.getElementById("btnStartEdgeCdp");
+      if (start) start.onclick = async () => {
+        start.disabled = true;
+        start.textContent = "Starting…";
+        try {
+          const r = await fetch("/api/ftop/start-edge-cdp", { method: "POST" });
+          const data = await r.json();
+          if (!r.ok || !data.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+          start.textContent = data.already_running ? "Edge CDP running" : "Edge CDP started";
+          if (typeof toast === "function") toast("Edge CDP started. Sign in to FastTrack365 if prompted, then retry.", "ok");
+        } catch (err) {
+          start.disabled = false;
+          start.textContent = "Start Edge CDP";
+          if (typeof toast === "function") toast("Could not start Edge CDP: " + (err.message || err), "err");
+        }
+      };
+      const retry = document.getElementById("btnRetryDqList");
+      if (retry) retry.onclick = () => openDrill(tile);
     }
     return;
   }
