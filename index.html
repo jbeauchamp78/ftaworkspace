@@ -2070,14 +2070,15 @@ table.heatmap {
   border-radius: 14px;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; text-align: center;
-  flex: 1; min-width: 170px; padding: 24px; position: relative; gap: 4px;
+  flex: 1; min-width: 170px; min-height: 142px; height: auto; max-height: none;
+  padding: 24px; position: relative; gap: 4px;
 }
-.counter.solo-customers .label {
+.counter-row .counter.solo-customers .label {
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--cp-text-muted); font-weight: 600;
 }
-.counter.solo-customers .value { font-size: 42px; line-height: 1; margin-top: 4px; font-weight: 600; }
-.counter.solo-customers .hint { display: block; font-size: 11px; color: var(--cp-text-soft); margin-top: 6px; }
+.counter-row .counter.solo-customers .value { font-size: 42px; line-height: 1; margin-top: 4px; font-weight: 600; }
+.counter-row .counter.solo-customers .hint { display: block; font-size: 11px; color: var(--cp-text-soft); margin-top: 6px; }
 
 /* Override the old .counters flex row — we use .counter-row now */
 .counters { display: none; }
@@ -3251,7 +3252,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.35 locked 2026-06-26 10:00 EDT — Counter labels shrink/truncate within fixed-height tiles.">v1.35 · Stable</span>
+      <span class="version-tag" title="Build version: v1.36 locked 2026-06-26 10:10 EDT — Restored Customers tile and shortened counter/source labels.">v1.36 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3343,23 +3344,23 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="section-hdr">
       <h2>KR &amp; Ideal Config Status</h2>
       <div class="hdr-right">
-        <span class="src">MIDAS + FTOP + Lynx</span>
+        <span class="src" title="MIDAS + FTOP + Lynx">MIDAS/FTOP/Lynx</span>
         <button class="section-refresh" id="btnRefreshKR" title="Refresh KR Status + Ideal Config (MIDAS + FTOP + Lynx, ~30s)">⟳</button>
       </div>
     </div>
     <div class="tile-grid" style="--n: 5">
       <div class="counter accent clickable" data-tile="kr-wins">
-        <div class="label" title="Customers with at least one KPI WIN this FY">Total KR Wins</div>
+        <div class="label" title="Customers with at least one KR WIN this FY">KR Wins</div>
         <div class="value" id="ct-kr-wins">—</div>
         <div class="hint">customers w/ a WIN</div>
       </div>
       <div class="counter accent clickable" data-tile="kpi-wins">
-        <div class="label" title="Count of KR rows with status KPI WIN (KPI MET excluded — that's prior-FY carryover)">Total KPI Wins</div>
+        <div class="label" title="Count of KPI rows with status KPI WIN (KPI MET excluded — that's prior-FY carryover)">KPI Wins</div>
         <div class="value" id="ct-kpi-wins">—</div>
         <div class="hint">KPI WIN rows earned this FY</div>
       </div>
       <div class="counter danger clickable" data-tile="regressions">
-        <div class="label" title="Count of KR rows with status REGRESSION">KPI Regressions</div>
+        <div class="label" title="Count of KPI rows with status REGRESSION">Regressions</div>
         <div class="value" id="ct-kpi-regr">—</div>
         <div class="hint">KR rows regressed</div>
       </div>
@@ -3369,7 +3370,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
         <div class="hint">active KRs w/o PEC</div>
       </div>
       <div class="counter accent clickable" data-tile="ic-wins" title="Customers whose Copilot Ideal Config rolls up to GREEN (from Lynx, refreshed with this section)">
-        <div class="label">Ideal Config Wins</div>
+        <div class="label" title="Ideal Config Wins">IC Wins</div>
         <div class="value" id="ct-ic-wins">—</div>
         <div class="hint" id="ct-ic-hint">customers GREEN</div>
       </div>
@@ -3380,7 +3381,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="section-hdr">
       <h2>Stories</h2>
       <div class="hdr-right">
-        <span class="src">FTOP + FT Feedback</span>
+        <span class="src" title="FTOP + FT Feedback">FTOP/Feedback</span>
         <button class="section-refresh" id="btnRefreshStories" title="Refresh Spotlights + Insights counts">⟳</button>
       </div>
     </div>
