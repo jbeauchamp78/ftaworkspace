@@ -3259,7 +3259,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.38 locked 2026-06-26 11:10 EDT — Normalizes customer/workload names across Data Quality drilldowns.">v1.38 · Stable</span>
+      <span class="version-tag" title="Build version: v1.39 locked 2026-06-26 11:40 EDT — Restores KR WIN labels in the Portfolio Heatmap legend.">v1.39 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3458,8 +3458,8 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   </div>
   <div class="heatmap-body">
     <div class="legend">
-      <div class="item"><div class="swatch" style="background:#92D050"></div>★ KPI WIN</div>
-      <div class="item"><div class="swatch" style="background:#00B050"></div>✓ KPI MET</div>
+      <div class="item"><div class="swatch" style="background:#92D050"></div>★ KR WIN</div>
+      <div class="item"><div class="swatch" style="background:#00B050"></div>✓ KR MET</div>
       <div class="item"><div class="swatch" style="background:#00B0F0"></div>↻ IN PROGRESS</div>
       <div class="item"><div class="swatch" style="background:#FF0000"></div>▼ REGRESSION</div>
       <div class="item"><div class="swatch" style="background:#FFFF00"></div>◆ INTENT</div>
@@ -4481,6 +4481,12 @@ function hmCellValue(k, kr) {
   return { val: Math.round(pct) + "%" };
 }
 
+function portfolioHeatmapStatusLabel(status) {
+  if (status === "KPI WIN") return "KR WIN";
+  if (status === "KPI MET") return "KR MET";
+  return status;
+}
+
 function renderHeatmap() {
   const t = document.getElementById("heatmapTable");
   const krWidth = (86 / KR_LABELS.length).toFixed(3);
@@ -4503,7 +4509,8 @@ function renderHeatmap() {
       const cls = chipClass(k.s);
       const v = hmCellValue(k, name);
       const ico = STATUS_ICONS[k.s] || "";
-      html += `<td class="cell"><div class="hm ${cls}" title="${c.n} · ${name} · ${k.s}${k.n ? ' — '+k.n : ''}"><span class="ico">${ico}</span><span class="val">${v.val}</span></div></td>`;
+      const displayStatus = portfolioHeatmapStatusLabel(k.s);
+      html += `<td class="cell"><div class="hm ${cls}" title="${c.n} · ${name} · ${displayStatus}${k.n ? ' — '+k.n : ''}"><span class="ico">${ico}</span><span class="val">${v.val}</span></div></td>`;
     });
     html += `</tr>`;
   });
