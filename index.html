@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.44 locked 2026-06-26 16:05 EDT — Verifies Edge CDP is ready before reporting recovery success.">v1.44 · Stable</span>
+      <span class="version-tag" title="Build version: v1.45 locked 2026-06-26 16:15 EDT — Caches Data Quality row lists and serves dropdowns from cache.">v1.45 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3422,7 +3422,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
       <h2>Data Quality</h2>
       <div class="hdr-right">
         <span class="src">FTOP · read-only views</span>
-        <button class="section-refresh" id="btnRefreshDQ" title="Re-count Data Quality from FTOP (no skill run)">⟳</button>
+        <button class="section-refresh" id="btnRefreshDQ" title="Sync Data Quality counts + dropdown rows from FTOP (live)">⟳</button>
       </div>
     </div>
     <div class="tile-grid" style="--n: 5">
@@ -5110,7 +5110,8 @@ async function renderDrillPanel(tile) {
           <a href="${r.view_url}" target="_blank" class="drill-ftop-link" title="Open this view in FTOP">↗ Open in FTOP</a>
           <button class="close" id="drillClose" title="Close">×</button></div>
         <div class="dq-list">
-          ${items.length === 0 ? `<div class="drill-empty">No rows. View is clean.</div>` :
+          ${r.cache_missing ? `<div class="drill-empty">Data Quality row cache is empty. Click the Data Quality ⟳ button to pull live FTOP rows.</div>` :
+            items.length === 0 ? `<div class="drill-empty">No rows. Cached view is clean.</div>` :
             items.slice(0, 200).map(it => `
               <div class="dq-row">
                 <div class="dq-main">
@@ -6243,11 +6244,11 @@ window.__api = (function() {
     const rDQ = document.getElementById("btnRefreshDQ");
     if (rDQ) rDQ.onclick = async (e) => {
       e.stopPropagation();
-      _spin(rDQ); toast("Re-counting Data Quality from FTOP…");
+      _spin(rDQ); toast("Syncing Data Quality counts + row lists from FTOP…");
       try {
         await call("POST", "/api/counters/refresh-dq");
         await updateCounters();
-        toast("DQ refreshed", "ok");
+        toast("DQ cache refreshed", "ok");
       } catch (e) {
         let msg = e.message;
         if (/Edge|MIDAS|FTOP|502/i.test(msg)) msg += " — Edge must be running with --remote-debugging-port=9222.";
