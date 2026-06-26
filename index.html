@@ -2009,9 +2009,11 @@ table.heatmap {
 
 /* Tighten counter tiles when they live inside the new grid (mockup default is bigger) */
 .counter-row .counter {
-  padding: 10px;
+  padding: 9px 8px;
   min-width: 0;
+  height: 86px;
   min-height: 86px;
+  max-height: 86px;
   border-radius: 10px;
   text-align: center;
   display: flex;
@@ -2020,13 +2022,21 @@ table.heatmap {
   justify-content: center;
 }
 .counter-row .counter .label {
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: 10.5px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(8px, 0.68vw, 10.5px);
+  line-height: 1.15;
+  letter-spacing: 0.25px;
 }
-.counter-row .counter .value { font-size: 26px; line-height: 1; margin-top: 0; text-align: center; }
+.counter-row .counter .value { font-size: 26px; line-height: 1; margin-top: 3px; text-align: center; flex: 0 0 auto; }
 .counter-row .counter .hint {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: 10.5px;
+  font-size: 10px;
+  max-width: 100%;
 }
 
 /* ===== Counter update flash ===== */
@@ -3241,7 +3251,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.34 locked 2026-06-25 16:55 EDT — Demo portfolio heatmap handles ratio vs count workloads correctly.">v1.34 · Stable</span>
+      <span class="version-tag" title="Build version: v1.35 locked 2026-06-26 10:00 EDT — Counter labels shrink/truncate within fixed-height tiles.">v1.35 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
