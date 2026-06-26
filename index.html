@@ -3259,7 +3259,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.37 locked 2026-06-26 10:35 EDT — Keeps counter section refresh buttons inside narrow headers.">v1.37 · Stable</span>
+      <span class="version-tag" title="Build version: v1.38 locked 2026-06-26 11:10 EDT — Normalizes customer/workload names across Data Quality drilldowns.">v1.38 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -5072,6 +5072,12 @@ async function renderDrillPanel(tile) {
     try {
       const r = await fetch(`/api/counters/dq-list/${key}`).then(x => x.ok ? x.json() : x.json().then(e => Promise.reject(e)));
       const items = r.items || [];
+      const dqCustomerName = (it) =>
+        it.customer || it.tenant || it.account || it.nickname || it.name || it.extra || "(customer not shown)";
+      const dqWorkloadName = (it) => {
+        const parts = [it.workload, it.l1].filter(Boolean);
+        return parts.length ? parts.join(" · ") : (it.name || it.extra || "Data quality row");
+      };
       panel.innerHTML = `
         <div class="drill-hdr"><h3>${TILE_TITLES[tile]}</h3>
           <span class="count">${items.length}</span>
@@ -5082,11 +5088,11 @@ async function renderDrillPanel(tile) {
             items.slice(0, 200).map(it => `
               <div class="dq-row">
                 <div class="dq-main">
-                  <div class="dq-customer">${escapeHtml(it.customer || it.name || '(customer not shown)')}</div>
-                  <div class="dq-workload">Workload/context: ${escapeHtml(it.workload || it.extra || 'Data quality row')}</div>
+                  <div class="dq-customer">${escapeHtml(dqCustomerName(it))}</div>
+                  <div class="dq-workload">Workload/context: ${escapeHtml(dqWorkloadName(it))}</div>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
-                  ${tile === "dq-esn" ? `<button class="btn secondary dq-esn-submit-btn" data-cust="${escapeHtml(it.customer || it.name || '')}" title="Start an attended ESN refresh for this customer in Scout">📝 Submit ESN</button>` : ""}
+                  ${tile === "dq-esn" ? `<button class="btn secondary dq-esn-submit-btn" data-cust="${escapeHtml(dqCustomerName(it))}" title="Start an attended ESN refresh for this customer in Scout">📝 Submit ESN</button>` : ""}
                   ${it.id ? `<a href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=${it.entity}&id=${it.id}" target="_blank" class="dq-open">Open in FTOP ↗</a>` : `<span class="dq-open dq-open-missing">No direct link</span>`}
                 </div>
               </div>
