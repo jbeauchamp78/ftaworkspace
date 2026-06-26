@@ -1914,6 +1914,12 @@ table.heatmap {
   letter-spacing: -0.2px;
   white-space: nowrap;
 }
+.heatmap td.cell .hm.status-cell {
+  color: #102033;
+}
+.heatmap td.cell .hm.status-cell .ico {
+  display: none;
+}
 .heatmap td.cell .hm .ico {
   font-size: 9px;
   margin-right: 3px;
@@ -3264,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.40 locked 2026-06-26 11:45 EDT — Shows KR WIN/KR MET text inside Portfolio Heatmap cells.">v1.40 · Stable</span>
+      <span class="version-tag" title="Build version: v1.41 locked 2026-06-26 11:45 EDT — Makes Portfolio Heatmap KR WIN/KR MET cell text visible.">v1.41 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4524,7 +4530,7 @@ function renderHeatmap() {
       const ico = STATUS_ICONS[k.s] || "";
       const displayStatus = portfolioHeatmapStatusLabel(k.s);
       const cellValue = portfolioHeatmapCellValue(k.s, v.val);
-      html += `<td class="cell"><div class="hm ${cls}" title="${c.n} · ${name} · ${displayStatus}${k.n ? ' — '+k.n : ''}"><span class="ico">${ico}</span><span class="val${cellValue.isStatusLabel ? ' status-label' : ''}">${cellValue.val}</span></div></td>`;
+      html += `<td class="cell"><div class="hm ${cls}${cellValue.isStatusLabel ? ' status-cell' : ''}" title="${c.n} · ${name} · ${displayStatus}${k.n ? ' — '+k.n : ''}"><span class="ico">${ico}</span><span class="val${cellValue.isStatusLabel ? ' status-label' : ''}">${cellValue.val}</span></div></td>`;
     });
     html += `</tr>`;
   });
