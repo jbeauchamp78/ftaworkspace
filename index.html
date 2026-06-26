@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.41 locked 2026-06-26 11:45 EDT — Makes Portfolio Heatmap KR WIN/KR MET cell text visible.">v1.41 · Stable</span>
+      <span class="version-tag" title="Build version: v1.42 locked 2026-06-26 11:50 EDT — Shows only KR WIN text in Portfolio Heatmap cells.">v1.42 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3470,7 +3470,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   <div class="heatmap-body">
     <div class="legend">
       <div class="item"><div class="swatch" style="background:#92D050"></div>★ KR WIN</div>
-      <div class="item"><div class="swatch" style="background:#00B050"></div>✓ KR MET</div>
+      <div class="item"><div class="swatch" style="background:#00B050"></div>✓ KPI MET</div>
       <div class="item"><div class="swatch" style="background:#00B0F0"></div>↻ IN PROGRESS</div>
       <div class="item"><div class="swatch" style="background:#FF0000"></div>▼ REGRESSION</div>
       <div class="item"><div class="swatch" style="background:#FFFF00"></div>◆ INTENT</div>
@@ -4494,13 +4494,12 @@ function hmCellValue(k, kr) {
 
 function portfolioHeatmapStatusLabel(status) {
   if (status === "KPI WIN") return "KR WIN";
-  if (status === "KPI MET") return "KR MET";
   return status;
 }
 
 function portfolioHeatmapCellValue(status, fallbackValue) {
   const displayStatus = portfolioHeatmapStatusLabel(status);
-  if (displayStatus === "KR WIN" || displayStatus === "KR MET") {
+  if (displayStatus === "KR WIN") {
     return { val: displayStatus, isStatusLabel: true };
   }
   return { val: fallbackValue, isStatusLabel: false };
