@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.59 locked 2026-07-20 13:10 EDT — Hides cloud submit actions in Manual Mode.">v1.59 · Stable</span>
+      <span class="version-tag" title="Build version: v1.60 locked 2026-07-20 15:25 EDT — Adds Sync Now and To Do conflict protection.">v1.60 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3298,6 +3298,8 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   </span>
   <span class="spacer"></span>
   <span class="toast" id="toast" aria-live="polite" style="font-size:12px;color:var(--cp-text-muted);min-width:120px;text-align:right"></span>
+  <button class="btn secondary" id="btnSyncNow" title="Reload latest saved Workspace data from SQLite">↻ Sync Now</button>
+  <span class="badge" id="syncState" title="Save/sync status">All changes saved</span>
   <select class="btn secondary theme-select" id="themeSelect" title="Switch theme">
     <option value="light">☼ Light</option>
     <option value="dark">☾ Dark</option>
@@ -5872,8 +5874,13 @@ window.__api = (function() {
     const r = await fetch(path, opts);
     if (!r.ok) {
       let detail = r.statusText;
-      try { detail = (await r.json()).detail || detail; } catch {}
-      throw new Error(`${r.status} ${detail}`);
+      let payload = null;
+      try { payload = await r.json(); detail = payload.detail || detail; } catch {}
+      const err = new Error(`${r.status} ${typeof detail === "string" ? detail : (detail.message || r.statusText)}`);
+      err.status = r.status;
+      err.detail = detail;
+      err.payload = payload;
+      throw err;
     }
     return await r.json();
   }
@@ -6112,7 +6119,15 @@ window.__api = (function() {
     renderSidebar();
     renderContent();
     await updateCounters();
+    updateSyncState("All changes saved");
     toast("ready", "ok");
+  }
+
+  function updateSyncState(text, kind) {
+    const el = document.getElementById("syncState");
+    if (!el) return;
+    el.textContent = text;
+    el.dataset.kind = kind || "";
   }
 
   // Debounced save helpers.
@@ -6151,8 +6166,24 @@ window.__api = (function() {
     const key = `todo|${custName}|${slot}|${Object.keys(fields).join(",")}`;
     _debouncedSave(key, async () => {
       try {
-        await call("PATCH", "/api/todo", { nickname: custName, slot, fields });
-      } catch (e) { toast(`Todo save failed: ${e.message}`, "err"); }
+        updateSyncState("Saving…", "saving");
+        const rows = getTodos(custName);
+        const expected = rows?.[slot]?.updated_at || null;
+        const saved = await call("PATCH", "/api/todo", { nickname: custName, slot, fields, expected_updated_at: expected });
+        if (rows && rows[slot]) {
+          rows[slot] = { ...rows[slot], ...saved };
+        }
+        updateSyncState("All changes saved");
+      } catch (e) {
+        if (e.status === 409) {
+          updateSyncState("Conflict — reloading latest", "conflict");
+          toast("To Do changed in another session. Reloading latest saved data…", "warn");
+          await load();
+        } else {
+          updateSyncState("Save failed", "err");
+          toast(`Todo save failed: ${e.message}`, "err");
+        }
+      }
     }, 350);
   }
 
@@ -6161,6 +6192,20 @@ window.__api = (function() {
     const _spin = (btn) => { btn && btn.classList.add("spinning"); };
     const _stop = (btn) => { btn && btn.classList.remove("spinning"); };
     const refresh = document.getElementById("btnRefresh");
+    const syncNow = document.getElementById("btnSyncNow");
+    if (syncNow) syncNow.onclick = async () => {
+      syncNow.disabled = true;
+      updateSyncState("Syncing…", "syncing");
+      try {
+        await load();
+        toast("Synced latest saved data", "ok");
+      } catch (e) {
+        updateSyncState("Sync failed", "err");
+        toast("Sync failed: " + e.message, "err");
+      } finally {
+        syncNow.disabled = false;
+      }
+    };
     if (refresh) refresh.onclick = async () => {
       refresh.disabled = true;
       _telemetry("refresh");
@@ -6312,6 +6357,19 @@ window.__api = (function() {
   try {
     window.__api.wireTopbar();
     await window.__api.load();
+    setInterval(async () => {
+      try {
+        const active = document.activeElement;
+        if (active && (active.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName))) return;
+        const syncState = document.getElementById("syncState");
+        if (syncState) { syncState.textContent = "Auto-syncing…"; syncState.dataset.kind = "syncing"; }
+        await window.__api.load();
+      } catch (e) {
+        const syncState = document.getElementById("syncState");
+        if (syncState) { syncState.textContent = "Auto-sync failed"; syncState.dataset.kind = "err"; }
+        console.warn("hourly sync failed:", e);
+      }
+    }, 60 * 60 * 1000);
   } catch (e) {
     console.error(e);
     window.__api.toast("startup failed: " + e.message, "err");
