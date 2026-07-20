@@ -1960,10 +1960,10 @@ table.heatmap {
 .counter-row {
   display: grid;
   /* v0.68: 4 sections — Customers (auto), KR Status (5 tiles, 5fr),
-   * Stories (2 tiles, 2fr), Data Quality (5 tiles, 5fr). Proportions
+   * Stories (2 tiles, 2fr), To Do (1 tile, 1fr), Data Quality (5 tiles, 5fr). Proportions
    * keep tile widths roughly even across sections so nothing looks
    * cramped or stretched. */
-  grid-template-columns: auto 5fr 2fr 5fr;
+  grid-template-columns: auto 5fr 2fr 1fr 5fr;
   gap: 12px; align-items: start;
   margin: 0 24px 12px;
   padding: 0;
@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.51 locked 2026-07-20 11:45 EDT — Fixes Manual Mode IC dropdown interaction and pill labels.">v1.51 · Stable</span>
+      <span class="version-tag" title="Build version: v1.52 locked 2026-07-20 11:55 EDT — Adds To Do Actions Remain tile and standard To Dos.">v1.52 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3346,7 +3346,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
   </div>
 </section>
 
-<!-- ===== Three-section counter row (CUSTOMERS solo · KR Status · Data Quality) ===== -->
+<!-- ===== Counter row (CUSTOMERS solo · KR Status · Stories · To Do · Data Quality) ===== -->
 <section class="counter-row" id="counter-row" aria-label="Portfolio counters">
 
   <div class="counter-section solo">
@@ -3391,6 +3391,19 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
         <div class="label" title="Ideal Config Wins">IC Wins</div>
         <div class="value" id="ct-ic-wins">—</div>
         <div class="hint" id="ct-ic-hint">customers GREEN</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="counter-section">
+    <div class="section-hdr">
+      <h2>To Do</h2>
+    </div>
+    <div class="tile-grid" style="--n: 1">
+      <div class="counter accent clickable" data-tile="todo-actions" title="Titled To Do items across all customers that are not COMPLETE. Open placeholder rows are excluded.">
+        <div class="label">Actions Remain</div>
+        <div class="value" id="ct-todo-actions">—</div>
+        <div class="hint">titled not COMPLETE</div>
       </div>
     </div>
   </div>
@@ -4325,9 +4338,10 @@ const TODO_LABELS = [
   "Establish Cx Contact/QDR",
   "Initial DQ Updates (ESN, L1s, etc.)",
   "Enter PECs",
-  "Deliver Zero Trust Workshop",
+  "Zero Trust Workshop",
   "Copilot Guided Path",
-  "", "", "", "", "", "", "",  // 7 OPEN editable slots
+  "Copilot Ideal Config",
+  "", "", "", "", "", "",      // 6 OPEN editable slots
 ];
 const TODO_STATUS_OPTIONS = [
   "NOT STARTED",
@@ -4355,14 +4369,14 @@ function defaultTodos() {
 // Seed TELADOC with a few advanced statuses for the demo
 window.todosByCust = {
   "TELADOC": [
-    { label: "Field Team Outreach",              status: "COMPLETE",    notes: "Met w/ CISO 4/12; aligned on FY26 priorities" },
-    { label: "Setup Cadence w/CSAM",             status: "IN PROGRESS", notes: "Bi-weekly call scheduled; first one 6/19" },
-    { label: "Establish Cx Contact/QDR",         status: "COMPLETE",    notes: "QDR cadence locked Q1 + Q3" },
-    { label: "Initial DQ Updates (ESN, L1s, etc.)", status: "COMPLETE", notes: "ESN posted 5/30; L1 statuses cleared" },
-    { label: "Enter PECs",                       status: "IN PROGRESS", notes: "5 active, 1 just opened (IRM REQ-809848)" },
-    { label: "Deliver Zero Trust Workshop",      status: "DEFERRED",    notes: "Customer prefers Q4; sec lead on PTO" },
-    { label: "Copilot Guided Path",              status: "IN PROGRESS", notes: "Phase 1 done, planning phase 2 expansion" },
-    { label: "", status: "NOT STARTED", notes: "" },
+    { label: "Field Team Outreach",              status: "NOT STARTED", notes: "Met w/ CISO 4/12; aligned on FY26 priorities" },
+    { label: "Setup Cadence w/CSAM",             status: "NOT STARTED", notes: "Bi-weekly call scheduled; first one 6/19" },
+    { label: "Establish Cx Contact/QDR",         status: "NOT STARTED", notes: "QDR cadence locked Q1 + Q3" },
+    { label: "Initial DQ Updates (ESN, L1s, etc.)", status: "NOT STARTED", notes: "ESN posted 5/30; L1 statuses cleared" },
+    { label: "Enter PECs",                       status: "NOT STARTED", notes: "5 active, 1 just opened (IRM REQ-809848)" },
+    { label: "Zero Trust Workshop",              status: "NOT STARTED", notes: "Customer prefers Q4; sec lead on PTO" },
+    { label: "Copilot Guided Path",              status: "NOT STARTED", notes: "Phase 1 done, planning phase 2 expansion" },
+    { label: "Copilot Ideal Config",             status: "NOT STARTED", notes: "" },
     { label: "", status: "NOT STARTED", notes: "" },
     { label: "", status: "NOT STARTED", notes: "" },
     { label: "", status: "NOT STARTED", notes: "" },
@@ -4374,45 +4388,9 @@ window.todosByCust = {
 
 // Per-customer To Do state — auto-seeded with realistic mix based on KR data
 function seedTodosFor(c) {
-  const totalWins = c.krs.filter(k => k.s === "KPI WIN" || k.s === "KPI MET").length;
-  const hasActivePecs = c.krs.some(k => k.p === "Yes");
-  let outreach, cadence, qdr, dq, pecs, ztw, cgp;
-  if (totalWins >= 8) {
-    outreach = "COMPLETE"; cadence = "IN PROGRESS"; qdr = "COMPLETE";
-    dq = "COMPLETE"; pecs = "IN PROGRESS"; ztw = "DEFERRED"; cgp = "IN PROGRESS";
-  } else if (totalWins >= 4) {
-    outreach = "COMPLETE"; cadence = "IN PROGRESS"; qdr = "IN PROGRESS";
-    dq = "IN PROGRESS"; pecs = hasActivePecs ? "IN PROGRESS" : "NOT STARTED";
-    ztw = "NOT STARTED"; cgp = "IN PROGRESS";
-  } else {
-    outreach = "IN PROGRESS"; cadence = "NOT STARTED"; qdr = "NOT STARTED";
-    dq = "IN PROGRESS"; pecs = "NOT STARTED"; ztw = "NOT STARTED"; cgp = "NOT STARTED";
-  }
-  const pecCount = c.krs.filter(k => k.p === "Yes").length;
-  const notes = [
-    outreach === "COMPLETE" ? "Sponsor named; quarterly cadence set" : "Initial outreach in flight",
-    cadence === "IN PROGRESS" ? "Bi-weekly call scheduled" : (cadence === "COMPLETE" ? "Cadence active w/CSAM" : "Need to align with CSAM"),
-    qdr === "COMPLETE" ? "QDR cadence locked Q1 + Q3" : (qdr === "IN PROGRESS" ? "Q3 QDR being scheduled" : "Targeting Q3 QDR"),
-    dq === "COMPLETE" ? "ESN posted; L1 statuses cleared" : (dq === "IN PROGRESS" ? "ESN drafting in progress" : "ESN due this cycle"),
-    hasActivePecs ? `${pecCount} active PEC${pecCount === 1 ? "" : "s"}` : "No active PECs yet",
-    ztw === "DEFERRED" ? "Customer prefers later this FY" : "Pending customer schedule",
-    cgp === "IN PROGRESS" ? "Phase 1 underway" : "Awaiting kickoff",
-  ];
   return [
-    { label: TODO_LABELS[0], status: outreach, notes: notes[0] },
-    { label: TODO_LABELS[1], status: cadence,  notes: notes[1] },
-    { label: TODO_LABELS[2], status: qdr,      notes: notes[2] },
-    { label: TODO_LABELS[3], status: dq,       notes: notes[3] },
-    { label: TODO_LABELS[4], status: pecs,     notes: notes[4] },
-    { label: TODO_LABELS[5], status: ztw,      notes: notes[5] },
-    { label: TODO_LABELS[6], status: cgp,      notes: notes[6] },
-    { label: "", status: "NOT STARTED", notes: "" },
-    { label: "", status: "NOT STARTED", notes: "" },
-    { label: "", status: "NOT STARTED", notes: "" },
-    { label: "", status: "NOT STARTED", notes: "" },
-    { label: "", status: "NOT STARTED", notes: "" },
-    { label: "", status: "NOT STARTED", notes: "" },
-    { label: "", status: "NOT STARTED", notes: "" },
+    ...TODO_LABELS.slice(0, 8).map(label => ({ label, status: "NOT STARTED", notes: "" })),
+    ...TODO_LABELS.slice(8).map(label => ({ label, status: "NOT STARTED", notes: "" })),
   ];
 }
 
@@ -4428,7 +4406,7 @@ function renderTodos(custName) {
   const todos = getTodos(custName);
   const openCount = todos.filter(t => t.status === "IN PROGRESS" || t.status === "BLOCKED").length;
   const rows = todos.map((t, i) => {
-    const isOpen = i >= 7;  // last 7 rows are user-editable label slots
+    const isOpen = i >= 8;  // last 6 rows are user-editable label slots
     return `
       <tr>
         <td style="width: 240px">
@@ -4446,6 +4424,19 @@ function renderTodos(custName) {
   }).join('');
 
   return { rows, openCount };
+}
+
+function titledTodoActionsRemain() {
+  if (!window.todosByCust) return 0;
+  let total = 0;
+  for (const rows of Object.values(window.todosByCust)) {
+    (rows || []).forEach(t => {
+      const label = String(t.label || "").trim();
+      if (!label || /^OPEN\b/i.test(label)) return;
+      if ((t.status || "NOT STARTED") !== "COMPLETE") total++;
+    });
+  }
+  return total;
 }
 const KR_THRESHOLDS = [
   "≥40%",      // M365 Copilot
@@ -5726,6 +5717,7 @@ document.addEventListener("change", e => {
     const openCount = todos.filter(t => t.status === "IN PROGRESS" || t.status === "BLOCKED").length;
     const badge = document.querySelector("#todoCard .count");
     if (badge) badge.textContent = openCount + " open";
+    if (typeof _flashCounter === "function") _flashCounter("#ct-todo-actions", titledTodoActionsRemain());
     return;
   }
 });
@@ -5830,6 +5822,7 @@ document.addEventListener("blur", e => {
     // If cleared, normalize so :empty::before placeholder kicks in (browsers
     // leave stray <br> nodes behind that block :empty matching).
     if (trimmed === "") e.target.innerHTML = "";
+    if (typeof _flashCounter === "function") _flashCounter("#ct-todo-actions", titledTodoActionsRemain());
     if (window.__api) window.__api.saveTodo(custName, todoIdx, { [field]: trimmed });
     return;
   }
@@ -5931,10 +5924,29 @@ window.__api = (function() {
       const rows = TODO_DEFAULT.slice();
       for (const t of (c._todos || [])) {
         const i = t.slot;
-        if (i >= 0 && i < rows.length) rows[i] = { label: t.label, status: t.status, notes: t.notes };
+        if (i >= 0 && i < rows.length) {
+          if (i < 8) {
+            rows[i] = { label: TODO_LABELS[i], status: "NOT STARTED", notes: t.notes || "" };
+          } else {
+            rows[i] = { label: t.label || "", status: t.status || "NOT STARTED", notes: t.notes || "" };
+          }
+        }
       }
       window.todosByCust[c.n] = rows;
     }
+  }
+
+  function titledTodoActionsRemain() {
+    if (!window.todosByCust) return 0;
+    let total = 0;
+    for (const rows of Object.values(window.todosByCust)) {
+      (rows || []).forEach((t, i) => {
+        const label = String(t.label || "").trim();
+        if (!label || /^OPEN\b/i.test(label)) return;
+        if ((t.status || "NOT STARTED") !== "COMPLETE") total++;
+      });
+    }
+    return total;
   }
 
   function updateMeta(meta) {
@@ -6064,6 +6076,7 @@ window.__api = (function() {
       _flashCounter('#ct-dq-l1-no-engstart',   c.data_quality.l1_ip_without_engagement_start);
       _flashCounter('#ct-dq-l1-no-target',     c.data_quality.l1_ip_without_target_date);
       _flashCounter('#ct-dq-l1-blocked-late',  c.data_quality.l1_blocked_next_action_late);
+      _flashCounter('#ct-todo-actions',        titledTodoActionsRemain());
       // Mark first-load complete so subsequent refreshes flash on changes.
       _counterFirstLoad = false;
     } catch (e) { console.warn("counter fetch failed:", e); }
@@ -6271,6 +6284,7 @@ window.__api = (function() {
       const custName = e.target.dataset.cust;
       const todoIdx = parseInt(e.target.dataset.todo, 10);
       saveTodo(custName, todoIdx, { status: e.target.value });
+      if (typeof _flashCounter === "function") _flashCounter("#ct-todo-actions", titledTodoActionsRemain());
       return;
     }
   });
@@ -10592,7 +10606,7 @@ window.__cartLogModal = (function () {
     margin-bottom: 12px !important;
   }
   body.manual-mode .counter-row {
-    grid-template-columns: 170px 508px 260px !important;
+    grid-template-columns: 170px 508px 260px 130px !important;
     margin-top: 0 !important;
     justify-content: start !important;
   }
@@ -10616,10 +10630,20 @@ window.__cartLogModal = (function () {
     width: 260px !important;
     max-width: 260px !important;
   }
+  body.manual-mode .counter-section:has(#ct-todo-actions) {
+    width: 130px !important;
+    max-width: 130px !important;
+  }
   body.manual-mode .counter-section:has(#ct-sp-wins) .tile-grid {
     grid-template-columns: repeat(2, 112px) !important;
   }
   body.manual-mode .counter-section:has(#ct-sp-wins) .counter {
+    width: 112px !important;
+  }
+  body.manual-mode .counter-section:has(#ct-todo-actions) .tile-grid {
+    grid-template-columns: 112px !important;
+  }
+  body.manual-mode .counter-section:has(#ct-todo-actions) .counter {
     width: 112px !important;
   }
   body.manual-mode .manual-story-pill-row {
