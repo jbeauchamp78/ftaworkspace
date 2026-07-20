@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.46 locked 2026-07-20 11:05 EDT — Adds integrated Manual Mode toggle.">v1.46 · Stable</span>
+      <span class="version-tag" title="Build version: v1.47 locked 2026-07-20 11:20 EDT — Refines integrated Manual Mode counters, PECs, IC, and Guided Path.">v1.47 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -10656,6 +10656,32 @@ window.__cartLogModal = (function () {
     color: var(--cp-text);
     resize: vertical;
   }
+  .manual-ic-status.status-green {
+    background: rgba(22, 163, 74, 0.16);
+    border-color: var(--cp-success);
+    color: var(--cp-text);
+  }
+  .manual-ic-status.status-yellow {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: var(--cp-warning);
+    color: var(--cp-text);
+  }
+  .manual-ic-status.status-red {
+    background: rgba(220, 38, 38, 0.14);
+    border-color: var(--cp-danger);
+    color: var(--cp-text);
+  }
+  .manual-ic-status.status-na {
+    background: var(--cp-surface-soft);
+    border-color: var(--cp-border-strong);
+    color: var(--cp-text-muted);
+  }
+  .manual-pec-row {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 8px;
+    align-items: start;
+  }
   .manual-entry-backdrop {
     position: fixed;
     inset: 0;
@@ -10838,6 +10864,7 @@ window.__cartLogModal = (function () {
     modalSave = null;
   }
   function openEntry(type) {
+    if (type === "pec") return openPecModal();
     const label = entryTypes[type] || type;
     const name = custKey();
     openModal(`${label} · ${name}`, `
@@ -10876,6 +10903,10 @@ window.__cartLogModal = (function () {
   }
   function totalIcWins() {
     return allManualCustomerNames().filter(icWinFor).length;
+  }
+  function icGreenCount(name) {
+    const ic = (manualStore[name] || {}).ic || {};
+    return manualIcItems.filter(item => ic[item]?.status === "Green").length;
   }
   function demoTileCount(tile) {
     try {
@@ -10931,9 +10962,9 @@ window.__cartLogModal = (function () {
   function updateManualCounters() {
     if (!manualEnabled()) return;
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    set("ct-kr-wins", demoTileCount("kr-wins") + totalFor("kr"));
-    set("ct-kpi-wins", demoTileCount("kpi-wins") + totalFor("kpi"));
-    set("ct-kpi-regr", demoTileCount("regressions") + totalFor("regression"));
+    set("ct-kr-wins", 0);
+    set("ct-kpi-wins", 0);
+    set("ct-kpi-regr", 0);
     set("ct-ic-wins", totalIcWins());
     set("ct-sp-wins", totalFor("spotlight"));
     set("ct-insights", totalFor("insight"));
@@ -10958,6 +10989,21 @@ window.__cartLogModal = (function () {
       if (found[1] === "pec") chip.innerHTML = `PECs ${countFor(name, "pec")} manual`;
       if (found[1] === "insight") chip.innerHTML = `💡 ${countFor(name, "insight")} insights`;
     });
+    const icBadge = document.getElementById("icHealthBadge");
+    if (icBadge) {
+      const green = icGreenCount(name);
+      icBadge.textContent = `IC ${green}/10`;
+      icBadge.title = "Manual Copilot Ideal Config progress";
+      icBadge.className = `csl-chip ic-health ${green === 10 ? "ic-health-green ic-health-perfect" : green > 0 ? "ic-health-yellow" : "ic-health-unknown"}`;
+      icBadge.onclick = e => {
+        e.stopPropagation();
+        const card = document.getElementById("icCard");
+        if (card) {
+          card.classList.remove("collapsed");
+          card.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      };
+    }
     if (!document.getElementById("manualInsightPill")) {
       const row = document.querySelector(".pill-row, .csl-pill-row, .customer-status-line");
       if (row) {
@@ -10970,6 +11016,40 @@ window.__cartLogModal = (function () {
         row.appendChild(b);
       }
     }
+  }
+  function openPecModal() {
+    const name = custKey();
+    const existing = (custStore(name).entries || []).filter(e => e.type === "pec");
+    const count = Math.max(existing.length || 1, 1);
+    const rows = (n) => Array.from({ length: n }, (_, i) => {
+      const row = existing[i] || {};
+      return `<div class="manual-pec-row" data-pec-row="${i}">
+        <label>Workload ${i + 1}<input id="pecWorkload${i}" value="${esc(row.workload || row.title || "")}" placeholder="e.g. M365 Copilot" /></label>
+        <label>Details ${i + 1}<textarea id="pecDetails${i}" placeholder="Stage, ticket, owner, notes">${esc(row.notes || "")}</textarea></label>
+      </div>`;
+    }).join("");
+    openModal(`PECs · ${name}`, `
+      <label>How many PECs?<input id="pecCount" type="number" min="0" max="25" value="${count}" /></label>
+      <div id="pecRows">${rows(count)}</div>
+    `, () => {
+      const s = custStore(name);
+      const n = Math.max(0, Math.min(25, Number(document.getElementById("pecCount").value || 0)));
+      s.entries = (s.entries || []).filter(e => e.type !== "pec");
+      for (let i = 0; i < n; i++) {
+        const workload = document.getElementById(`pecWorkload${i}`)?.value.trim() || `PEC ${i + 1}`;
+        const notes = document.getElementById(`pecDetails${i}`)?.value.trim() || "";
+        s.entries.push({ type: "pec", label: "PEC", title: workload, workload, notes, date: new Date().toISOString().slice(0, 10) });
+      }
+      writeStore();
+      closeModal();
+      applyManualMode();
+      showToast("PECs updated");
+    });
+    const input = document.getElementById("pecCount");
+    input.oninput = () => {
+      const n = Math.max(0, Math.min(25, Number(input.value || 0)));
+      document.getElementById("pecRows").innerHTML = rows(n);
+    };
   }
   function restoreFtaNotes() {
     if (!manualEnabled()) return;
@@ -10994,15 +11074,21 @@ window.__cartLogModal = (function () {
     s.ic = s.ic || {};
     if (empty) empty.style.display = "none";
     table.style.display = "";
+    const headRow = table.querySelector("thead tr");
+    if (headRow) {
+      headRow.innerHTML = `
+        <th style="width: 260px">Setting / Workload</th>
+        <th style="width: 130px">Status</th>
+        <th style="min-width: 240px">Notes</th>`;
+    }
     const options = ["Unknown", "Green", "Yellow", "Red", "N/A"];
     body.innerHTML = manualIcItems.map((item, idx) => {
       const row = s.ic[item] || { status: "Unknown", notes: "" };
       return `<tr>
         <td>${esc(item)}</td>
-        <td><select class="manual-ic-status" data-manual-ic="${idx}" data-field="status">
+        <td><select class="manual-ic-status ${statusClass(row.status)}" data-manual-ic="${idx}" data-field="status">
           ${options.map(o => `<option value="${o}"${row.status === o ? " selected" : ""}>${o}</option>`).join("")}
         </select></td>
-        <td>${esc(row.status || "Unknown")}</td>
         <td><textarea class="manual-ic-note" data-manual-ic="${idx}" data-field="notes" placeholder="Manual IC note">${esc(row.notes || "")}</textarea></td>
       </tr>`;
     }).join("");
@@ -11011,15 +11097,28 @@ window.__cartLogModal = (function () {
     const source = document.getElementById("icSourceBadge");
     if (source) source.textContent = "source: manual";
     body.querySelectorAll("[data-manual-ic]").forEach(el => {
+      el.onclick = e => e.stopPropagation();
       el.onchange = el.oninput = () => {
         const item = manualIcItems[Number(el.dataset.manualIc)];
         s.ic[item] = s.ic[item] || { status: "Unknown", notes: "" };
         s.ic[item][el.dataset.field] = el.value;
         writeStore();
         updateManualCounters();
-        if (el.dataset.field === "status") renderManualIdealConfig();
+        if (el.dataset.field === "status") {
+          el.className = `manual-ic-status ${statusClass(el.value)}`;
+          const row = el.closest("tr");
+          if (row) row.querySelector("td:first-child");
+        }
       };
     });
+  }
+  function statusClass(status) {
+    const s = String(status || "").toLowerCase();
+    if (s === "green" || s === "complete") return "status-green";
+    if (s === "yellow" || s === "in progress" || s === "deferred") return "status-yellow";
+    if (s === "red" || s === "blocked") return "status-red";
+    if (s === "n/a") return "status-na";
+    return "";
   }
   function manualizeHeatmap() {
     if (!manualEnabled()) return;
@@ -11068,13 +11167,12 @@ window.__cartLogModal = (function () {
     s.guidedPath = s.guidedPath || {};
     const options = ["Not Started", "In Progress", "Complete", "Blocked", "Deferred", "N/A"];
     sec.innerHTML = `
-      <div class="ic-hdr" role="button" tabindex="0"><span class="chev">▼</span><h3>Copilot Guided Path</h3><span class="epoch-badge">FY27 Q1</span><span class="spacer"></span><span class="ic-source">manual</span></div>
+      <div class="ic-hdr" role="button" tabindex="0"><span class="chev">▼</span><h3>Copilot Guided Path <span class="section-epoch-badge">FY27 Q1</span></h3><span class="spacer"></span><span class="ic-source">manual</span></div>
       <div class="ic-body">
         <table class="kr-table ic-table">
           <thead><tr>
             <th style="width: 260px">Journey Point</th>
             <th style="width: 130px">Status</th>
-            <th style="width: 110px">Current</th>
             <th style="min-width: 240px">Notes</th>
           </tr></thead>
           <tbody>
@@ -11082,10 +11180,9 @@ window.__cartLogModal = (function () {
               const row = s.guidedPath[x] || { status: "Not Started", notes: "" };
               return `<tr>
                 <td>${i + 1}. ${esc(x)}</td>
-                <td><select class="manual-ic-status" data-gp="${i}" data-field="status">
+                <td><select class="manual-ic-status ${statusClass(row.status)}" data-gp="${i}" data-field="status">
                   ${options.map(v => `<option value="${v}"${row.status === v ? " selected" : ""}>${v}</option>`).join("")}
                 </select></td>
-                <td>${esc(row.status || "Not Started")}</td>
                 <td><textarea class="manual-ic-note" data-gp="${i}" data-field="notes" placeholder="Manual Guided Path note">${esc(row.notes || "")}</textarea></td>
               </tr>`;
             }).join("")}
@@ -11096,15 +11193,14 @@ window.__cartLogModal = (function () {
     else parent.appendChild(sec);
     sec.querySelector(".ic-hdr").onclick = () => { sec.classList.toggle("collapsed"); };
     sec.querySelectorAll("[data-gp]").forEach(el => {
+      el.onclick = e => e.stopPropagation();
       el.onchange = el.oninput = () => {
         const item = guidedPath[Number(el.dataset.gp)];
         s.guidedPath[item] = s.guidedPath[item] || { status: "Not Started", notes: "" };
         s.guidedPath[item][el.dataset.field] = el.value;
         writeStore();
         if (el.dataset.field === "status") {
-          document.getElementById("manualGuidedPath")?.remove();
-          addGuidedPath();
-          collapseManualSectionsByDefault();
+          el.className = `manual-ic-status ${statusClass(el.value)}`;
         }
       };
     });
