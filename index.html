@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.56 locked 2026-07-20 12:25 EDT — Aligns To Do header count with Actions Remain and fixes N/A contrast.">v1.56 · Stable</span>
+      <span class="version-tag" title="Build version: v1.57 locked 2026-07-20 12:35 EDT — Updates To Do pill when titles are added or removed.">v1.57 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -5834,6 +5834,8 @@ document.addEventListener("blur", e => {
     // If cleared, normalize so :empty::before placeholder kicks in (browsers
     // leave stray <br> nodes behind that block :empty matching).
     if (trimmed === "") e.target.innerHTML = "";
+    const badge = document.querySelector("#todoCard .count");
+    if (badge) badge.textContent = todoActionsRemainFor(custName) + " open";
     if (typeof _flashCounter === "function") _flashCounter("#ct-todo-actions", titledTodoActionsRemain());
     if (window.__api) window.__api.saveTodo(custName, todoIdx, { [field]: trimmed });
     return;
