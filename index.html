@@ -1503,7 +1503,7 @@ table.kr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .todo-status.complete   { background-color: #00B050; color: #ffffff; }
 .todo-status.blocked    { background-color: #FF0000; color: #ffffff; }
 .todo-status.deferred   { background-color: #BFBFBF; color: #1f1f1f; }
-.todo-status.na         { background-color: #000000; color: #000000; border-color: var(--cp-border); }
+.todo-status.na         { background-color: #000000; color: #ffffff; border-color: var(--cp-border); }
 .todo-status option { background: var(--cp-surface); color: var(--cp-text); font-weight: 500; }
 
 /* AI recommendations card */
@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.55 locked 2026-07-20 12:20 EDT — Counts COMPLETE and N/A To Dos as done for Actions Remain.">v1.55 · Stable</span>
+      <span class="version-tag" title="Build version: v1.56 locked 2026-07-20 12:25 EDT — Aligns To Do header count with Actions Remain and fixes N/A contrast.">v1.56 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4036,7 +4036,7 @@ function renderContent() {
       <div class="todo-hdr" onclick="if (event.target.tagName !== 'BUTTON') document.getElementById('todoCard').classList.toggle('collapsed')">
         <span class="chev">▼</span>
         <h3>To Do</h3>
-        <span class="count">${(() => { const r = renderTodos(c.n); return r.openCount; })()} open</span>
+        <span class="count">${todoActionsRemainFor(c.n)} open</span>
         <span class="spacer"></span>
       </div>
       <div class="todo-body">
@@ -4404,7 +4404,7 @@ function getTodos(custName) {
 
 function renderTodos(custName) {
   const todos = getTodos(custName);
-  const openCount = todos.filter(t => t.status === "IN PROGRESS" || t.status === "BLOCKED").length;
+  const openCount = todoActionsRemainFor(custName);
   const rows = todos.map((t, i) => {
     const isOpen = i >= 8;  // last 6 rows are user-editable label slots
     return `
@@ -4424,6 +4424,18 @@ function renderTodos(custName) {
   }).join('');
 
   return { rows, openCount };
+}
+
+function todoActionsRemainFor(custName) {
+  const todos = getTodos(custName);
+  let total = 0;
+  (todos || []).forEach(t => {
+    const label = String(t.label || "").trim();
+    if (!label || /^OPEN\b/i.test(label)) return;
+    const status = t.status || "NOT STARTED";
+    if (status !== "COMPLETE" && status !== "N/A") total++;
+  });
+  return total;
 }
 
 function titledTodoActionsRemain() {
@@ -5714,10 +5726,9 @@ document.addEventListener("change", e => {
     todos[todoIdx].status = e.target.value;
     // Just restyle the changed select rather than full re-render
     e.target.className = "todo-status " + todoStatusClass(e.target.value);
-    // Update the open count badge
-    const openCount = todos.filter(t => t.status === "IN PROGRESS" || t.status === "BLOCKED").length;
+    // Update the open count badge using the same logic as Actions Remain.
     const badge = document.querySelector("#todoCard .count");
-    if (badge) badge.textContent = openCount + " open";
+    if (badge) badge.textContent = todoActionsRemainFor(custName) + " open";
     if (typeof _flashCounter === "function") _flashCounter("#ct-todo-actions", titledTodoActionsRemain());
     return;
   }
