@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.54 locked 2026-07-20 12:15 EDT — Aligns To Do tile spacing with Stories.">v1.54 · Stable</span>
+      <span class="version-tag" title="Build version: v1.55 locked 2026-07-20 12:20 EDT — Counts COMPLETE and N/A To Dos as done for Actions Remain.">v1.55 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3422,7 +3422,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
       <h2>To Do</h2>
     </div>
     <div class="tile-grid" style="--n: 1">
-      <div class="counter accent clickable" data-tile="todo-actions" title="Titled To Do items across all customers that are not COMPLETE. Open placeholder rows are excluded.">
+      <div class="counter accent clickable" data-tile="todo-actions" title="Titled To Do items across all customers that are not COMPLETE or N/A. Open placeholder rows are excluded.">
         <div class="label">Actions Remain</div>
         <div class="value" id="ct-todo-actions">—</div>
         <div class="hint">not complete</div>
@@ -4433,7 +4433,8 @@ function titledTodoActionsRemain() {
     (rows || []).forEach(t => {
       const label = String(t.label || "").trim();
       if (!label || /^OPEN\b/i.test(label)) return;
-      if ((t.status || "NOT STARTED") !== "COMPLETE") total++;
+      const status = t.status || "NOT STARTED";
+      if (status !== "COMPLETE" && status !== "N/A") total++;
     });
   }
   return total;
@@ -5943,7 +5944,8 @@ window.__api = (function() {
       (rows || []).forEach((t, i) => {
         const label = String(t.label || "").trim();
         if (!label || /^OPEN\b/i.test(label)) return;
-        if ((t.status || "NOT STARTED") !== "COMPLETE") total++;
+        const status = t.status || "NOT STARTED";
+        if (status !== "COMPLETE" && status !== "N/A") total++;
       });
     }
     return total;
