@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.58 locked 2026-07-20 13:00 EDT — Persists Manual Mode data in shared SQLite.">v1.58 · Stable</span>
+      <span class="version-tag" title="Build version: v1.59 locked 2026-07-20 13:10 EDT — Hides cloud submit actions in Manual Mode.">v1.59 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -10613,6 +10613,10 @@ window.__cartLogModal = (function () {
   body.manual-mode .counter-section:has(#ct-dq-esn),
   body.manual-mode .rec-actions-card,
   body.manual-mode .cust-row .miss,
+  body.manual-mode .cust-insight-btn,
+  body.manual-mode .cust-submit-pec-btn,
+  body.manual-mode .cust-submit-spotlight-btn,
+  body.manual-mode .cust-submit-esn-btn,
   body.manual-mode .cust-action-item#btnSyncSpotlights,
   body.manual-mode .cust-action-item#btnSyncInsights {
     display: none !important;
