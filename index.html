@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.45 locked 2026-06-26 16:15 EDT — Caches Data Quality row lists and serves dropdowns from cache.">v1.45 · Stable</span>
+      <span class="version-tag" title="Build version: v1.46 locked 2026-07-20 11:05 EDT — Adds integrated Manual Mode toggle.">v1.46 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -10559,6 +10559,629 @@ window.__cartLogModal = (function () {
 
   // Browser regaining network is a great moment to re-probe
   window.addEventListener("online", () => probe().then(schedule));
+})();
+</script>
+<style id="manualModeStyles">
+  #btnManualMode.manual-on {
+    background: var(--cp-accent);
+    border-color: var(--cp-accent);
+    color: var(--cp-accent-fg);
+  }
+  body.manual-mode #btnCart,
+  body.manual-mode #btnRefresh,
+  body.manual-mode #btnWorkspaceFeedback,
+  body.manual-mode #cartInlinePanel,
+  body.manual-mode #aichatSection,
+  body.manual-mode #heatmapSection,
+  body.manual-mode #missingSkillsBanner,
+  body.manual-mode #btnRefreshRoster,
+  body.manual-mode #btnRefreshKR,
+  body.manual-mode #btnRefreshStories,
+  body.manual-mode #btnRefreshDQ,
+  body.manual-mode #btnRefreshCustomer,
+  body.manual-mode #btnHeatmapFtbiSync,
+  body.manual-mode .counter[data-tile="missing-pecs"],
+  body.manual-mode .counter-section:has(#ct-dq-esn),
+  body.manual-mode .rec-actions-card,
+  body.manual-mode .cust-row .miss,
+  body.manual-mode .cust-action-item#btnSyncSpotlights,
+  body.manual-mode .cust-action-item#btnSyncInsights {
+    display: none !important;
+  }
+  body.manual-mode .topbar {
+    margin-bottom: 12px !important;
+  }
+  body.manual-mode .counter-row {
+    grid-template-columns: 170px 670px 260px !important;
+    margin-top: 0 !important;
+    justify-content: start !important;
+  }
+  body.manual-mode .counter-section.solo,
+  body.manual-mode .counter-row .counter.solo-customers {
+    width: 170px !important;
+    min-width: 170px !important;
+    max-width: 170px !important;
+  }
+  body.manual-mode .counter-section:has(#ct-kr-wins) {
+    width: 670px !important;
+    max-width: 670px !important;
+  }
+  body.manual-mode .counter-section:has(#ct-kr-wins) .tile-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+  body.manual-mode .counter-section:has(#ct-kr-wins) .counter {
+    width: auto !important;
+  }
+  body.manual-mode .counter-section:has(#ct-sp-wins) {
+    width: 260px !important;
+    max-width: 260px !important;
+  }
+  body.manual-mode .counter-row .section-hdr .src,
+  body.manual-mode .counter-row .section-hdr .hdr-right {
+    display: none !important;
+  }
+  body.manual-mode .topbar .meta .tb-row:has(#midasSnap),
+  body.manual-mode .topbar .meta .tb-row:has(#lastRefresh) {
+    display: none !important;
+  }
+  .manual-add-customer {
+    margin-left: 6px;
+    padding: 2px 7px;
+    height: 22px;
+    line-height: 18px;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .sidebar-hdr #manualAddCustomer {
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+  .manual-ic-status {
+    width: 124px;
+    border: 1px solid var(--cp-border);
+    border-radius: 8px;
+    padding: 5px 8px;
+    background: var(--cp-surface);
+    color: var(--cp-text);
+  }
+  .manual-ic-note {
+    width: 100%;
+    min-height: 34px;
+    border: 1px solid var(--cp-border);
+    border-radius: 8px;
+    padding: 6px 8px;
+    background: var(--cp-surface);
+    color: var(--cp-text);
+    resize: vertical;
+  }
+  .manual-entry-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--cp-overlay);
+  }
+  .manual-entry-backdrop.show { display: flex; }
+  .manual-entry-modal {
+    width: min(560px, 92vw);
+    background: var(--cp-surface);
+    border: 1px solid var(--cp-border);
+    border-radius: 16px;
+    box-shadow: var(--cp-shadow);
+    overflow: hidden;
+  }
+  .manual-entry-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--cp-border);
+    background: var(--cp-surface);
+  }
+  .manual-entry-head h3 { margin: 0; font-size: 16px; }
+  .manual-entry-body { padding: 16px; display: grid; gap: 10px; background: var(--cp-surface); }
+  .manual-entry-body label { display: grid; gap: 4px; color: var(--cp-text-muted); font-size: 12px; font-weight: 600; }
+  .manual-entry-body input,
+  .manual-entry-body textarea,
+  .manual-entry-body select {
+    width: 100%;
+    border: 1px solid var(--cp-border);
+    border-radius: 0.625rem;
+    padding: 8px 10px;
+    background: var(--cp-surface);
+    color: var(--cp-text);
+  }
+  .manual-entry-body textarea { min-height: 80px; resize: vertical; }
+  .manual-entry-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--cp-border);
+    background: var(--cp-surface);
+  }
+  .manual-entry-backdrop .close {
+    background: var(--cp-surface-soft);
+    border: 1px solid var(--cp-border);
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    line-height: 20px;
+    font-size: 14px;
+  }
+  body.manual-mode .def-modal-backdrop .def-modal,
+  body.manual-mode .sp-draft-modal,
+  body.manual-mode .hm-editor,
+  body.manual-mode .cart-panel,
+  body.manual-mode .manual-entry-modal {
+    background: var(--cp-surface) !important;
+  }
+</style>
+<script id="manualModeIntegration">
+(function () {
+  const MODE_KEY = "fta-workspace-manual-mode-enabled";
+  const STORE_KEY = "fta-workspace-manual-mode-data-v1";
+  const MANUAL_VERSION_SUFFIX = "Manual";
+  const entryTypes = {
+    kr: "KR WIN",
+    kpi: "KPI WIN",
+    regression: "KPI REGRESSION",
+    spotlight: "Spotlight",
+    pec: "PEC",
+    insight: "Insight"
+  };
+  const manualIcItems = [
+    "Copilot license assignment",
+    "Teams app enabled",
+    "Office app update channel ready",
+    "Microsoft 365 Copilot Chat enabled",
+    "Graph connectors governance reviewed",
+    "SharePoint oversharing reviewed",
+    "Sensitivity labels available",
+    "Audit signals available",
+    "Web content access reviewed",
+    "Copilot extensibility governance reviewed"
+  ];
+  const guidedPath = [
+    "Kickoff",
+    "Copilot Foundations",
+    "Analytics for M365 Copilot",
+    "Copilot User Enablement",
+    "Agent Enablement",
+    "Agent Governance",
+    "Analytics for Agents",
+    "Agent Design & Development"
+  ];
+  let modalSave = null;
+  let manualStore = readStore();
+  let applying = false;
+
+  function manualEnabled() {
+    return localStorage.getItem(MODE_KEY) === "1";
+  }
+  function readStore() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); }
+    catch { return {}; }
+  }
+  function writeStore() {
+    localStorage.setItem(STORE_KEY, JSON.stringify(manualStore));
+  }
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+  function custKey() {
+    return window.activeCust || document.querySelector(".cust-row.active .nick")?.textContent?.trim() || "manual";
+  }
+  function custStore(name = custKey()) {
+    manualStore[name] = manualStore[name] || { entries: [], ftaNotes: "", heatmap: {}, ic: {}, guidedPath: {}, manualCustomer: false };
+    return manualStore[name];
+  }
+  function showToast(msg) {
+    if (typeof toast === "function") toast(msg, "ok");
+    else {
+      const t = document.getElementById("toast");
+      if (t) t.textContent = msg;
+    }
+  }
+  function ensureToggle() {
+    if (document.getElementById("btnManualMode")) return;
+    const btn = document.createElement("button");
+    btn.id = "btnManualMode";
+    btn.className = "btn secondary";
+    btn.title = "Toggle Manual Mode";
+    btn.onclick = () => {
+      localStorage.setItem(MODE_KEY, manualEnabled() ? "0" : "1");
+      location.reload();
+    };
+    const theme = document.getElementById("themeSelect");
+    if (theme?.parentElement) theme.parentElement.insertBefore(btn, theme);
+  }
+  function syncToggle() {
+    const btn = document.getElementById("btnManualMode");
+    if (!btn) return;
+    const on = manualEnabled();
+    btn.classList.toggle("manual-on", on);
+    btn.textContent = on ? "Manual Mode" : "Manual Mode";
+    btn.title = on ? "Manual Mode is ON - click to return to integrated mode" : "Manual Mode is OFF - click to disable cloud/Scout integration surfaces";
+  }
+  function ensureModal() {
+    if (document.getElementById("manualEntryBackdrop")) return;
+    const back = document.createElement("div");
+    back.id = "manualEntryBackdrop";
+    back.className = "manual-entry-backdrop";
+    back.innerHTML = `
+      <div class="manual-entry-modal">
+        <div class="manual-entry-head"><h3 id="manualEntryTitle">Manual entry</h3><button class="close" id="manualEntryClose">×</button></div>
+        <div class="manual-entry-body" id="manualEntryBody"></div>
+        <div class="manual-entry-actions"><button class="btn secondary" id="manualEntryCancel">Cancel</button><button class="btn" id="manualEntrySave">Save</button></div>
+      </div>`;
+    document.body.appendChild(back);
+    document.getElementById("manualEntryClose").onclick = closeModal;
+    document.getElementById("manualEntryCancel").onclick = closeModal;
+    document.getElementById("manualEntrySave").onclick = () => modalSave && modalSave();
+    back.addEventListener("click", e => { if (e.target === back) closeModal(); });
+  }
+  function openModal(title, body, onSave) {
+    ensureModal();
+    document.getElementById("manualEntryTitle").textContent = title;
+    document.getElementById("manualEntryBody").innerHTML = body;
+    modalSave = onSave;
+    document.getElementById("manualEntryBackdrop").classList.add("show");
+  }
+  function closeModal() {
+    const back = document.getElementById("manualEntryBackdrop");
+    if (back) back.classList.remove("show");
+    modalSave = null;
+  }
+  function openEntry(type) {
+    const label = entryTypes[type] || type;
+    const name = custKey();
+    openModal(`${label} · ${name}`, `
+      <label>Title<input id="manualTitle" placeholder="${label}" /></label>
+      <label>Date<input id="manualDate" type="date" value="${new Date().toISOString().slice(0, 10)}" /></label>
+      <label>Notes<textarea id="manualNotes" placeholder="Manual evidence, context, link, or next step"></textarea></label>
+    `, () => {
+      const s = custStore(name);
+      s.entries.push({
+        type,
+        label,
+        title: document.getElementById("manualTitle").value.trim() || label,
+        date: document.getElementById("manualDate").value,
+        notes: document.getElementById("manualNotes").value.trim()
+      });
+      writeStore();
+      closeModal();
+      applyManualMode();
+      showToast(`${label} added`);
+    });
+  }
+  function countFor(name, type) {
+    return ((manualStore[name] || {}).entries || []).filter(e => e.type === type).length;
+  }
+  function allManualCustomerNames() {
+    const names = new Set(Object.keys(manualStore));
+    (window.CUSTOMERS || []).forEach(c => names.add(c.n));
+    return [...names].filter(Boolean);
+  }
+  function totalFor(type) {
+    return allManualCustomerNames().reduce((n, k) => n + countFor(k, type), 0);
+  }
+  function icWinFor(name) {
+    const ic = (manualStore[name] || {}).ic || {};
+    return manualIcItems.length > 0 && manualIcItems.every(item => ic[item]?.status === "Green");
+  }
+  function totalIcWins() {
+    return allManualCustomerNames().filter(icWinFor).length;
+  }
+  function demoTileCount(tile) {
+    try {
+      if (typeof getDrillItems === "function") return (getDrillItems(tile) || []).length;
+    } catch {}
+    return 0;
+  }
+  function ensureManualCustomers() {
+    if (!manualEnabled() || !window.CUSTOMERS) return;
+    Object.entries(manualStore).forEach(([name, data]) => {
+      if (!data.manualCustomer) return;
+      if (window.CUSTOMERS.some(c => c.n === name)) return;
+      const template = window.CUSTOMERS[0];
+      window.CUSTOMERS.push({
+        n: name,
+        display: name,
+        full: data.full || name,
+        krs: (template?.krs || []).map(k => ({ ...k, s: "N/A", c: null, b: null, n: "" }))
+      });
+    });
+  }
+  function addCustomer() {
+    openModal("Add Customer", `
+      <label>Customer name<input id="manualCustomerName" placeholder="Customer name" /></label>
+      <label>Segment / industry<input id="manualCustomerSegment" placeholder="Manual" /></label>
+    `, () => {
+      const name = document.getElementById("manualCustomerName").value.trim();
+      if (!name) return showToast("Customer name is required");
+      const segment = document.getElementById("manualCustomerSegment").value.trim() || "Manual";
+      const s = custStore(name);
+      s.manualCustomer = true;
+      s.full = `${name} (${segment})`;
+      writeStore();
+      ensureManualCustomers();
+      if (typeof renderSidebar === "function") renderSidebar();
+      if (typeof updateCounters === "function") updateCounters();
+      closeModal();
+      showToast("Customer added");
+    });
+  }
+  function ensureAddCustomerButton() {
+    if (!manualEnabled()) return;
+    const header = document.querySelector(".sidebar-hdr") || document.querySelector(".sidebar");
+    if (!header || document.getElementById("manualAddCustomer")) return;
+    const btn = document.createElement("button");
+    btn.id = "manualAddCustomer";
+    btn.className = "btn secondary manual-add-customer";
+    btn.textContent = "+ Add";
+    btn.title = "Add Customer";
+    btn.onclick = addCustomer;
+    header.appendChild(btn);
+  }
+  function updateManualCounters() {
+    if (!manualEnabled()) return;
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set("ct-kr-wins", demoTileCount("kr-wins") + totalFor("kr"));
+    set("ct-kpi-wins", demoTileCount("kpi-wins") + totalFor("kpi"));
+    set("ct-kpi-regr", demoTileCount("regressions") + totalFor("regression"));
+    set("ct-ic-wins", totalIcWins());
+    set("ct-sp-wins", totalFor("spotlight"));
+    set("ct-insights", totalFor("insight"));
+  }
+  function decoratePills() {
+    if (!manualEnabled()) return;
+    const name = custKey();
+    const map = [
+      ["KR wins", "kr"], ["KPI wins", "kpi"], ["regression", "regression"],
+      ["spotlight", "spotlight"], ["PEC", "pec"], ["Insight", "insight"]
+    ];
+    document.querySelectorAll(".csl-chip, .pill, .csl-pec-pill").forEach(chip => {
+      const text = chip.textContent || "";
+      const found = map.find(([needle]) => text.toLowerCase().includes(needle.toLowerCase()));
+      if (!found) return;
+      chip.style.cursor = "pointer";
+      chip.onclick = e => { e.stopPropagation(); openEntry(found[1]); };
+      if (found[1] === "kr") chip.innerHTML = `★ ${countFor(name, "kr")} KR wins`;
+      if (found[1] === "kpi") chip.innerHTML = `✓ ${countFor(name, "kpi")} KPI wins`;
+      if (found[1] === "regression") chip.innerHTML = `▽ ${countFor(name, "regression")} KPI regressions`;
+      if (found[1] === "spotlight") chip.innerHTML = `✦ ${countFor(name, "spotlight")} spotlights`;
+      if (found[1] === "pec") chip.innerHTML = `PECs ${countFor(name, "pec")} manual`;
+      if (found[1] === "insight") chip.innerHTML = `💡 ${countFor(name, "insight")} insights`;
+    });
+    if (!document.getElementById("manualInsightPill")) {
+      const row = document.querySelector(".pill-row, .csl-pill-row, .customer-status-line");
+      if (row) {
+        const b = document.createElement("span");
+        b.id = "manualInsightPill";
+        b.className = "csl-chip";
+        b.textContent = `💡 ${countFor(name, "insight")} insights`;
+        b.style.cursor = "pointer";
+        b.onclick = () => openEntry("insight");
+        row.appendChild(b);
+      }
+    }
+  }
+  function restoreFtaNotes() {
+    if (!manualEnabled()) return;
+    const name = custKey();
+    const area = document.querySelector(".fta-notes-area");
+    if (!area) return;
+    const saved = custStore(name).ftaNotes;
+    if (saved && area.value !== saved) area.value = saved;
+    area.oninput = e => {
+      custStore(name).ftaNotes = e.target.value;
+      writeStore();
+    };
+  }
+  function renderManualIdealConfig() {
+    if (!manualEnabled()) return;
+    const body = document.getElementById("icTableBody");
+    const empty = document.getElementById("icEpochEmpty");
+    const table = document.querySelector("#icCard .ic-table");
+    if (!body || !table) return;
+    const name = custKey();
+    const s = custStore(name);
+    s.ic = s.ic || {};
+    if (empty) empty.style.display = "none";
+    table.style.display = "";
+    const options = ["Unknown", "Green", "Yellow", "Red", "N/A"];
+    body.innerHTML = manualIcItems.map((item, idx) => {
+      const row = s.ic[item] || { status: "Unknown", notes: "" };
+      return `<tr>
+        <td>${esc(item)}</td>
+        <td><select class="manual-ic-status" data-manual-ic="${idx}" data-field="status">
+          ${options.map(o => `<option value="${o}"${row.status === o ? " selected" : ""}>${o}</option>`).join("")}
+        </select></td>
+        <td>${esc(row.status || "Unknown")}</td>
+        <td><textarea class="manual-ic-note" data-manual-ic="${idx}" data-field="notes" placeholder="Manual IC note">${esc(row.notes || "")}</textarea></td>
+      </tr>`;
+    }).join("");
+    const sectionEpoch = document.getElementById("icSectionEpoch");
+    if (sectionEpoch) sectionEpoch.textContent = "FY27 Q1";
+    const source = document.getElementById("icSourceBadge");
+    if (source) source.textContent = "source: manual";
+    body.querySelectorAll("[data-manual-ic]").forEach(el => {
+      el.onchange = el.oninput = () => {
+        const item = manualIcItems[Number(el.dataset.manualIc)];
+        s.ic[item] = s.ic[item] || { status: "Unknown", notes: "" };
+        s.ic[item][el.dataset.field] = el.value;
+        writeStore();
+        updateManualCounters();
+        if (el.dataset.field === "status") renderManualIdealConfig();
+      };
+    });
+  }
+  function manualizeHeatmap() {
+    if (!manualEnabled()) return;
+    document.querySelectorAll("#btnHeatmapFtbiSync").forEach(x => x.remove());
+    document.querySelectorAll(".hm-tile").forEach(tile => {
+      const name = tile.querySelector(".hm-name")?.textContent?.trim() || tile.textContent.trim();
+      tile.onclick = e => {
+        e.stopPropagation();
+        const s = custStore();
+        const current = s.heatmap[name] || { state: "STATUS_UNKNOWN", lead: "", notes: "" };
+        openModal(`M365 Usage Heatmap · ${name}`, `
+          <label>Status<select id="hmState">
+            ${["STATUS_UNKNOWN","NOT_LICENSED","NO_INTENT","INTENT","IN_PROGRESS","ONBOARDED"].map(v => `<option value="${v}"${current.state === v ? " selected" : ""}>${v.replaceAll("_", " ")}</option>`).join("")}
+          </select></label>
+          <label>Deployment lead<input id="hmLead" value="${esc(current.lead)}" /></label>
+          <label>Notes<textarea id="hmNotes">${esc(current.notes)}</textarea></label>
+        `, () => {
+          s.heatmap[name] = {
+            state: document.getElementById("hmState").value,
+            lead: document.getElementById("hmLead").value.trim(),
+            notes: document.getElementById("hmNotes").value.trim()
+          };
+          writeStore();
+          closeModal();
+          applyManualMode();
+        });
+      };
+      if (!tile.dataset.manualized) {
+        tile.dataset.manualized = "1";
+        tile.className = tile.className.replace(/\bs-\S+/g, "");
+        tile.classList.add("s-STATUS_UNKNOWN");
+        const state = tile.querySelector(".hm-state");
+        if (state) state.textContent = "Status Unknown";
+      }
+    });
+  }
+  function addGuidedPath() {
+    if (!manualEnabled() || document.getElementById("manualGuidedPath")) return;
+    const ic = document.querySelector(".ic-card, [id*='ideal']");
+    const parent = ic?.parentElement || document.querySelector(".content");
+    if (!parent) return;
+    const sec = document.createElement("section");
+    sec.id = "manualGuidedPath";
+    sec.className = "ic-card collapsed";
+    const s = custStore();
+    s.guidedPath = s.guidedPath || {};
+    const options = ["Not Started", "In Progress", "Complete", "Blocked", "Deferred", "N/A"];
+    sec.innerHTML = `
+      <div class="ic-hdr" role="button" tabindex="0"><span class="chev">▼</span><h3>Copilot Guided Path</h3><span class="epoch-badge">FY27 Q1</span><span class="spacer"></span><span class="ic-source">manual</span></div>
+      <div class="ic-body">
+        <table class="kr-table ic-table">
+          <thead><tr>
+            <th style="width: 260px">Journey Point</th>
+            <th style="width: 130px">Status</th>
+            <th style="width: 110px">Current</th>
+            <th style="min-width: 240px">Notes</th>
+          </tr></thead>
+          <tbody>
+            ${guidedPath.map((x, i) => {
+              const row = s.guidedPath[x] || { status: "Not Started", notes: "" };
+              return `<tr>
+                <td>${i + 1}. ${esc(x)}</td>
+                <td><select class="manual-ic-status" data-gp="${i}" data-field="status">
+                  ${options.map(v => `<option value="${v}"${row.status === v ? " selected" : ""}>${v}</option>`).join("")}
+                </select></td>
+                <td>${esc(row.status || "Not Started")}</td>
+                <td><textarea class="manual-ic-note" data-gp="${i}" data-field="notes" placeholder="Manual Guided Path note">${esc(row.notes || "")}</textarea></td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>`;
+    if (ic?.nextSibling) parent.insertBefore(sec, ic.nextSibling);
+    else parent.appendChild(sec);
+    sec.querySelector(".ic-hdr").onclick = () => { sec.classList.toggle("collapsed"); };
+    sec.querySelectorAll("[data-gp]").forEach(el => {
+      el.onchange = el.oninput = () => {
+        const item = guidedPath[Number(el.dataset.gp)];
+        s.guidedPath[item] = s.guidedPath[item] || { status: "Not Started", notes: "" };
+        s.guidedPath[item][el.dataset.field] = el.value;
+        writeStore();
+        if (el.dataset.field === "status") {
+          document.getElementById("manualGuidedPath")?.remove();
+          addGuidedPath();
+          collapseManualSectionsByDefault();
+        }
+      };
+    });
+  }
+  function collapseManualSectionsByDefault() {
+    if (!manualEnabled()) return;
+    const notes = document.getElementById("ftaNotesCard");
+    if (notes && !notes.dataset.manualDefaultCollapsed) {
+      notes.classList.add("collapsed");
+      notes.dataset.manualDefaultCollapsed = "1";
+    }
+    const guided = document.getElementById("manualGuidedPath");
+    if (guided && !guided.dataset.manualDefaultCollapsed) {
+      guided.classList.add("collapsed");
+      guided.dataset.manualDefaultCollapsed = "1";
+    }
+  }
+  function removeRecommendedActions() {
+    document.querySelectorAll(".rec-actions-card").forEach(x => x.remove());
+    document.querySelectorAll("section, article, div").forEach(el => {
+      const hdr = el.querySelector(":scope > .rec-hdr, :scope > .card-hdr, :scope > .ai-hdr, :scope > .section-hdr, :scope > h3");
+      if (hdr && /Recommended Actions/i.test(hdr.textContent || "")) el.remove();
+    });
+  }
+  function setManualEpochs() {
+    const kr = document.getElementById("krEpochSelect");
+    const ic = document.getElementById("cfgEpochSelect");
+    if (kr && kr.value !== "FY27 Q1") kr.value = "FY27 Q1";
+    if (ic && ic.value !== "FY27 Q1") ic.value = "FY27 Q1";
+  }
+  function applyManualMode() {
+    ensureToggle();
+    syncToggle();
+    document.body.classList.toggle("manual-mode", manualEnabled());
+    if (!manualEnabled() || applying) return;
+    applying = true;
+    try {
+      ensureManualCustomers();
+      document.title = "FTA Workspace - Manual";
+      const title = document.querySelector(".topbar h1");
+      if (title) title.textContent = "FTA Workspace - Manual";
+      const version = document.querySelector(".version-tag");
+      if (version) {
+        version.textContent = version.textContent.replace("Stable", MANUAL_VERSION_SUFFIX);
+        version.title = "Manual Mode is active; cloud/Scout integration surfaces are hidden.";
+      }
+      setManualEpochs();
+      ensureAddCustomerButton();
+      updateManualCounters();
+      setTimeout(updateManualCounters, 150);
+      decoratePills();
+      restoreFtaNotes();
+      renderManualIdealConfig();
+      manualizeHeatmap();
+      addGuidedPath();
+      collapseManualSectionsByDefault();
+      removeRecommendedActions();
+    } finally {
+      applying = false;
+    }
+  }
+
+  const oldRenderSidebar = window.renderSidebar;
+  if (typeof oldRenderSidebar === "function") {
+    window.renderSidebar = function () { const r = oldRenderSidebar.apply(this, arguments); setTimeout(applyManualMode, 0); return r; };
+  }
+  const oldRenderContent = window.renderContent;
+  if (typeof oldRenderContent === "function") {
+    window.renderContent = function () { const r = oldRenderContent.apply(this, arguments); setTimeout(applyManualMode, 0); return r; };
+  }
+  const oldUpdateCounters = window.updateCounters;
+  if (typeof oldUpdateCounters === "function") {
+    window.updateCounters = async function () { const r = await oldUpdateCounters.apply(this, arguments); setTimeout(applyManualMode, 0); return r; };
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", applyManualMode);
+  else applyManualMode();
+  setInterval(applyManualMode, 1000);
 })();
 </script>
 </body>
