@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.52 locked 2026-07-20 11:55 EDT — Adds To Do Actions Remain tile and standard To Dos.">v1.52 · Stable</span>
+      <span class="version-tag" title="Build version: v1.53 locked 2026-07-20 12:05 EDT — Moves To Do tile beside Stories and tightens spacing.">v1.53 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -3397,19 +3397,6 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
 
   <div class="counter-section">
     <div class="section-hdr">
-      <h2>To Do</h2>
-    </div>
-    <div class="tile-grid" style="--n: 1">
-      <div class="counter accent clickable" data-tile="todo-actions" title="Titled To Do items across all customers that are not COMPLETE. Open placeholder rows are excluded.">
-        <div class="label">Actions Remain</div>
-        <div class="value" id="ct-todo-actions">—</div>
-        <div class="hint">titled not COMPLETE</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="counter-section">
-    <div class="section-hdr">
       <h2>Stories</h2>
       <div class="hdr-right">
         <span class="src" title="FTOP + FT Feedback">FTOP/Feedback</span>
@@ -3426,6 +3413,19 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
         <div class="label">Insights</div>
         <div class="value" id="ct-insights">—</div>
         <div class="hint" id="ct-insights-hint">FT Feedback submitted</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="counter-section">
+    <div class="section-hdr">
+      <h2>To Do</h2>
+    </div>
+    <div class="tile-grid" style="--n: 1">
+      <div class="counter accent clickable" data-tile="todo-actions" title="Titled To Do items across all customers that are not COMPLETE. Open placeholder rows are excluded.">
+        <div class="label">Actions Remain</div>
+        <div class="value" id="ct-todo-actions">—</div>
+        <div class="hint">not complete</div>
       </div>
     </div>
   </div>
@@ -10645,6 +10645,20 @@ window.__cartLogModal = (function () {
   }
   body.manual-mode .counter-section:has(#ct-todo-actions) .counter {
     width: 112px !important;
+    padding: 8px 6px !important;
+  }
+  body.manual-mode .counter[data-tile="todo-actions"] .label {
+    line-height: 1.05 !important;
+    white-space: normal !important;
+  }
+  body.manual-mode .counter[data-tile="todo-actions"] .value {
+    margin-top: 2px !important;
+    margin-bottom: 1px !important;
+  }
+  body.manual-mode .counter[data-tile="todo-actions"] .hint {
+    font-size: 9px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
   }
   body.manual-mode .manual-story-pill-row {
     display: flex;
