@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.48 locked 2026-07-20 11:25 EDT — Adds Guided Path pill and PEC list modal in Manual Mode.">v1.48 · Stable</span>
+      <span class="version-tag" title="Build version: v1.49 locked 2026-07-20 11:35 EDT — Completes Manual Mode tile, pill, PEC, IC, and Guided Path refinements.">v1.49 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -10592,7 +10592,7 @@ window.__cartLogModal = (function () {
     margin-bottom: 12px !important;
   }
   body.manual-mode .counter-row {
-    grid-template-columns: 170px 670px 260px !important;
+    grid-template-columns: 170px 508px 260px !important;
     margin-top: 0 !important;
     justify-content: start !important;
   }
@@ -10603,18 +10603,30 @@ window.__cartLogModal = (function () {
     max-width: 170px !important;
   }
   body.manual-mode .counter-section:has(#ct-kr-wins) {
-    width: 670px !important;
-    max-width: 670px !important;
+    width: 508px !important;
+    max-width: 508px !important;
   }
   body.manual-mode .counter-section:has(#ct-kr-wins) .tile-grid {
-    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(4, 112px) !important;
   }
   body.manual-mode .counter-section:has(#ct-kr-wins) .counter {
-    width: auto !important;
+    width: 112px !important;
   }
   body.manual-mode .counter-section:has(#ct-sp-wins) {
     width: 260px !important;
     max-width: 260px !important;
+  }
+  body.manual-mode .counter-section:has(#ct-sp-wins) .tile-grid {
+    grid-template-columns: repeat(2, 112px) !important;
+  }
+  body.manual-mode .counter-section:has(#ct-sp-wins) .counter {
+    width: 112px !important;
+  }
+  body.manual-mode .manual-story-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
   }
   body.manual-mode .counter-row .section-hdr .src,
   body.manual-mode .counter-row .section-hdr .hdr-right {
@@ -11034,18 +11046,31 @@ window.__cartLogModal = (function () {
         }
       };
     }
-    if (!document.getElementById("manualInsightPill")) {
-      const row = document.querySelector(".pill-row, .csl-pill-row, .customer-status-line");
-      if (row) {
-        const b = document.createElement("span");
-        b.id = "manualInsightPill";
-        b.className = "csl-chip";
-        b.textContent = `💡 ${countFor(name, "insight")} insights`;
-        b.style.cursor = "pointer";
-        b.onclick = () => openEntry("insight");
-        row.appendChild(b);
-      }
+    let insightPill = document.getElementById("manualInsightPill");
+    if (!insightPill) {
+      insightPill = document.createElement("span");
+      insightPill.id = "manualInsightPill";
+      insightPill.className = "csl-chip";
+      insightPill.style.cursor = "pointer";
+      insightPill.onclick = () => openEntry("insight");
     }
+    insightPill.textContent = `💡 ${countFor(name, "insight")} insights`;
+    organizeManualPillRows(insightPill);
+  }
+  function organizeManualPillRows(insightPill) {
+    const statusLine = document.querySelector(".cust-statusline");
+    const firstRow = statusLine?.querySelector(".cust-status-row");
+    if (!statusLine || !firstRow) return;
+    let storyRow = document.getElementById("manualStoryPillRow");
+    if (!storyRow) {
+      storyRow = document.createElement("div");
+      storyRow.id = "manualStoryPillRow";
+      storyRow.className = "cust-status-row manual-story-pill-row";
+      firstRow.insertAdjacentElement("afterend", storyRow);
+    }
+    const spotlight = document.querySelector(".csl-chip.csl-spotlight");
+    if (spotlight) storyRow.appendChild(spotlight);
+    if (insightPill) storyRow.appendChild(insightPill);
   }
   function openPecModal() {
     const name = custKey();
@@ -11135,7 +11160,7 @@ window.__cartLogModal = (function () {
     if (source) source.textContent = "source: manual";
     body.querySelectorAll("[data-manual-ic]").forEach(el => {
       el.onclick = e => e.stopPropagation();
-      el.onchange = el.oninput = () => {
+      const update = () => {
         const item = manualIcItems[Number(el.dataset.manualIc)];
         s.ic[item] = s.ic[item] || { status: "Unknown", notes: "" };
         s.ic[item][el.dataset.field] = el.value;
@@ -11143,10 +11168,10 @@ window.__cartLogModal = (function () {
         updateManualCounters();
         if (el.dataset.field === "status") {
           el.className = `manual-ic-status ${statusClass(el.value)}`;
-          const row = el.closest("tr");
-          if (row) row.querySelector("td:first-child");
         }
       };
+      if (el.dataset.field === "status") el.onchange = update;
+      else el.oninput = update;
     });
   }
   function statusClass(status) {
@@ -11228,10 +11253,13 @@ window.__cartLogModal = (function () {
       </div>`;
     if (ic?.nextSibling) parent.insertBefore(sec, ic.nextSibling);
     else parent.appendChild(sec);
-    sec.querySelector(".ic-hdr").onclick = () => { sec.classList.toggle("collapsed"); };
+    sec.querySelector(".ic-hdr").onclick = e => {
+      if (e.target.closest("select,textarea,input,button")) return;
+      sec.classList.toggle("collapsed");
+    };
     sec.querySelectorAll("[data-gp]").forEach(el => {
       el.onclick = e => e.stopPropagation();
-      el.onchange = el.oninput = () => {
+      const update = () => {
         const item = guidedPath[Number(el.dataset.gp)];
         s.guidedPath[item] = s.guidedPath[item] || { status: "Not Started", notes: "" };
         s.guidedPath[item][el.dataset.field] = el.value;
@@ -11241,6 +11269,8 @@ window.__cartLogModal = (function () {
           el.className = `manual-ic-status ${statusClass(el.value)}`;
         }
       };
+      if (el.dataset.field === "status") el.onchange = update;
+      else el.oninput = update;
     });
   }
   function collapseManualSectionsByDefault() {
