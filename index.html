@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.53 locked 2026-07-20 12:05 EDT — Moves To Do tile beside Stories and tightens spacing.">v1.53 · Stable</span>
+      <span class="version-tag" title="Build version: v1.54 locked 2026-07-20 12:15 EDT — Aligns To Do tile spacing with Stories.">v1.54 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -10606,7 +10606,7 @@ window.__cartLogModal = (function () {
     margin-bottom: 12px !important;
   }
   body.manual-mode .counter-row {
-    grid-template-columns: 170px 508px 260px 130px !important;
+    grid-template-columns: 170px 508px 260px 136px !important;
     margin-top: 0 !important;
     justify-content: start !important;
   }
@@ -10631,8 +10631,11 @@ window.__cartLogModal = (function () {
     max-width: 260px !important;
   }
   body.manual-mode .counter-section:has(#ct-todo-actions) {
-    width: 130px !important;
-    max-width: 130px !important;
+    width: 136px !important;
+    max-width: 136px !important;
+    min-height: 142px !important;
+    padding: 12px !important;
+    gap: 6px !important;
   }
   body.manual-mode .counter-section:has(#ct-sp-wins) .tile-grid {
     grid-template-columns: repeat(2, 112px) !important;
@@ -10642,14 +10645,18 @@ window.__cartLogModal = (function () {
   }
   body.manual-mode .counter-section:has(#ct-todo-actions) .tile-grid {
     grid-template-columns: 112px !important;
+    gap: 12px !important;
+    justify-content: center !important;
   }
   body.manual-mode .counter-section:has(#ct-todo-actions) .counter {
     width: 112px !important;
-    padding: 8px 6px !important;
+    height: 86px !important;
+    padding: 9px 8px !important;
   }
   body.manual-mode .counter[data-tile="todo-actions"] .label {
-    line-height: 1.05 !important;
-    white-space: normal !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    font-size: 9.5px !important;
   }
   body.manual-mode .counter[data-tile="todo-actions"] .value {
     margin-top: 2px !important;
