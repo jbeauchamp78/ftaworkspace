@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.50 locked 2026-07-20 11:40 EDT — Fixes Manual Mode IC dropdown persistence.">v1.50 · Stable</span>
+      <span class="version-tag" title="Build version: v1.51 locked 2026-07-20 11:45 EDT — Fixes Manual Mode IC dropdown interaction and pill labels.">v1.51 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -10758,6 +10758,11 @@ window.__cartLogModal = (function () {
   body.manual-mode .manual-entry-modal {
     background: var(--cp-surface) !important;
   }
+  body.manual-mode .manual-insight-pill {
+    border: 1.5px solid var(--cp-accent) !important;
+    box-shadow: inset 0 0 0 1px var(--cp-accent-soft);
+    font-weight: 700;
+  }
 </style>
 <script id="manualModeIntegration">
 (function () {
@@ -10797,6 +10802,7 @@ window.__cartLogModal = (function () {
   let modalSave = null;
   let manualStore = readStore();
   let applying = false;
+  let manualDropdownActiveUntil = 0;
 
   function manualEnabled() {
     return localStorage.getItem(MODE_KEY) === "1";
@@ -11002,7 +11008,7 @@ window.__cartLogModal = (function () {
       if (found[1] === "kpi") chip.innerHTML = `✓ ${countFor(name, "kpi")} KPI wins`;
       if (found[1] === "regression") chip.innerHTML = `▽ ${countFor(name, "regression")} KPI regressions`;
       if (found[1] === "spotlight") chip.innerHTML = `✦ ${countFor(name, "spotlight")} spotlights`;
-      if (found[1] === "pec") chip.innerHTML = `PECs ${countFor(name, "pec")} manual`;
+      if (found[1] === "pec") chip.innerHTML = `PECs ${countFor(name, "pec")}`;
       if (found[1] === "insight") chip.innerHTML = `💡 ${countFor(name, "insight")} insights`;
     });
     const icBadge = document.getElementById("icHealthBadge");
@@ -11050,10 +11056,11 @@ window.__cartLogModal = (function () {
     if (!insightPill) {
       insightPill = document.createElement("span");
       insightPill.id = "manualInsightPill";
-      insightPill.className = "csl-chip";
+      insightPill.className = "csl-chip manual-insight-pill";
       insightPill.style.cursor = "pointer";
       insightPill.onclick = () => openEntry("insight");
     }
+    insightPill.className = "csl-chip manual-insight-pill";
     insightPill.textContent = `💡 ${countFor(name, "insight")} insights`;
     organizeManualPillRows(insightPill);
   }
@@ -11127,6 +11134,9 @@ window.__cartLogModal = (function () {
   }
   function renderManualIdealConfig() {
     if (!manualEnabled()) return;
+    if (Date.now() < manualDropdownActiveUntil) return;
+    const active = document.activeElement;
+    if (active && active.closest && active.closest("[data-manual-ic]")) return;
     const body = document.getElementById("icTableBody");
     const empty = document.getElementById("icEpochEmpty");
     const table = document.querySelector("#icCard .ic-table");
@@ -11162,7 +11172,6 @@ window.__cartLogModal = (function () {
       const update = (e) => {
         if (e) {
           e.stopPropagation();
-          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
         }
         const item = manualIcItems[Number(el.dataset.manualIc)];
         s.ic[item] = s.ic[item] || { status: "Unknown", notes: "" };
@@ -11174,6 +11183,7 @@ window.__cartLogModal = (function () {
         }
       };
       if (el.dataset.field === "status") {
+        el.addEventListener("pointerdown", () => { manualDropdownActiveUntil = Date.now() + 5000; });
         el.addEventListener("click", e => e.stopPropagation());
         el.addEventListener("change", update);
       } else {
@@ -11269,7 +11279,6 @@ window.__cartLogModal = (function () {
       const update = (e) => {
         if (e) {
           e.stopPropagation();
-          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
         }
         const item = guidedPath[Number(el.dataset.gp)];
         s.guidedPath[item] = s.guidedPath[item] || { status: "Not Started", notes: "" };
@@ -11281,6 +11290,7 @@ window.__cartLogModal = (function () {
         }
       };
       if (el.dataset.field === "status") {
+        el.addEventListener("pointerdown", () => { manualDropdownActiveUntil = Date.now() + 5000; });
         el.addEventListener("click", e => e.stopPropagation());
         el.addEventListener("change", update);
       } else {
@@ -11292,8 +11302,7 @@ window.__cartLogModal = (function () {
   document.addEventListener("change", (e) => {
     if (!manualEnabled()) return;
     if (e.target.closest("[data-manual-ic], [data-gp]")) {
-      e.stopPropagation();
-      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      manualDropdownActiveUntil = Date.now() + 500;
     }
   }, true);
   document.addEventListener("input", (e) => {
