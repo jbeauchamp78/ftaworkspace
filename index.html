@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.60 locked 2026-07-20 15:25 EDT — Adds Sync Now and To Do conflict protection.">v1.60 · Stable</span>
+      <span class="version-tag" title="Build version: v1.61 locked 2026-07-20 15:35 EDT — Extends conflict protection across editable fields.">v1.61 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -5755,9 +5755,15 @@ document.addEventListener("blur", e => {
     if (c) c.tpid = digits;
     fetch(`/api/customer/${encodeURIComponent(nick)}/tpid`, {
       method: 'PATCH', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ tpid: digits || null })
-    }).then(r => {
-      if (!r.ok && window.__api) window.__api.toast('TPID save failed', 'err');
+      body: JSON.stringify({ tpid: digits || null, expected_updated_at: c?.updated_at || null })
+    }).then(async r => {
+      if (!r.ok) {
+        if (r.status === 409 && window.__api) { window.__api.toast('Customer changed in another session. Reloading latest…', 'warn'); await window.__api.load(); return; }
+        if (window.__api) window.__api.toast('TPID save failed', 'err');
+      } else if (c) {
+        const data = await r.json();
+        c.updated_at = data.updated_at || c.updated_at;
+      }
     });
     return;
   }
@@ -5776,10 +5782,16 @@ document.addEventListener("blur", e => {
     fetch(`/api/customer/${encodeURIComponent(nick)}/display`, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ display_nickname: newVal || null }),
-    }).then(r => {
-      if (!r.ok && window.__api) window.__api.toast('Display nickname save failed', 'err');
-      else { renderSidebar(); renderHeatmap(); }
+      body: JSON.stringify({ display_nickname: newVal || null, expected_updated_at: c?.updated_at || null }),
+    }).then(async r => {
+      if (!r.ok) {
+        if (r.status === 409 && window.__api) { window.__api.toast('Customer changed in another session. Reloading latest…', 'warn'); await window.__api.load(); return; }
+        if (window.__api) window.__api.toast('Display nickname save failed', 'err');
+      } else {
+        const data = await r.json();
+        c.updated_at = data.updated_at || c.updated_at;
+        renderSidebar(); renderHeatmap();
+      }
     }).catch(err => {
       if (window.__api) window.__api.toast('Save error: ' + err.message, 'err');
     });
@@ -5794,9 +5806,15 @@ document.addEventListener("blur", e => {
     fetch(`/api/customer/${encodeURIComponent(cust)}/notes`, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ fta_notes: value || null }),
-    }).then(r => {
-      if (!r.ok && window.__api) window.__api.toast('FTA Notes save failed', 'err');
+      body: JSON.stringify({ fta_notes: value || null, expected_updated_at: c?.updated_at || null }),
+    }).then(async r => {
+      if (!r.ok) {
+        if (r.status === 409 && window.__api) { window.__api.toast('Customer notes changed in another session. Reloading latest…', 'warn'); await window.__api.load(); return; }
+        if (window.__api) window.__api.toast('FTA Notes save failed', 'err');
+      } else if (c) {
+        const data = await r.json();
+        c.updated_at = data.updated_at || c.updated_at;
+      }
     }).catch(err => {
       if (window.__api) window.__api.toast('Notes save error: ' + err.message, 'err');
     });
@@ -5906,6 +5924,7 @@ window.__api = (function() {
           p_src: k.pec_flag_source || null,
           n: k.kr_notes || "",
           edited: k.source === "manual",
+          updated_at: k.updated_at || null,
           // MoM-MAU derived fields (computed at API time from kr_status_history)
           mom_pct:  k.mom_pct,
           mom_abs:  k.mom_abs,
@@ -5927,9 +5946,10 @@ window.__api = (function() {
         logo_url:   cust.logo_url || "",
         logo_source: cust.logo_source || "",
         ftop_defaultdomain: cust.ftop_defaultdomain || "",
+        updated_at: cust.updated_at || null,
         krs,
         _todos: (cust.todos || []).map(t => ({
-          slot: t.slot, label: t.label || "", status: t.status || "NOT STARTED", notes: t.notes || ""
+          slot: t.slot, label: t.label || "", status: t.status || "NOT STARTED", notes: t.notes || "", updated_at: t.updated_at || null
         })),
       });
     }
@@ -5947,9 +5967,9 @@ window.__api = (function() {
         const i = t.slot;
         if (i >= 0 && i < rows.length) {
           if (i < 8) {
-            rows[i] = { label: TODO_LABELS[i], status: "NOT STARTED", notes: t.notes || "" };
+            rows[i] = { label: TODO_LABELS[i], status: "NOT STARTED", notes: t.notes || "", updated_at: t.updated_at || null };
           } else {
-            rows[i] = { label: t.label || "", status: t.status || "NOT STARTED", notes: t.notes || "" };
+            rows[i] = { label: t.label || "", status: t.status || "NOT STARTED", notes: t.notes || "", updated_at: t.updated_at || null };
           }
         }
       }
@@ -6143,9 +6163,20 @@ window.__api = (function() {
     const key = `kr|${custName}|${label}|${Object.keys(fields).join(",")}`;
     _debouncedSave(key, async () => {
       try {
-        await call("PATCH", "/api/kr", { nickname: custName, kr_label: label, fields });
+        const c = CUSTOMERS.find(x => x.n === custName);
+        const krIdx = KR_INDEX_TO_LABEL.indexOf(label);
+        const expected = c?.krs?.[krIdx]?.updated_at || null;
+        const saved = await call("PATCH", "/api/kr", { nickname: custName, kr_label: label, fields, expected_updated_at: expected });
+        if (c && c.krs[krIdx]) c.krs[krIdx].updated_at = saved.updated_at || c.krs[krIdx].updated_at;
         toast(`Saved ${custName} / ${label}`, "ok");
-      } catch (e) { toast(`Save failed: ${e.message}`, "err"); }
+      } catch (e) {
+        if (e.status === 409) {
+          toast("KR changed in another session. Reloading latest saved data…", "warn");
+          await load();
+        } else {
+          toast(`Save failed: ${e.message}`, "err");
+        }
+      }
     }, 350);
   }
 
@@ -6153,13 +6184,24 @@ window.__api = (function() {
     const label = KR_INDEX_TO_LABEL[krIdx];
     if (!label) return;
     try {
+      const c = CUSTOMERS.find(x => x.n === custName);
+      const expected = c?.krs?.[krIdx]?.updated_at || null;
       const r = await call("PATCH", "/api/kr",
-                           { nickname: custName, kr_label: label, fields });
+                           { nickname: custName, kr_label: label, fields, expected_updated_at: expected });
       toast(`Saved ${custName} / ${label}`, "ok");
       // Mirror the manual badge state back into local data.
-      const c = CUSTOMERS.find(x => x.n === custName);
-      if (c && c.krs[krIdx]) c.krs[krIdx].edited = (r.source === "manual");
-    } catch (e) { toast(`Save failed: ${e.message}`, "err"); }
+      if (c && c.krs[krIdx]) {
+        c.krs[krIdx].edited = (r.source === "manual");
+        c.krs[krIdx].updated_at = r.updated_at || c.krs[krIdx].updated_at;
+      }
+    } catch (e) {
+      if (e.status === 409) {
+        toast("KR changed in another session. Reloading latest saved data…", "warn");
+        await load();
+      } else {
+        toast(`Save failed: ${e.message}`, "err");
+      }
+    }
   }
 
   async function saveTodo(custName, slot, fields) {
@@ -10926,6 +10968,7 @@ window.__cartLogModal = (function () {
   let applying = false;
   let manualDropdownActiveUntil = 0;
   let manualRemoteLoaded = false;
+  let manualRemoteUpdatedAt = null;
   let manualSaveTimer = null;
 
   function manualEnabled() {
@@ -10948,6 +10991,7 @@ window.__cartLogModal = (function () {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
       const remote = data.state || {};
+      manualRemoteUpdatedAt = data.updated_at || null;
       if (Object.keys(remote).length) {
         manualStore = remote;
         localStorage.setItem(STORE_KEY, JSON.stringify(manualStore));
@@ -10966,7 +11010,22 @@ window.__cartLogModal = (function () {
       await fetch("/api/manual-mode/state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state: manualStore || {} }),
+        body: JSON.stringify({ state: manualStore || {}, expected_updated_at: manualRemoteUpdatedAt }),
+      }).then(async r => {
+        if (!r.ok) {
+          if (r.status === 409) {
+            const latest = await fetch("/api/manual-mode/state", { cache: "no-store" }).then(x => x.json());
+            manualStore = latest.state || {};
+            manualRemoteUpdatedAt = latest.updated_at || null;
+            localStorage.setItem(STORE_KEY, JSON.stringify(manualStore));
+            showToast("Manual Mode data changed in another session. Reloaded latest.", "warn");
+            applyManualMode();
+            return;
+          }
+          throw new Error(`HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        manualRemoteUpdatedAt = data.updated_at || manualRemoteUpdatedAt;
       });
     } catch (e) {
       console.warn("manual mode state save failed:", e);
