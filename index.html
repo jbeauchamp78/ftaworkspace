@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.57 locked 2026-07-20 12:35 EDT — Updates To Do pill when titles are added or removed.">v1.57 · Stable</span>
+      <span class="version-tag" title="Build version: v1.58 locked 2026-07-20 13:00 EDT — Persists Manual Mode data in shared SQLite.">v1.58 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -10863,6 +10863,8 @@ window.__cartLogModal = (function () {
   let manualStore = readStore();
   let applying = false;
   let manualDropdownActiveUntil = 0;
+  let manualRemoteLoaded = false;
+  let manualSaveTimer = null;
 
   function manualEnabled() {
     return localStorage.getItem(MODE_KEY) === "1";
@@ -10873,6 +10875,40 @@ window.__cartLogModal = (function () {
   }
   function writeStore() {
     localStorage.setItem(STORE_KEY, JSON.stringify(manualStore));
+    if (manualRemoteLoaded) {
+      if (manualSaveTimer) clearTimeout(manualSaveTimer);
+      manualSaveTimer = setTimeout(saveRemoteManualStore, 250);
+    }
+  }
+  async function loadRemoteManualStore() {
+    try {
+      const r = await fetch("/api/manual-mode/state", { cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      const remote = data.state || {};
+      if (Object.keys(remote).length) {
+        manualStore = remote;
+        localStorage.setItem(STORE_KEY, JSON.stringify(manualStore));
+      } else if (Object.keys(manualStore).length) {
+        await saveRemoteManualStore();
+      }
+      manualRemoteLoaded = true;
+      applyManualMode();
+    } catch (e) {
+      manualRemoteLoaded = true;
+      console.warn("manual mode state sync failed:", e);
+    }
+  }
+  async function saveRemoteManualStore() {
+    try {
+      await fetch("/api/manual-mode/state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: manualStore || {} }),
+      });
+    } catch (e) {
+      console.warn("manual mode state save failed:", e);
+    }
   }
   function esc(s) {
     return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -11445,6 +11481,7 @@ window.__cartLogModal = (function () {
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", applyManualMode);
   else applyManualMode();
+  loadRemoteManualStore();
   setInterval(applyManualMode, 1000);
 })();
 </script>
