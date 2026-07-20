@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.49 locked 2026-07-20 11:35 EDT — Completes Manual Mode tile, pill, PEC, IC, and Guided Path refinements.">v1.49 · Stable</span>
+      <span class="version-tag" title="Build version: v1.50 locked 2026-07-20 11:40 EDT — Fixes Manual Mode IC dropdown persistence.">v1.50 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -11159,8 +11159,11 @@ window.__cartLogModal = (function () {
     const source = document.getElementById("icSourceBadge");
     if (source) source.textContent = "source: manual";
     body.querySelectorAll("[data-manual-ic]").forEach(el => {
-      el.onclick = e => e.stopPropagation();
-      const update = () => {
+      const update = (e) => {
+        if (e) {
+          e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
         const item = manualIcItems[Number(el.dataset.manualIc)];
         s.ic[item] = s.ic[item] || { status: "Unknown", notes: "" };
         s.ic[item][el.dataset.field] = el.value;
@@ -11170,8 +11173,13 @@ window.__cartLogModal = (function () {
           el.className = `manual-ic-status ${statusClass(el.value)}`;
         }
       };
-      if (el.dataset.field === "status") el.onchange = update;
-      else el.oninput = update;
+      if (el.dataset.field === "status") {
+        el.addEventListener("click", e => e.stopPropagation());
+        el.addEventListener("change", update);
+      } else {
+        el.addEventListener("click", e => e.stopPropagation());
+        el.addEventListener("input", update);
+      }
     });
   }
   function statusClass(status) {
@@ -11258,8 +11266,11 @@ window.__cartLogModal = (function () {
       sec.classList.toggle("collapsed");
     };
     sec.querySelectorAll("[data-gp]").forEach(el => {
-      el.onclick = e => e.stopPropagation();
-      const update = () => {
+      const update = (e) => {
+        if (e) {
+          e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
         const item = guidedPath[Number(el.dataset.gp)];
         s.guidedPath[item] = s.guidedPath[item] || { status: "Not Started", notes: "" };
         s.guidedPath[item][el.dataset.field] = el.value;
@@ -11269,10 +11280,28 @@ window.__cartLogModal = (function () {
           el.className = `manual-ic-status ${statusClass(el.value)}`;
         }
       };
-      if (el.dataset.field === "status") el.onchange = update;
-      else el.oninput = update;
+      if (el.dataset.field === "status") {
+        el.addEventListener("click", e => e.stopPropagation());
+        el.addEventListener("change", update);
+      } else {
+        el.addEventListener("click", e => e.stopPropagation());
+        el.addEventListener("input", update);
+      }
     });
   }
+  document.addEventListener("change", (e) => {
+    if (!manualEnabled()) return;
+    if (e.target.closest("[data-manual-ic], [data-gp]")) {
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+  }, true);
+  document.addEventListener("input", (e) => {
+    if (!manualEnabled()) return;
+    if (e.target.closest("[data-manual-ic], [data-gp]")) {
+      e.stopPropagation();
+    }
+  }, true);
   function collapseManualSectionsByDefault() {
     if (!manualEnabled()) return;
     const notes = document.getElementById("ftaNotesCard");
@@ -11322,6 +11351,8 @@ window.__cartLogModal = (function () {
       decoratePills();
       restoreFtaNotes();
       renderManualIdealConfig();
+      setTimeout(renderManualIdealConfig, 300);
+      setTimeout(renderManualIdealConfig, 900);
       manualizeHeatmap();
       addGuidedPath();
       collapseManualSectionsByDefault();
