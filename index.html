@@ -893,6 +893,120 @@ html[data-theme="win98"] .info-pill {
 .drill-item .cust { font-weight: 600; min-width: 100px; }
 .drill-item .kr { color: var(--cp-text-muted); flex: 1; }
 .drill-item .meta { font-size: 10px; color: var(--cp-text-soft); }
+.todo-heatmap-wrap {
+  overflow: auto;
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  background: var(--cp-surface);
+}
+.todo-heatmap {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 11px;
+}
+.todo-heatmap th,
+.todo-heatmap td {
+  border-right: 1px solid var(--cp-border);
+  border-bottom: 1px solid var(--cp-border);
+  padding: 6px;
+  vertical-align: middle;
+}
+.todo-heatmap th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--cp-surface-soft);
+  color: var(--cp-text-muted);
+  font-weight: 700;
+  text-align: center;
+}
+.todo-heatmap th.todo-cust-col,
+.todo-heatmap td.todo-cust-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  min-width: 150px;
+  max-width: 150px;
+  background: var(--cp-surface);
+  font-weight: 700;
+  color: var(--cp-text);
+  text-align: left;
+}
+.todo-heatmap th.todo-cust-col { background: var(--cp-surface-soft); }
+.todo-hm-head {
+  display: grid;
+  gap: 2px;
+  min-width: 72px;
+}
+.todo-hm-slot {
+  color: var(--cp-text-soft);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.todo-hm-label {
+  color: var(--cp-text);
+  font-size: 10px;
+  line-height: 1.15;
+  max-height: 34px;
+  overflow: hidden;
+}
+.todo-hm-cell {
+  cursor: pointer;
+  text-align: center;
+  min-width: 76px;
+}
+.todo-hm-cell:hover {
+  outline: 2px solid var(--cp-accent);
+  outline-offset: -2px;
+}
+.todo-hm-cell .todo-hm-status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.todo-hm-cell .todo-hm-note {
+  margin-top: 3px;
+  color: var(--cp-text-soft);
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.todo-hm-open .todo-hm-status { background: var(--cp-surface-soft); color: var(--cp-text-muted); border: 1px dashed var(--cp-border-strong); }
+.todo-hm-not-started .todo-hm-status { background: var(--cp-surface-soft); color: var(--cp-text-muted); border: 1px solid var(--cp-border); }
+.todo-hm-in-progress .todo-hm-status { background: #00B0F0; color: #ffffff; }
+.todo-hm-complete .todo-hm-status { background: #00B050; color: #ffffff; }
+.todo-hm-blocked .todo-hm-status { background: #FF0000; color: #ffffff; }
+.todo-hm-deferred .todo-hm-status { background: #BFBFBF; color: #1f1f1f; }
+.todo-hm-na .todo-hm-status { background: #000000; color: #ffffff; }
+.todo-hm-legend {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 8px 0;
+  color: var(--cp-text-muted);
+  font-size: 11px;
+}
+.todo-hm-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.todo-hm-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid var(--cp-border);
+}
 .story-list {
   display: flex;
   flex-direction: column;
@@ -3270,7 +3384,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.69 locked 2026-07-21 14:45 EDT — Removed visible Save/Sync status badge.">v1.69 · Stable</span>
+      <span class="version-tag" title="Build version: v1.70 locked 2026-07-21 14:55 EDT — Added all-slot To Do heatmap.">v1.70 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4695,6 +4809,7 @@ const TILE_TITLES = {
   "regressions":         "KPI Regressions",
   "missing-pecs":        "Missing PECs",
   "ic-wins":             "Ideal Config Wins",
+  "todo-actions":        "To Do Heatmap",
   "spotlights":          "Spotlights",
   "insights":            "Insights",
   "dq-esn":              "ESN Missing / Expired",
@@ -4703,6 +4818,106 @@ const TILE_TITLES = {
   "dq-l1-no-target":     "L1 In Progress w/o Target Date",
   "dq-l1-blocked-late":  "L1 Blocked: Next Action Past Due",
 };
+
+function todoHeatmapStatusClass(status, label) {
+  const s = String(status || "NOT STARTED").toUpperCase();
+  const titled = String(label || "").trim();
+  if (!titled || /^OPEN\b/i.test(titled)) return "todo-hm-open";
+  return {
+    "NOT STARTED": "todo-hm-not-started",
+    "IN PROGRESS": "todo-hm-in-progress",
+    "COMPLETE": "todo-hm-complete",
+    "BLOCKED": "todo-hm-blocked",
+    "DEFERRED": "todo-hm-deferred",
+    "N/A": "todo-hm-na",
+  }[s] || "todo-hm-not-started";
+}
+
+function todoHeatmapStatusLabel(todo) {
+  const label = String(todo?.label || "").trim();
+  if (!label || /^OPEN\b/i.test(label)) return "OPEN";
+  return String(todo?.status || "NOT STARTED").toUpperCase();
+}
+
+function todoHeatmapHeaderLabel(slot) {
+  const label = TODO_LABELS[slot] || "";
+  return label ? label : `Open ${slot - 7}`;
+}
+
+function renderTodoHeatmapPanel(panel) {
+  const rows = (CUSTOMERS || []).map(c => ({ customer: c, todos: getTodos(c.n) }));
+  const allCells = rows.flatMap(r => (r.todos || []).map((t, slot) => ({ ...t, slot })));
+  const openRows = allCells.filter(t => !String(t.label || "").trim() || /^OPEN\b/i.test(String(t.label || ""))).length;
+  const actionRows = allCells.length - openRows;
+  const statusCounts = TODO_STATUS_OPTIONS.reduce((acc, s) => {
+    acc[s] = allCells.filter(t => todoHeatmapStatusLabel(t) === s).length;
+    return acc;
+  }, {});
+  panel.innerHTML = `
+    <div class="drill-hdr">
+      <h3>To Do Heatmap</h3>
+      <span class="count">${rows.length} customers · ${allCells.length} fields</span>
+      <button class="close" id="drillClose" title="Close">×</button>
+    </div>
+    <div class="todo-hm-legend">
+      <span><span class="todo-hm-dot" style="background:var(--cp-surface-soft);border-style:dashed;"></span>${openRows} Open/blank</span>
+      <span><span class="todo-hm-dot" style="background:var(--cp-surface-soft);"></span>${statusCounts["NOT STARTED"] || 0} Not Started</span>
+      <span><span class="todo-hm-dot" style="background:#00B0F0;"></span>${statusCounts["IN PROGRESS"] || 0} In Progress</span>
+      <span><span class="todo-hm-dot" style="background:#00B050;"></span>${statusCounts["COMPLETE"] || 0} Complete</span>
+      <span><span class="todo-hm-dot" style="background:#FF0000;"></span>${statusCounts["BLOCKED"] || 0} Blocked</span>
+      <span><span class="todo-hm-dot" style="background:#BFBFBF;"></span>${statusCounts["DEFERRED"] || 0} Deferred</span>
+      <span><span class="todo-hm-dot" style="background:#000000;"></span>${statusCounts["N/A"] || 0} N/A</span>
+      <span>${actionRows} titled fields</span>
+    </div>
+    <div class="todo-heatmap-wrap">
+      <table class="todo-heatmap">
+        <thead>
+          <tr>
+            <th class="todo-cust-col">Customer</th>
+            ${TODO_LABELS.map((_, slot) => `
+              <th title="${escapeHtml(todoHeatmapHeaderLabel(slot))}">
+                <span class="todo-hm-head">
+                  <span class="todo-hm-slot">Slot ${slot + 1}</span>
+                  <span class="todo-hm-label">${escapeHtml(todoHeatmapHeaderLabel(slot))}</span>
+                </span>
+              </th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(({ customer, todos }) => `
+            <tr>
+              <td class="todo-cust-col" title="${escapeHtml(customer.full || customer.n)}">${escapeHtml(customer.display || customer.n)}</td>
+              ${TODO_LABELS.map((_, slot) => {
+                const t = todos[slot] || { label: TODO_LABELS[slot] || "", status: "NOT STARTED", notes: "" };
+                const label = String(t.label || "").trim();
+                const status = todoHeatmapStatusLabel(t);
+                const notes = String(t.notes || "").trim();
+                const cls = todoHeatmapStatusClass(t.status, label);
+                const detail = status === "OPEN"
+                  ? (/^OPEN\b/i.test(label) ? "Open placeholder" : (label || "Blank title"))
+                  : (label || todoHeatmapHeaderLabel(slot));
+                const title = [
+                  customer.n,
+                  `Slot ${slot + 1}: ${label || "OPEN / blank"}`,
+                  `Status: ${status}`,
+                  notes ? `Notes: ${notes}` : "",
+                ].filter(Boolean).join("\\n");
+                return `<td class="todo-hm-cell ${cls}" data-cust="${escapeHtml(customer.n)}" title="${escapeHtml(title)}">
+                  <span class="todo-hm-status">${escapeHtml(status)}</span>
+                  <div class="todo-hm-note">${escapeHtml(detail)}${notes ? " · " + escapeHtml(notes) : ""}</div>
+                </td>`;
+              }).join("")}
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById("drillClose").onclick = closeDrill;
+  panel.querySelectorAll(".todo-hm-cell[data-cust], .todo-cust-col[title]").forEach(el => {
+    const cust = el.dataset.cust;
+    if (cust) el.onclick = () => _jumpToCustomer(cust);
+  });
+}
 
 const DQ_KEY_MAP = {
   "dq-esn":             "esn_missing_or_expired",
@@ -4881,6 +5096,11 @@ async function renderDrillPanel(tile) {
     document.getElementById("drillClose").onclick = closeDrill;
     document.getElementById("btnLabFocusRefresh").onclick = () => window.updateLabFocus && window.updateLabFocus();
     if (window.updateLabFocus) await window.updateLabFocus();
+    return;
+  }
+
+  if (tile === "todo-actions") {
+    renderTodoHeatmapPanel(panel);
     return;
   }
 
