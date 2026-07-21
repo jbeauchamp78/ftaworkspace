@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.66 locked 2026-07-21 14:35 EDT — Manual Mode Save Now always captures and posts current manual state.">v1.66 · Stable</span>
+      <span class="version-tag" title="Build version: v1.67 locked 2026-07-21 14:45 EDT — To Do status hydration and staged row saves fixed.">v1.67 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -5925,7 +5925,7 @@ window.__api = (function() {
         const i = t.slot;
         if (i >= 0 && i < rows.length) {
           if (i < 8) {
-            rows[i] = { label: TODO_LABELS[i], status: "NOT STARTED", notes: t.notes || "", updated_at: t.updated_at || null };
+            rows[i] = { label: TODO_LABELS[i], status: t.status || "NOT STARTED", notes: t.notes || "", updated_at: t.updated_at || null };
           } else {
             rows[i] = { label: t.label || "", status: t.status || "NOT STARTED", notes: t.notes || "", updated_at: t.updated_at || null };
           }
@@ -6138,13 +6138,14 @@ window.__api = (function() {
   async function saveKr(custName, krIdx, fields) {
     const label = KR_INDEX_TO_LABEL[krIdx];
     if (!label) return;
-    const key = `kr|${custName}|${label}|${Object.keys(fields).join(",")}`;
+    const key = `kr|${custName}|${label}`;
+    const mergedFields = { ...(_pendingWrites.get(key)?.fields || {}), ...fields };
     stageWrite(key, `${custName} / ${label}`, async () => {
       try {
         const c = CUSTOMERS.find(x => x.n === custName);
         const krIdx = KR_INDEX_TO_LABEL.indexOf(label);
         const expected = c?.krs?.[krIdx]?.updated_at || null;
-        const saved = await call("PATCH", "/api/kr", { nickname: custName, kr_label: label, fields, expected_updated_at: expected });
+        const saved = await call("PATCH", "/api/kr", { nickname: custName, kr_label: label, fields: mergedFields, expected_updated_at: expected });
         if (c && c.krs[krIdx]) c.krs[krIdx].updated_at = saved.updated_at || c.krs[krIdx].updated_at;
       } catch (e) {
         if (e.status === 409) {
@@ -6156,6 +6157,7 @@ window.__api = (function() {
         throw e;
       }
     });
+    _pendingWrites.get(key).fields = mergedFields;
   }
 
   async function saveKrImmediate(custName, krIdx, fields) {
@@ -6163,12 +6165,13 @@ window.__api = (function() {
   }
 
   async function saveTodo(custName, slot, fields) {
-    const key = `todo|${custName}|${slot}|${Object.keys(fields).join(",")}`;
+    const key = `todo|${custName}|${slot}`;
+    const mergedFields = { ...(_pendingWrites.get(key)?.fields || {}), ...fields };
     stageWrite(key, `${custName} To Do ${slot + 1}`, async () => {
       try {
         const rows = getTodos(custName);
         const expected = rows?.[slot]?.updated_at || null;
-        const saved = await call("PATCH", "/api/todo", { nickname: custName, slot, fields, expected_updated_at: expected });
+        const saved = await call("PATCH", "/api/todo", { nickname: custName, slot, fields: mergedFields, expected_updated_at: expected });
         if (rows && rows[slot]) {
           rows[slot] = { ...rows[slot], ...saved };
         }
@@ -6184,6 +6187,7 @@ window.__api = (function() {
         throw e;
       }
     });
+    _pendingWrites.get(key).fields = mergedFields;
   }
 
   function saveCustomerTpid(nick, digits) {
