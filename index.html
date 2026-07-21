@@ -3383,7 +3383,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.73 locked 2026-07-21 16:15 EDT — Swapped Zero Trust Workshop and Copilot Ideal Config To Do rows.">v1.73 · Stable</span>
+      <span class="version-tag" title="Build version: v1.74 locked 2026-07-21 17:20 EDT — To Do heatmap customers sorted like sidebar.">v1.74 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4856,7 +4856,9 @@ function todoHeatmapHeaderLabel(slot) {
 }
 
 function renderTodoHeatmapPanel(panel) {
-  const rows = (CUSTOMERS || []).map(c => ({ customer: c, todos: getTodos(c.n) }));
+  const rows = [...(CUSTOMERS || [])]
+    .sort((a, b) => (a.display || a.full || a.n).localeCompare(b.display || b.full || b.n))
+    .map(c => ({ customer: c, todos: getTodos(c.n) }));
   const allCells = rows.flatMap(r => (r.todos || []).map((t, slot) => ({ ...t, slot })));
   const openRows = allCells.filter(t => !String(t.label || "").trim() || /^OPEN\b/i.test(String(t.label || ""))).length;
   const actionRows = allCells.length - openRows;
