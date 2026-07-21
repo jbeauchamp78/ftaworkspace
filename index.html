@@ -3384,7 +3384,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.70 locked 2026-07-21 14:55 EDT — Added all-slot To Do heatmap.">v1.70 · Stable</span>
+      <span class="version-tag" title="Build version: v1.71 locked 2026-07-21 14:55 EDT — Removed notes from To Do heatmap cells.">v1.71 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4891,7 +4891,6 @@ function renderTodoHeatmapPanel(panel) {
                 const t = todos[slot] || { label: TODO_LABELS[slot] || "", status: "NOT STARTED", notes: "" };
                 const label = String(t.label || "").trim();
                 const status = todoHeatmapStatusLabel(t);
-                const notes = String(t.notes || "").trim();
                 const cls = todoHeatmapStatusClass(t.status, label);
                 const detail = status === "OPEN"
                   ? (/^OPEN\b/i.test(label) ? "Open placeholder" : (label || "Blank title"))
@@ -4900,11 +4899,10 @@ function renderTodoHeatmapPanel(panel) {
                   customer.n,
                   `Slot ${slot + 1}: ${label || "OPEN / blank"}`,
                   `Status: ${status}`,
-                  notes ? `Notes: ${notes}` : "",
                 ].filter(Boolean).join("\\n");
                 return `<td class="todo-hm-cell ${cls}" data-cust="${escapeHtml(customer.n)}" title="${escapeHtml(title)}">
                   <span class="todo-hm-status">${escapeHtml(status)}</span>
-                  <div class="todo-hm-note">${escapeHtml(detail)}${notes ? " · " + escapeHtml(notes) : ""}</div>
+                  <div class="todo-hm-note">${escapeHtml(detail)}</div>
                 </td>`;
               }).join("")}
             </tr>`).join("")}
