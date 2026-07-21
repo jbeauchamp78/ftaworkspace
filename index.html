@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.64 locked 2026-07-21 14:20 EDT — Refresh Now preserves Save Now-owned local edits.">v1.64 · Stable</span>
+      <span class="version-tag" title="Build version: v1.65 locked 2026-07-21 14:25 EDT — Manual Mode Refresh Now reloads SQLite only.">v1.65 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -6262,6 +6262,29 @@ window.__api = (function() {
     const refresh = document.getElementById("btnRefresh");
     const saveNow = document.getElementById("btnSaveNow");
     const refreshDb = document.getElementById("btnRefreshDb");
+    function isManualModeActive() {
+      return document.body.classList.contains("manual-mode")
+        || localStorage.getItem("fta-workspace-manual-mode-enabled") === "1";
+    }
+    async function reloadFromDb(btn, label = "Refresh") {
+      if ((hasPendingWrites() || window.__manualModeHasUnsaved?.()) &&
+          !confirm(`${label} will discard unsaved local changes in this browser. Continue?`)) {
+        return;
+      }
+      if (btn) btn.disabled = true;
+      updateSyncState("Refreshing…", "syncing");
+      try {
+        _pendingWrites.clear();
+        if (window.__manualModeLoadNow) await window.__manualModeLoadNow();
+        await load();
+        toast("Loaded latest saved data", "ok");
+      } catch (e) {
+        updateSyncState("Refresh failed", "err");
+        toast("Refresh failed: " + e.message, "err");
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
     if (saveNow) saveNow.onclick = async () => {
       saveNow.disabled = true;
       updateSyncState("Saving…", "saving");
@@ -6283,25 +6306,13 @@ window.__api = (function() {
       }
     };
     if (refreshDb) refreshDb.onclick = async () => {
-      if ((hasPendingWrites() || window.__manualModeHasUnsaved?.()) &&
-          !confirm("Refresh DB will discard unsaved local changes in this browser. Continue?")) {
-        return;
-      }
-      refreshDb.disabled = true;
-      updateSyncState("Refreshing…", "syncing");
-      try {
-        _pendingWrites.clear();
-        if (window.__manualModeLoadNow) await window.__manualModeLoadNow();
-        await load();
-        toast("Loaded latest saved data", "ok");
-      } catch (e) {
-        updateSyncState("Refresh failed", "err");
-        toast("Refresh failed: " + e.message, "err");
-      } finally {
-        refreshDb.disabled = false;
-      }
+      await reloadFromDb(refreshDb, "Refresh DB");
     };
     if (refresh) refresh.onclick = async () => {
+      if (isManualModeActive()) {
+        await reloadFromDb(refresh, "Manual Mode Refresh Now");
+        return;
+      }
       if ((hasPendingWrites() || window.__manualModeHasUnsaved?.()) &&
           !confirm("Refresh Now will discard unsaved local changes in this browser. Continue?")) {
         return;
@@ -7542,6 +7553,8 @@ window.__queueSkill = (function () {
 
   async function hydrate(nick) {
     if (!nick) return;
+    if (document.body.classList.contains("manual-mode") ||
+        localStorage.getItem("fta-workspace-manual-mode-enabled") === "1") return;
     const data = await fetchState(nick);
     if (!data) return;
     // Per-KR icons
@@ -7573,7 +7586,8 @@ window.__queueSkill = (function () {
     if (chip) {
       const n = data.published_count || 0;
       const total = data.total_spotlights || 0;
-      chip.querySelector(".sp-count").textContent = n;
+      const count = chip.querySelector(".sp-count");
+      if (count) count.textContent = n;
       chip.classList.toggle("csl-zero", n === 0);
       chip.title = `✨ ${n} published${total > n ? ` · ${total - n} in draft/review` : ""} (click for details)`;
       chip.onclick = () => openPopover(nick, data);
@@ -7777,10 +7791,16 @@ window.__queueSkill = (function () {
   }
   let _lastNick = null;
   let _hydrateTimer = null;
+  function _manualModeActive() {
+    return document.body.classList.contains("manual-mode")
+      || localStorage.getItem("fta-workspace-manual-mode-enabled") === "1";
+  }
   function _scheduleHydrate() {
+    if (_manualModeActive()) return;
     if (_hydrateTimer) return;
     _hydrateTimer = setTimeout(() => {
       _hydrateTimer = null;
+      if (_manualModeActive()) return;
       const nick = _activeNick();
       if (!nick) return;
       const icons = document.querySelectorAll(`.kr-sp-icon[data-cust="${CSS.escape(nick)}"]`);
@@ -10741,7 +10761,6 @@ window.__cartLogModal = (function () {
     color: var(--cp-accent-fg);
   }
   body.manual-mode #btnCart,
-  body.manual-mode #btnRefresh,
   body.manual-mode #btnWorkspaceFeedback,
   body.manual-mode #cartInlinePanel,
   body.manual-mode #aichatSection,
@@ -11625,6 +11644,11 @@ window.__cartLogModal = (function () {
       if (version) {
         version.textContent = version.textContent.replace("Stable", MANUAL_VERSION_SUFFIX);
         version.title = "Manual Mode is active; cloud/Scout integration surfaces are hidden.";
+      }
+      const refresh = document.getElementById("btnRefresh");
+      if (refresh) {
+        if (!refresh.dataset.originalTitle) refresh.dataset.originalTitle = refresh.title || "";
+        refresh.title = "Manual Mode: reload latest saved Workspace data from SQLite only.";
       }
       setManualEpochs();
       ensureAddCustomerButton();
