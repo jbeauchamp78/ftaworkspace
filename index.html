@@ -5738,6 +5738,15 @@ document.addEventListener("change", e => {
 });
 
 // ===== Notes / Todo label / Todo notes edit handler (save on blur) =====
+const __pendingImmediateSaves = new Set();
+function trackImmediateSave(promise) {
+  __pendingImmediateSaves.add(promise);
+  promise.finally(() => __pendingImmediateSaves.delete(promise));
+  return promise;
+}
+window.__flushImmediateSaves = async function () {
+  await Promise.allSettled(Array.from(__pendingImmediateSaves));
+};
 document.addEventListener("keydown", e => {
   if (e.target && e.target.classList && (e.target.classList.contains("cust-display-name") || e.target.classList.contains("tpid-value"))) {
     if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
@@ -5754,7 +5763,7 @@ document.addEventListener("blur", e => {
     if (digits !== raw) e.target.textContent = digits;
     const c = CUSTOMERS.find(x => x.n === nick);
     if (c) c.tpid = digits;
-    fetch(`/api/customer/${encodeURIComponent(nick)}/tpid`, {
+    trackImmediateSave(fetch(`/api/customer/${encodeURIComponent(nick)}/tpid`, {
       method: 'PATCH', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ tpid: digits || null, expected_updated_at: c?.updated_at || null })
     }).then(async r => {
@@ -5765,7 +5774,7 @@ document.addEventListener("blur", e => {
         const data = await r.json();
         c.updated_at = data.updated_at || c.updated_at;
       }
-    });
+    }));
     return;
   }
   // Editable customer display nickname (header)
@@ -5780,7 +5789,7 @@ document.addEventListener("blur", e => {
     if (!newVal) e.target.textContent = fallback;
     c.custom_nick = newVal || "";
     c.display = effective;
-    fetch(`/api/customer/${encodeURIComponent(nick)}/display`, {
+    trackImmediateSave(fetch(`/api/customer/${encodeURIComponent(nick)}/display`, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ display_nickname: newVal || null, expected_updated_at: c?.updated_at || null }),
@@ -5795,7 +5804,7 @@ document.addEventListener("blur", e => {
       }
     }).catch(err => {
       if (window.__api) window.__api.toast('Save error: ' + err.message, 'err');
-    });
+    }));
     return;
   }
   // FTA Notes (per-customer free text)
@@ -5804,7 +5813,7 @@ document.addEventListener("blur", e => {
     const value = e.target.value;
     const c = CUSTOMERS.find(x => x.n === cust);
     if (c) c.fta_notes = value;
-    fetch(`/api/customer/${encodeURIComponent(cust)}/notes`, {
+    trackImmediateSave(fetch(`/api/customer/${encodeURIComponent(cust)}/notes`, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ fta_notes: value || null, expected_updated_at: c?.updated_at || null }),
@@ -5818,7 +5827,7 @@ document.addEventListener("blur", e => {
       }
     }).catch(err => {
       if (window.__api) window.__api.toast('Notes save error: ' + err.message, 'err');
-    });
+    }));
     return;
   }
   // Ideal Config notes — distinct endpoint
@@ -5826,7 +5835,7 @@ document.addEventListener("blur", e => {
     const cust = e.target.dataset.cust;
     const sid = e.target.dataset.icSetting;
     const value = e.target.textContent.trim();
-    fetch(`/api/customer/${encodeURIComponent(cust)}/ideal-config/notes`, {
+    trackImmediateSave(fetch(`/api/customer/${encodeURIComponent(cust)}/ideal-config/notes`, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ setting_id: sid, notes: value || null }),
@@ -5834,7 +5843,7 @@ document.addEventListener("blur", e => {
       if (!r.ok && window.__api) window.__api.toast('Ideal Config note save failed', 'err');
     }).catch(err => {
       if (window.__api) window.__api.toast('Note save error: ' + err.message, 'err');
-    });
+    }));
     return;
   }
   if (e.target.classList.contains("notes")) {
@@ -6259,7 +6268,9 @@ window.__api = (function() {
           active.blur();
           await new Promise(r => setTimeout(r, 450));
         }
+        if (window.__flushImmediateSaves) await window.__flushImmediateSaves();
         await flushPendingSaves();
+        if (window.__flushImmediateSaves) await window.__flushImmediateSaves();
         if (window.__manualModeSaveNow) await window.__manualModeSaveNow();
         updateSyncState("All changes saved");
         toast("Saved pending changes", "ok");
