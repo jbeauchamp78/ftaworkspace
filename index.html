@@ -457,6 +457,10 @@ html[data-theme="win98"] .info-pill {
   overflow-y: auto;
 }
 .drill-panel.daily-focus-drill { max-height: 480px; }
+.drill-panel.todo-heatmap-drill {
+  max-height: none;
+  overflow: visible;
+}
 .drill-empty { color: var(--cp-text-muted); font-size: 12px; padding: 14px 4px; font-style: italic; }
 .drill-queue-btn {
   background: var(--cp-accent-soft); color: var(--cp-accent);
@@ -894,23 +898,23 @@ html[data-theme="win98"] .info-pill {
 .drill-item .kr { color: var(--cp-text-muted); flex: 1; }
 .drill-item .meta { font-size: 10px; color: var(--cp-text-soft); }
 .todo-heatmap-wrap {
-  overflow: auto;
+  overflow: visible;
   border: 1px solid var(--cp-border);
   border-radius: 12px;
   background: var(--cp-surface);
 }
 .todo-heatmap {
   width: 100%;
-  min-width: 1180px;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 11px;
+  font-size: 9px;
 }
 .todo-heatmap th,
 .todo-heatmap td {
   border-right: 1px solid var(--cp-border);
   border-bottom: 1px solid var(--cp-border);
-  padding: 6px;
+  padding: 1px 2px;
   vertical-align: middle;
 }
 .todo-heatmap th {
@@ -927,36 +931,37 @@ html[data-theme="win98"] .info-pill {
   position: sticky;
   left: 0;
   z-index: 3;
-  min-width: 150px;
-  max-width: 150px;
+  width: 104px;
   background: var(--cp-surface);
   font-weight: 700;
   color: var(--cp-text);
   text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .todo-heatmap th.todo-cust-col { background: var(--cp-surface-soft); }
 .todo-hm-head {
   display: grid;
-  gap: 2px;
-  min-width: 72px;
+  gap: 1px;
 }
 .todo-hm-slot {
   color: var(--cp-text-soft);
-  font-size: 9px;
+  font-size: 7px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .todo-hm-label {
   color: var(--cp-text);
-  font-size: 10px;
-  line-height: 1.15;
-  max-height: 34px;
+  font-size: 7.5px;
+  line-height: 1;
+  max-height: 22px;
   overflow: hidden;
 }
 .todo-hm-cell {
   cursor: pointer;
   text-align: center;
-  min-width: 76px;
+  height: 18px;
 }
 .todo-hm-cell:hover {
   outline: 2px solid var(--cp-accent);
@@ -965,20 +970,14 @@ html[data-theme="win98"] .info-pill {
 .todo-hm-cell .todo-hm-status {
   display: inline-block;
   border-radius: 999px;
-  padding: 2px 7px;
-  font-size: 9px;
+  padding: 1px 4px;
+  min-width: 22px;
+  font-size: 7.5px;
   font-weight: 800;
   letter-spacing: 0.03em;
   white-space: nowrap;
 }
-.todo-hm-cell .todo-hm-note {
-  margin-top: 3px;
-  color: var(--cp-text-soft);
-  font-size: 9px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.todo-hm-cell .todo-hm-note { display: none; }
 .todo-hm-open .todo-hm-status { background: var(--cp-surface-soft); color: var(--cp-text-muted); border: 1px dashed var(--cp-border-strong); }
 .todo-hm-not-started .todo-hm-status { background: var(--cp-surface-soft); color: var(--cp-text-muted); border: 1px solid var(--cp-border); }
 .todo-hm-in-progress .todo-hm-status { background: #00B0F0; color: #ffffff; }
@@ -988,12 +987,12 @@ html[data-theme="win98"] .info-pill {
 .todo-hm-na .todo-hm-status { background: #000000; color: #ffffff; }
 .todo-hm-legend {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   align-items: center;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   color: var(--cp-text-muted);
-  font-size: 11px;
+  font-size: 10px;
 }
 .todo-hm-legend span {
   display: inline-flex;
@@ -3384,7 +3383,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.71 locked 2026-07-21 14:55 EDT — Removed notes from To Do heatmap cells.">v1.71 · Stable</span>
+      <span class="version-tag" title="Build version: v1.72 locked 2026-07-21 15:00 EDT — Compacted To Do heatmap to fit without horizontal scrolling.">v1.72 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -4839,6 +4838,18 @@ function todoHeatmapStatusLabel(todo) {
   return String(todo?.status || "NOT STARTED").toUpperCase();
 }
 
+function todoHeatmapStatusCode(status) {
+  return {
+    "OPEN": "OPEN",
+    "NOT STARTED": "NS",
+    "IN PROGRESS": "IP",
+    "COMPLETE": "DONE",
+    "BLOCKED": "BLK",
+    "DEFERRED": "DEF",
+    "N/A": "N/A",
+  }[String(status || "").toUpperCase()] || String(status || "NS").slice(0, 4).toUpperCase();
+}
+
 function todoHeatmapHeaderLabel(slot) {
   const label = TODO_LABELS[slot] || "";
   return label ? label : `Open ${slot - 7}`;
@@ -4871,6 +4882,10 @@ function renderTodoHeatmapPanel(panel) {
     </div>
     <div class="todo-heatmap-wrap">
       <table class="todo-heatmap">
+        <colgroup>
+          <col class="todo-cust-col-cg">
+          ${TODO_LABELS.map(() => `<col>`).join("")}
+        </colgroup>
         <thead>
           <tr>
             <th class="todo-cust-col">Customer</th>
@@ -4892,17 +4907,13 @@ function renderTodoHeatmapPanel(panel) {
                 const label = String(t.label || "").trim();
                 const status = todoHeatmapStatusLabel(t);
                 const cls = todoHeatmapStatusClass(t.status, label);
-                const detail = status === "OPEN"
-                  ? (/^OPEN\b/i.test(label) ? "Open placeholder" : (label || "Blank title"))
-                  : (label || todoHeatmapHeaderLabel(slot));
                 const title = [
                   customer.n,
                   `Slot ${slot + 1}: ${label || "OPEN / blank"}`,
                   `Status: ${status}`,
                 ].filter(Boolean).join("\\n");
                 return `<td class="todo-hm-cell ${cls}" data-cust="${escapeHtml(customer.n)}" title="${escapeHtml(title)}">
-                  <span class="todo-hm-status">${escapeHtml(status)}</span>
-                  <div class="todo-hm-note">${escapeHtml(detail)}</div>
+                  <span class="todo-hm-status">${escapeHtml(todoHeatmapStatusCode(status))}</span>
                 </td>`;
               }).join("")}
             </tr>`).join("")}
@@ -5077,6 +5088,7 @@ function showFocusScoreModal(nickname) {
 async function renderDrillPanel(tile) {
   const panel = document.getElementById("drillPanel");
   panel.classList.toggle("daily-focus-drill", tile === "customers");
+  panel.classList.toggle("todo-heatmap-drill", tile === "todo-actions");
   panel.style.display = "block";
 
   if (tile === "customers") {
