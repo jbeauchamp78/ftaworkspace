@@ -3270,7 +3270,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.65 locked 2026-07-21 14:25 EDT — Manual Mode Refresh Now reloads SQLite only.">v1.65 · Stable</span>
+      <span class="version-tag" title="Build version: v1.66 locked 2026-07-21 14:35 EDT — Manual Mode Save Now always captures and posts current manual state.">v1.66 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -11043,10 +11043,8 @@ window.__cartLogModal = (function () {
   }
   function writeStore() {
     localStorage.setItem(STORE_KEY, JSON.stringify(manualStore));
-    if (manualRemoteLoaded) {
-      manualDirty = true;
-      if (window.__api?.markUnsaved) window.__api.markUnsaved();
-    }
+    manualDirty = true;
+    if (window.__api?.markUnsaved) window.__api.markUnsaved();
   }
   async function loadRemoteManualStore() {
     try {
@@ -11072,7 +11070,7 @@ window.__cartLogModal = (function () {
       await fetch("/api/manual-mode/state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state: manualStore || {}, expected_updated_at: manualRemoteUpdatedAt }),
+        body: JSON.stringify({ state: manualStore || {}, expected_updated_at: null }),
       }).then(async r => {
         if (!r.ok) {
           if (r.status === 409) {
@@ -11097,7 +11095,7 @@ window.__cartLogModal = (function () {
     }
   }
   window.__manualModeSaveNow = async function () {
-    if (!manualDirty) return;
+    captureManualDomState();
     await saveRemoteManualStore();
   };
   window.__manualModeLoadNow = async function () {
@@ -11115,6 +11113,29 @@ window.__cartLogModal = (function () {
   function custStore(name = custKey()) {
     manualStore[name] = manualStore[name] || { entries: [], ftaNotes: "", heatmap: {}, ic: {}, guidedPath: {}, manualCustomer: false };
     return manualStore[name];
+  }
+  function captureManualDomState() {
+    if (!manualEnabled()) return;
+    const name = custKey();
+    const s = custStore(name);
+    const notes = document.querySelector(".fta-notes-area");
+    if (notes) s.ftaNotes = notes.value || "";
+    document.querySelectorAll("[data-manual-ic]").forEach(el => {
+      const item = manualIcItems[Number(el.dataset.manualIc)];
+      if (!item) return;
+      s.ic = s.ic || {};
+      s.ic[item] = s.ic[item] || { status: "Unknown", notes: "" };
+      s.ic[item][el.dataset.field] = el.value;
+    });
+    document.querySelectorAll("[data-gp]").forEach(el => {
+      const item = guidedPath[Number(el.dataset.gp)];
+      if (!item) return;
+      s.guidedPath = s.guidedPath || {};
+      s.guidedPath[item] = s.guidedPath[item] || { status: "Not Started", notes: "" };
+      s.guidedPath[item][el.dataset.field] = el.value;
+    });
+    localStorage.setItem(STORE_KEY, JSON.stringify(manualStore));
+    manualDirty = true;
   }
   function showToast(msg) {
     if (typeof toast === "function") toast(msg, "ok");
