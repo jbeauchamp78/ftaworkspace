@@ -3383,7 +3383,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.74 locked 2026-07-21 17:20 EDT — To Do heatmap customers sorted like sidebar.">v1.74 · Stable</span>
+      <span class="version-tag" title="Build version: v1.76 locked 2026-07-22 14:50 EDT — Added 5-minute autosave with active-edit idle guard.">v1.76 · Stable</span>
     </div>
     <span class="def-strip">
       <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
@@ -6338,6 +6338,25 @@ window.__api = (function() {
     el.dataset.kind = kind || "";
   }
 
+  function activeEditorElement() {
+    const active = document.activeElement;
+    if (!active) return null;
+    return (active.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) ? active : null;
+  }
+
+  let _lastUserEditAt = 0;
+  function isEditableEventTarget(target) {
+    if (!target) return false;
+    return target.isContentEditable
+      || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+      || !!target.closest?.("[contenteditable='true'],[contenteditable=true]");
+  }
+  ["input", "change", "keydown"].forEach(evt => {
+    document.addEventListener(evt, e => {
+      if (isEditableEventTarget(e.target)) _lastUserEditAt = Date.now();
+    }, true);
+  });
+
   const _pendingWrites = new Map();
   function pendingLabel() {
     const count = _pendingWrites.size;
@@ -6362,6 +6381,38 @@ window.__api = (function() {
       await item.fn();
       if (_pendingWrites.get(key) === item) _pendingWrites.delete(key);
       updateSyncState(_pendingWrites.size ? pendingLabel() : "All changes saved", _pendingWrites.size ? "dirty" : "");
+    }
+  }
+
+  async function performSaveNow({ source = "manual", forceBlur = true, toastOnSuccess = true } = {}) {
+    const active = activeEditorElement();
+    if (active && !forceBlur) return { skipped: true, reason: "active-editor" };
+    if (active && forceBlur) {
+      active.blur();
+      await new Promise(r => setTimeout(r, 450));
+    }
+    if (!hasPendingWrites() && !window.__manualModeHasUnsaved?.()) {
+      return { skipped: true, reason: "clean" };
+    }
+    updateSyncState(source === "auto" ? "Auto-saving…" : "Saving…", "saving");
+    await flushPendingSaves();
+    if (window.__manualModeSaveNow) await window.__manualModeSaveNow({ source });
+    updateSyncState("All changes saved");
+    if (toastOnSuccess) toast(source === "auto" ? "Auto-saved pending changes" : "Saved pending changes", "ok");
+    console.info(`[fta-workspace] ${source === "auto" ? "auto-save" : "save-now"} completed`, new Date().toISOString());
+    return { ok: true };
+  }
+
+  async function autoSaveIfIdle() {
+    if (!hasPendingWrites() && !window.__manualModeHasUnsaved?.()) return { skipped: true, reason: "clean" };
+    if (activeEditorElement()) return { skipped: true, reason: "active-editor" };
+    if (Date.now() - _lastUserEditAt < 10000) return { skipped: true, reason: "recent-edit" };
+    try {
+      return await performSaveNow({ source: "auto", forceBlur: false, toastOnSuccess: false });
+    } catch (e) {
+      updateSyncState("Auto-save failed", "err");
+      console.warn("[fta-workspace] auto-save failed:", e);
+      return { ok: false, error: e };
     }
   }
 
@@ -6521,17 +6572,8 @@ window.__api = (function() {
     }
     if (saveNow) saveNow.onclick = async () => {
       saveNow.disabled = true;
-      updateSyncState("Saving…", "saving");
       try {
-        const active = document.activeElement;
-        if (active && (active.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName))) {
-          active.blur();
-          await new Promise(r => setTimeout(r, 450));
-        }
-        await flushPendingSaves();
-        if (window.__manualModeSaveNow) await window.__manualModeSaveNow();
-        updateSyncState("All changes saved");
-        toast("Saved pending changes", "ok");
+        await performSaveNow({ source: "manual", forceBlur: true, toastOnSuccess: true });
       } catch (e) {
         updateSyncState("Save failed", "err");
         toast("Save failed: " + e.message, "err");
@@ -6711,6 +6753,8 @@ window.__api = (function() {
     toast,
     markUnsaved,
     hasPendingWrites,
+    autoSaveIfIdle,
+    performSaveNow,
   };
 })();
 
@@ -6719,6 +6763,9 @@ window.__api = (function() {
   try {
     window.__api.wireTopbar();
     await window.__api.load();
+    setInterval(() => {
+      window.__api.autoSaveIfIdle?.();
+    }, 5 * 60 * 1000);
     setInterval(async () => {
       try {
         const active = document.activeElement;
