@@ -3867,13 +3867,14 @@ function renderSidebar() {
 }
 
 const FY27_TRACKER_KEY = "fta-workspace-demo-fy27-tracker-v1";
+const FY27_WORKLOAD_KEY = "fta-workspace-demo-fy27-workloads-v1";
 const FY27_STATUS_OPTIONS = ["Not Started", "In Progress", "On Track", "Blocked", "Complete", "N/A"];
 const FY27_PILLARS = [
-  { id: "ready-ai", label: "Ready AI", desc: "Productivity + security baseline", target: "95%" },
-  { id: "config-ai", label: "Config AI", desc: "Data Security + Copilot ideal config", target: "85%" },
-  { id: "frontier-ready", label: "Frontier Ready", desc: "Agent enablement + governance", target: "75%" },
-  { id: "frontier-value", label: "Frontier Value", desc: "Consumption, analytics, optimization", target: "65%" },
-  { id: "pq-insights", label: "PQ Insights", desc: "Eligible insights accepted by Engineering", target: "40%" },
+  { id: "ready-ai", label: "Ready AI", desc: "Productivity + security baseline", goals: ["Confirm Productivity baseline", "Confirm Security baseline"] },
+  { id: "config-ai", label: "Config AI", desc: "Data Security + Copilot ideal config", goals: ["Data Security ideal config", "Copilot ideal config"] },
+  { id: "frontier-ready", label: "Frontier Ready", desc: "Agent enablement + governance", goals: ["Agent enablement plan", "Protected agents governance", "Consumption billing readiness"] },
+  { id: "frontier-value", label: "Frontier Value", desc: "Consumption, analytics, optimization", goals: ["Usage analytics enabled", "Consumption optimization review", "Value evidence captured"] },
+  { id: "pq-insights", label: "PQ Insights", desc: "Eligible insights accepted by Engineering", goals: ["Product blocker identified", "Insight submitted", "Engineering backlog response"] },
 ];
 
 function isFy27SuccessModel() {
@@ -3892,12 +3893,28 @@ function writeFy27TrackerStore(store) {
   localStorage.setItem(FY27_TRACKER_KEY, JSON.stringify(store || {}));
 }
 
+function fy27GoalDefaults(pillar, saved = {}) {
+  const existing = Array.isArray(saved.goals) && saved.goals.length ? saved.goals : null;
+  if (existing) return existing.map((g, i) => ({
+    goal: g.goal || pillar.goals[i] || `Goal ${i + 1}`,
+    status: g.status || saved.status || "Not Started",
+    owner: g.owner || saved.owner || "",
+    notes: g.notes || saved.next || ""
+  }));
+  return pillar.goals.map(goal => ({
+    goal,
+    status: saved.status || "Not Started",
+    owner: saved.owner || "",
+    notes: saved.next || ""
+  }));
+}
+
 function fy27CustomerRows(custName) {
   const store = fy27TrackerStore();
   const cust = store[custName] || {};
   return FY27_PILLARS.map(p => ({
     ...p,
-    ...(cust[p.id] || { status: "Not Started", owner: "", next: "" })
+    goals: fy27GoalDefaults(p, cust[p.id] || {})
   }));
 }
 
@@ -3911,7 +3928,56 @@ function fy27StatusClass(status) {
 }
 
 function fy27Progress(custName) {
-  const rows = fy27CustomerRows(custName).filter(r => r.status !== "N/A");
+  const rows = fy27CustomerRows(custName);
+  const measureStatus = rows.map(r => fy27MeasureStatus(r.goals));
+  const eligible = measureStatus.filter(s => s !== "N/A");
+  const done = eligible.filter(s => s === "Complete" || s === "On Track").length;
+  const active = eligible.filter(s => s === "In Progress").length;
+  const blocked = eligible.filter(s => s === "Blocked").length;
+  const total = eligible.length || FY27_PILLARS.length;
+  return { done, active, blocked, total };
+}
+
+function fy27MeasureStatus(goals) {
+  const rows = (goals || []).filter(g => g.status !== "N/A");
+  if (!rows.length) return "N/A";
+  if (rows.some(g => g.status === "Blocked")) return "Blocked";
+  if (rows.every(g => g.status === "Complete" || g.status === "On Track")) return "Complete";
+  if (rows.some(g => g.status === "In Progress" || g.status === "On Track" || g.status === "Complete")) return "In Progress";
+  return "Not Started";
+}
+
+function fy27WorkloadStore() {
+  try {
+    return JSON.parse(localStorage.getItem(FY27_WORKLOAD_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFy27WorkloadStore(store) {
+  localStorage.setItem(FY27_WORKLOAD_KEY, JSON.stringify(store || {}));
+}
+
+function fy27WorkloadRows(custName) {
+  const store = fy27WorkloadStore();
+  const rows = store[custName];
+  if (Array.isArray(rows) && rows.length) return rows;
+  return [
+    { workload: "M365 Copilot", status: "Not Started", owner: "", notes: "" },
+    { workload: "Security Baseline", status: "Not Started", owner: "", notes: "" },
+    { workload: "Agent Readiness", status: "Not Started", owner: "", notes: "" }
+  ];
+}
+
+function writeFy27WorkloadRows(custName, rows) {
+  const store = fy27WorkloadStore();
+  store[custName] = rows;
+  writeFy27WorkloadStore(store);
+}
+
+function fy27WorkloadProgress(custName) {
+  const rows = fy27WorkloadRows(custName).filter(r => r.status !== "N/A");
   const done = rows.filter(r => r.status === "Complete" || r.status === "On Track").length;
   const active = rows.filter(r => r.status === "In Progress").length;
   const blocked = rows.filter(r => r.status === "Blocked").length;
@@ -3921,22 +3987,19 @@ function fy27Progress(custName) {
 
 function renderFy27HeaderPills(custName) {
   const p = fy27Progress(custName);
+  const w = fy27WorkloadProgress(custName);
   const healthClass = p.blocked ? "ic-health-red" : p.done === p.total ? "ic-health-green" : p.active || p.done ? "ic-health-yellow" : "ic-health-unknown";
+  const workloadClass = w.blocked ? "ic-health-red" : w.done === w.total ? "ic-health-green" : w.active || w.done ? "ic-health-yellow" : "ic-health-unknown";
   return `
     <div class="cust-status-row">
       <span class="csl-chip ic-health ${healthClass} fy27-rollup-pill" data-fy27-open="1"
-            title="FY27 Success Measures progress — click to open the customer tracker">FY27 ${p.done}/${p.total}</span>
+            title="FY27 Success Measures goal progress — click to open the customer tracker">FY27 Goals ${p.done}/${p.total}</span>
       <span class="csl-chip csl-met ${p.active ? "" : "csl-zero"}" data-fy27-open="1"
-            title="FY27 workstreams currently in progress">▶ ${p.active} active</span>
+            title="FY27 measures currently in progress">▶ ${p.active} active</span>
       <span class="csl-chip csl-regr ${p.blocked ? "" : "csl-zero"}" data-fy27-open="1"
-            title="FY27 workstreams currently blocked">▼ ${p.blocked} blocked</span>
-      <span class="csl-chip csl-pec-combined" data-fy27-open="1"
-            title="Customer-level FY27 target model: Ready AI, Config AI, Frontier Ready, Frontier Value, PQ Insights">
-        <span class="pec-combo-label">Targets</span>
-        <span class="pec-combo-cell"><span class="pec-combo-num">95</span><span class="pec-combo-tag">ready</span></span>
-        <span class="pec-combo-cell"><span class="pec-combo-num">85</span><span class="pec-combo-tag">config</span></span>
-        <span class="pec-combo-cell"><span class="pec-combo-num">75</span><span class="pec-combo-tag">frontier</span></span>
-      </span>
+            title="FY27 measures currently blocked">▼ ${p.blocked} blocked</span>
+      <span class="csl-chip ic-health ${workloadClass}" data-fy27-workload-open="1"
+            title="Manual FY27 workload projects — click to open the Workloads section">Workloads ${w.done}/${w.total}</span>
     </div>
     <div class="cust-status-row">
       <span class="csl-chip ic-health ic-health-unknown fy27-rollup-pill" data-fy27-open="1"
@@ -3948,6 +4011,8 @@ function renderFy27HeaderPills(custName) {
 function renderFy27CustomerTracker(c) {
   if (!isFy27SuccessModel()) return "";
   const rows = fy27CustomerRows(c.n);
+  const activeId = localStorage.getItem("fta-workspace-demo-fy27-active-tab") || rows[0]?.id || "ready-ai";
+  const active = rows.find(r => r.id === activeId) || rows[0];
   return `
     <div class="ic-card fy27-tracker-card" id="fy27TrackerCard">
       <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27TrackerCard').classList.toggle('collapsed')">
@@ -3958,36 +4023,110 @@ function renderFy27CustomerTracker(c) {
       </div>
       <div class="ic-body">
         <div class="fy27-summary-strip">
-          ${rows.map(r => `<div class="fy27-summary-card ${fy27StatusClass(r.status)}">
+          ${rows.map(r => `<div class="fy27-summary-card ${fy27StatusClass(fy27MeasureStatus(r.goals))}">
             <span class="fy27-signal">${escapeHtml(r.label)}</span>
-            <span class="fy27-score">${escapeHtml(r.target)} · ${escapeHtml(r.status || "Not Started")}</span>
+            <span class="fy27-score">${escapeHtml(fy27MeasureStatus(r.goals))}</span>
           </div>`).join("")}
         </div>
-        <table class="kr-table fy27-tracker-table">
-          <thead><tr>
-            <th>Success Measure</th>
-            <th>Status</th>
-            <th>Owner</th>
-            <th>Target</th>
-            <th>Next Step / Evidence</th>
-          </tr></thead>
-          <tbody>
-            ${rows.map(r => `<tr>
-              <td><span class="fy27-pillar-name">${escapeHtml(r.label)}</span><span class="fy27-pillar-desc">${escapeHtml(r.desc)}</span></td>
-              <td><select class="manual-ic-status ${fy27StatusClass(r.status)}" data-fy27-id="${escapeHtml(r.id)}" data-field="status">
-                ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === r.status ? " selected" : ""}>${o}</option>`).join("")}
-              </select></td>
-              <td><input class="fy27-owner-input" data-fy27-id="${escapeHtml(r.id)}" data-field="owner" value="${escapeHtml(r.owner || "")}" placeholder="FTA / CSAM / SME" /></td>
-              <td><span class="chip prog">${escapeHtml(r.target)}</span></td>
-              <td><textarea class="fy27-next-step" data-fy27-id="${escapeHtml(r.id)}" data-field="next" placeholder="Next action, blocker, evidence link, or FTBI note">${escapeHtml(r.next || "")}</textarea></td>
-            </tr>`).join("")}
-          </tbody>
-        </table>
+        <div class="fy27-tabs" role="tablist" aria-label="FY27 success measures">
+          ${rows.map(r => `<button type="button" class="${r.id === active.id ? "active" : ""}" data-fy27-tab="${escapeHtml(r.id)}" role="tab" aria-selected="${r.id === active.id ? "true" : "false"}">${escapeHtml(r.label)}</button>`).join("")}
+        </div>
+        <div class="fy27-tab-panel">
+          <div class="fy27-tab-intro">
+            <strong>${escapeHtml(active.label)}</strong>
+            <span>${escapeHtml(active.desc)}</span>
+            <button type="button" class="btn secondary" id="btnFy27AddGoal" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
+          </div>
+          <table class="kr-table fy27-tracker-table">
+            <thead><tr>
+              <th>Goal</th>
+              <th>Status</th>
+              <th>Owner</th>
+              <th>Notes</th>
+              <th style="width:70px">Action</th>
+            </tr></thead>
+            <tbody>
+              ${active.goals.map((g, idx) => `<tr>
+                <td><input class="fy27-goal-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${idx}" data-field="goal" value="${escapeHtml(g.goal || "")}" placeholder="Goal" /></td>
+                <td><select class="manual-ic-status ${fy27StatusClass(g.status)}" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${idx}" data-field="status">
+                  ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === g.status ? " selected" : ""}>${o}</option>`).join("")}
+                </select></td>
+                <td><input class="fy27-owner-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${idx}" data-field="owner" value="${escapeHtml(g.owner || "")}" placeholder="FTA / CSAM / SME" /></td>
+                <td><textarea class="fy27-next-step" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${idx}" data-field="notes" placeholder="Next action, blocker, evidence link, or FTBI note">${escapeHtml(g.notes || "")}</textarea></td>
+                <td><button type="button" class="btn secondary fy27-remove-goal" data-fy27-remove-goal="${escapeHtml(active.id)}" data-goal-index="${idx}" title="Remove this goal">Remove</button></td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
         <div style="font-size:11px;color:var(--cp-text-muted);padding:0 14px 12px;">
-          Demo scaffold: tracks customer effort locally now; later this should persist to SQLite and hydrate target-health signals from FTBI/Lynx/Power BI.
+          Demo scaffold: measure goals are locally editable now; later this should persist to SQLite and hydrate tenant-health signals from FTBI/Lynx/Power BI.
         </div>
       </div>
     </div>`;
+}
+
+function renderFy27WorkloadProjects(c) {
+  if (!isFy27SuccessModel()) return "";
+  const rows = fy27WorkloadRows(c.n);
+  return `
+    <div id="fy27WorkloadProjectWrap">
+      <table class="kr-table fy27-workload-table" data-cust="${escapeHtml(c.n)}">
+        <thead><tr>
+          <th>WORKLOAD</th>
+          <th>STATUS</th>
+          <th>OWNER</th>
+          <th>NOTES</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map((r, idx) => `<tr>
+            <td><input class="fy27-workload-input" data-fy27-workload-index="${idx}" data-field="workload" value="${escapeHtml(r.workload || "")}" placeholder="Workload project" /></td>
+            <td><select class="manual-ic-status ${fy27StatusClass(r.status)}" data-fy27-workload-index="${idx}" data-field="status">
+              ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === r.status ? " selected" : ""}>${o}</option>`).join("")}
+            </select></td>
+            <td><input class="fy27-owner-input" data-fy27-workload-index="${idx}" data-field="owner" value="${escapeHtml(r.owner || "")}" placeholder="Owner" /></td>
+            <td><textarea class="fy27-next-step" data-fy27-workload-index="${idx}" data-field="notes" placeholder="Project notes, blockers, next step">${escapeHtml(r.notes || "")}</textarea></td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      <div class="fy27-workload-actions">
+        <button type="button" class="btn secondary" id="btnFy27AddWorkload">+ Add Workload</button>
+        <span>Manual FY27 workload-project tracker. Use this for any customer effort, whether or not it maps to an FY26 KR.</span>
+      </div>
+    </div>`;
+}
+
+function saveFy27GoalField(custName, pillarId, goalIndex, field, value) {
+  const store = fy27TrackerStore();
+  store[custName] = store[custName] || {};
+  const pillar = FY27_PILLARS.find(p => p.id === pillarId);
+  const existing = store[custName][pillarId] || {};
+  const goals = fy27GoalDefaults(pillar, existing);
+  goals[goalIndex] = goals[goalIndex] || { goal: "", status: "Not Started", owner: "", notes: "" };
+  goals[goalIndex][field] = value;
+  store[custName][pillarId] = { goals };
+  writeFy27TrackerStore(store);
+}
+
+function addFy27Goal(custName, pillarId) {
+  const store = fy27TrackerStore();
+  store[custName] = store[custName] || {};
+  const pillar = FY27_PILLARS.find(p => p.id === pillarId);
+  const existing = store[custName][pillarId] || {};
+  const goals = fy27GoalDefaults(pillar, existing);
+  goals.push({ goal: "New goal", status: "Not Started", owner: "", notes: "" });
+  store[custName][pillarId] = { goals };
+  writeFy27TrackerStore(store);
+}
+
+function removeFy27Goal(custName, pillarId, goalIndex) {
+  const store = fy27TrackerStore();
+  store[custName] = store[custName] || {};
+  const pillar = FY27_PILLARS.find(p => p.id === pillarId);
+  const existing = store[custName][pillarId] || {};
+  const goals = fy27GoalDefaults(pillar, existing);
+  goals.splice(goalIndex, 1);
+  store[custName][pillarId] = { goals: goals.length ? goals : [{ goal: "New goal", status: "Not Started", owner: "", notes: "" }] };
+  writeFy27TrackerStore(store);
 }
 
 function attachFy27TrackerHandlers(custName) {
@@ -4002,15 +4141,47 @@ function attachFy27TrackerHandlers(custName) {
       }
     };
   });
+  document.querySelectorAll("[data-fy27-workload-open]").forEach(el => {
+    el.onclick = e => {
+      e.stopPropagation();
+      const card = document.querySelector(".kr-card");
+      if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+  document.querySelectorAll("[data-fy27-tab]").forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      localStorage.setItem("fta-workspace-demo-fy27-active-tab", btn.dataset.fy27Tab);
+      const card = document.getElementById("fy27TrackerCard");
+      const bodyOpen = card && !card.classList.contains("collapsed");
+      renderContent();
+      const nextCard = document.getElementById("fy27TrackerCard");
+      if (bodyOpen && nextCard) nextCard.classList.remove("collapsed");
+    };
+  });
+  const addGoal = document.getElementById("btnFy27AddGoal");
+  if (addGoal) {
+    addGoal.onclick = e => {
+      e.stopPropagation();
+      addFy27Goal(custName, addGoal.dataset.fy27AddGoal);
+      renderContent();
+      document.getElementById("fy27TrackerCard")?.classList.remove("collapsed");
+    };
+  }
+  document.querySelectorAll("[data-fy27-remove-goal]").forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      removeFy27Goal(custName, btn.dataset.fy27RemoveGoal, Number(btn.dataset.goalIndex || 0));
+      renderContent();
+      document.getElementById("fy27TrackerCard")?.classList.remove("collapsed");
+    };
+  });
   document.querySelectorAll("[data-fy27-id]").forEach(el => {
     const save = () => {
       const id = el.dataset.fy27Id;
       const field = el.dataset.field;
-      const store = fy27TrackerStore();
-      store[custName] = store[custName] || {};
-      store[custName][id] = store[custName][id] || { status: "Not Started", owner: "", next: "" };
-      store[custName][id][field] = el.value;
-      writeFy27TrackerStore(store);
+      const goalIndex = Number(el.dataset.goalIndex || 0);
+      saveFy27GoalField(custName, id, goalIndex, field, el.value);
       if (field === "status") {
         el.className = `manual-ic-status ${fy27StatusClass(el.value)}`;
         const card = el.closest(".fy27-tracker-card");
@@ -4022,6 +4193,42 @@ function attachFy27TrackerHandlers(custName) {
     };
     el.addEventListener(el.tagName === "TEXTAREA" || el.tagName === "INPUT" ? "input" : "change", save);
     el.addEventListener("click", e => e.stopPropagation());
+  });
+  document.querySelectorAll("[data-fy27-workload-index]").forEach(el => {
+    const save = () => {
+      const idx = Number(el.dataset.fy27WorkloadIndex || 0);
+      const field = el.dataset.field;
+      const rows = fy27WorkloadRows(custName);
+      rows[idx] = rows[idx] || { workload: "", status: "Not Started", owner: "", notes: "" };
+      rows[idx][field] = el.value;
+      writeFy27WorkloadRows(custName, rows);
+      if (field === "status") {
+        el.className = `manual-ic-status ${fy27StatusClass(el.value)}`;
+        renderContent();
+      }
+    };
+    el.addEventListener(el.tagName === "TEXTAREA" || el.tagName === "INPUT" ? "input" : "change", save);
+    el.addEventListener("click", e => e.stopPropagation());
+  });
+  const addWorkload = document.getElementById("btnFy27AddWorkload");
+  if (addWorkload) {
+    addWorkload.onclick = e => {
+      e.stopPropagation();
+      const rows = fy27WorkloadRows(custName);
+      rows.push({ workload: "New workload project", status: "Not Started", owner: "", notes: "" });
+      writeFy27WorkloadRows(custName, rows);
+      renderContent();
+    };
+  }
+  document.querySelectorAll("[data-fy27-remove-workload]").forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      const idx = Number(btn.dataset.fy27RemoveWorkload || 0);
+      const rows = fy27WorkloadRows(custName);
+      rows.splice(idx, 1);
+      writeFy27WorkloadRows(custName, rows.length ? rows : [{ workload: "New workload project", status: "Not Started", owner: "", notes: "" }]);
+      renderContent();
+    };
   });
 }
 
@@ -4367,6 +4574,7 @@ function renderContent() {
         <button type="button" class="wl-chart-btn" id="btnWlChart" data-cust="${c.n}"
                 title="MoM progress chart for all KR workloads — multi-line view with per-workload KPI threshold overlay">📈 Chart</button>
       </div>
+      ${renderFy27WorkloadProjects(c)}
       <div id="krTableWrap">
         <table class="kr-table">
           <thead><tr>
@@ -8395,10 +8603,12 @@ window.__queueSkill = (function () {
       // Toggle empty-state in the Workloads card
       const krWrap = document.getElementById("krTableWrap");
       const nkWrap = document.getElementById("nonkrTableWrap");
+      const fy27Wrap = document.getElementById("fy27WorkloadProjectWrap");
       const empty  = document.getElementById("wlEpochEmpty");
       const toggle = document.getElementById("krModeToggle");
       const chart  = document.getElementById("btnWlChart");
-      if (empty) empty.style.display = isLive ? "none" : "";
+      if (empty) empty.style.display = "none";
+      if (fy27Wrap) fy27Wrap.style.display = isLive ? "none" : "";
       if (toggle) toggle.style.visibility = isLive ? "" : "hidden";
       if (chart) chart.style.visibility = isLive ? "" : "hidden";
       if (krWrap && nkWrap) {
@@ -11542,6 +11752,47 @@ window.__cartLogModal = (function () {
   color: var(--cp-text-muted);
   font-weight: 500;
 }
+.fy27-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 14px 8px;
+}
+.fy27-tabs button {
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: var(--cp-surface);
+  color: var(--cp-text-muted);
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.fy27-tabs button.active {
+  background: var(--cp-accent);
+  border-color: var(--cp-accent);
+  color: var(--cp-accent-fg);
+}
+.fy27-tab-panel {
+  padding: 0 14px 12px;
+}
+.fy27-tab-intro {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 10px;
+  color: var(--cp-text-muted);
+  font-size: 12px;
+}
+.fy27-tab-intro strong {
+  color: var(--cp-text);
+  font-size: 13px;
+}
+.fy27-tab-intro span {
+  flex: 1;
+}
+.fy27-goal-input,
+.fy27-workload-input,
 .fy27-owner-input,
 .fy27-next-step {
   width: 100%;
@@ -11555,6 +11806,15 @@ window.__cartLogModal = (function () {
 .fy27-next-step {
   min-height: 34px;
   resize: vertical;
+}
+.fy27-workload-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 12px;
+  color: var(--cp-text-muted);
+  font-size: 11px;
+  border-top: 1px solid var(--cp-border);
 }
 .fy27-rollup-pill {
   cursor: pointer;
