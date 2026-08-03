@@ -2420,6 +2420,20 @@ html[data-theme="win98"] .def-modal-head .def-close {
   margin: 0; font-size: 13px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.5px; color: var(--cp-text-muted);
 }
+.kr-card.collapsed > :not(.kr-card-hdr) {
+  display: none !important;
+}
+.kr-card-hdr .chev {
+  display: inline-block;
+  width: 14px;
+  margin-right: 4px;
+  color: var(--cp-text-muted);
+  font-size: 11px;
+  transition: transform 150ms;
+}
+.kr-card.collapsed .kr-card-hdr .chev {
+  transform: rotate(-90deg);
+}
 /* v0.53: epoch tag next to section titles ("Workloads · FY26 H2") */
 .section-epoch-badge {
   display: inline-block;
@@ -4076,6 +4090,7 @@ function renderFy27WorkloadProjects(c) {
           <th>STATUS</th>
           <th>OWNER</th>
           <th>NOTES</th>
+          <th>ACTION</th>
         </tr></thead>
         <tbody>
           ${rows.map((r, idx) => `<tr>
@@ -4085,6 +4100,7 @@ function renderFy27WorkloadProjects(c) {
             </select></td>
             <td><input class="fy27-owner-input" data-fy27-workload-index="${idx}" data-field="owner" value="${escapeHtml(r.owner || "")}" placeholder="Owner" /></td>
             <td><textarea class="fy27-next-step" data-fy27-workload-index="${idx}" data-field="notes" placeholder="Project notes, blockers, next step">${escapeHtml(r.notes || "")}</textarea></td>
+            <td><button type="button" class="btn secondary fy27-remove-workload" data-fy27-remove-workload="${idx}" title="Remove this workload">Remove</button></td>
           </tr>`).join("")}
         </tbody>
       </table>
@@ -4563,9 +4579,9 @@ function renderContent() {
       </div>
     </div>
 
-    <div class="kr-card">
-      <div class="kr-card-hdr">
-        <h3>Workloads <span class="section-epoch-badge" id="wlSectionEpoch">FY26 H2</span></h3>
+    <div class="kr-card" id="workloadsCard">
+      <div class="kr-card-hdr" onclick="if (!event.target.closest('button,select,input,textarea')) document.getElementById('workloadsCard').classList.toggle('collapsed')">
+        <h3><span class="chev">▼</span>Workloads <span class="section-epoch-badge" id="wlSectionEpoch">FY26 H2</span></h3>
         <span style="flex:1"></span>
         <div class="kr-mode-toggle" id="krModeToggle" role="tablist" aria-label="Switch between KR and Non-KR workload tracking">
           <button type="button" data-mode="kr" class="active" role="tab" aria-selected="true">Key Results</button>
@@ -11806,6 +11822,28 @@ window.__cartLogModal = (function () {
 .fy27-next-step {
   min-height: 34px;
   resize: vertical;
+}
+.fy27-workload-table {
+  table-layout: fixed;
+}
+.fy27-workload-table th:nth-child(1),
+.fy27-workload-table td:nth-child(1) {
+  width: 145px;
+}
+.fy27-workload-table th:nth-child(2),
+.fy27-workload-table td:nth-child(2) {
+  width: 118px;
+}
+.fy27-workload-table th:nth-child(3),
+.fy27-workload-table td:nth-child(3) {
+  width: 96px;
+}
+.fy27-workload-table th:nth-child(5),
+.fy27-workload-table td:nth-child(5) {
+  width: 76px;
+}
+.fy27-workload-table .manual-ic-status {
+  width: 112px;
 }
 .fy27-workload-actions {
   display: flex;
