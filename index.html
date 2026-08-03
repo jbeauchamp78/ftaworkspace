@@ -3383,25 +3383,25 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     <div class="topbar-title-row">
       <h1>FTA Workspace</h1>
       <button type="button" class="info-pill" id="infoPill" title="What is FTA Workspace? How does it work? Click for the full guide.">i</button>
-      <span class="version-tag" title="Build version: v1.76 locked 2026-07-22 14:50 EDT — Added 5-minute autosave with active-edit idle guard.">v1.76 · Stable</span>
+      <span class="version-tag" title="Build version: demo v1.77 — Unified FY26/FY27 Success Model selector prototype.">v1.77 · Demo</span>
     </div>
     <span class="def-strip">
-      <span class="def-pill def-pill-group" data-def="kr" title="Active KR rules epoch — choose another to view its scorecard">
-        <span class="def-icon">📋</span><span class="def-pill-label">KR Rules</span>
-        <select class="def-epoch-select" id="krEpochSelect" aria-label="KR rules epoch">
-          <option value="FY26 H2">FY26 H2</option>
-          <option value="FY27 Q1">FY27 Q1</option>
+      <span class="def-pill def-pill-group success-model-pill" title="Choose the fiscal success model for the demo workspace">
+        <span class="def-icon">🎯</span><span class="def-pill-label">Success Model</span>
+        <select class="def-epoch-select" id="successModelSelect" aria-label="Success model">
+          <option value="FY26 H2">FY26 Current Layouts</option>
+          <option value="FY27 Q1">FY27 Success Measures</option>
         </select>
-        <button type="button" class="def-info-btn" data-def="kr" aria-label="Show KR rules" title="Show full rules + changelog">i</button>
+        <button type="button" class="def-info-btn" data-def="success_model" aria-label="Show Success Model notes" title="Show model mapping">i</button>
       </span>
-      <span class="def-pill def-pill-group" data-def="ideal_config" title="Active Copilot Ideal Config rules epoch — choose another to view its posture">
-        <span class="def-icon">⚙️</span><span class="def-pill-label">Copilot IC Rules</span>
-        <select class="def-epoch-select" id="cfgEpochSelect" aria-label="Copilot IC rules epoch">
-          <option value="FY26 H2">FY26 H2</option>
-          <option value="FY27 Q1">FY27 Q1</option>
-        </select>
-        <button type="button" class="def-info-btn" data-def="ideal_config" aria-label="Show Copilot IC rules" title="Show full rules + changelog">i</button>
-      </span>
+      <select class="def-epoch-select" id="krEpochSelect" aria-label="KR rules epoch" style="display:none">
+        <option value="FY26 H2">FY26 H2</option>
+        <option value="FY27 Q1">FY27 Q1</option>
+      </select>
+      <select class="def-epoch-select" id="cfgEpochSelect" aria-label="Copilot IC rules epoch" style="display:none">
+        <option value="FY26 H2">FY26 H2</option>
+        <option value="FY27 Q1">FY27 Q1</option>
+      </select>
     </span>
   </div>
   <span class="meta" id="topbarMeta">
@@ -6268,21 +6268,32 @@ window.__api = (function() {
       // KR Status
       _flashCounter('#ct-customers',     c.customers);
       const krRuleLive = !window.__epochs || window.__epochs.get("kr") === window.__epochs.LIVE;
-      _flashCounter('#ct-kr-wins',       krRuleLive ? c.kr_status.total_kr_wins : 0);
-      _flashCounter('#ct-kpi-wins',      krRuleLive ? c.kr_status.total_kpi_wins : 0);
-      _flashCounter('#ct-kpi-regr',      krRuleLive ? c.kr_status.kpi_regressions : 0);
-      _flashCounter('#ct-missing-pecs',  c.kr_status.missing_pecs);
+      const fy27Model = window.__epochs && window.__epochs.getModel && window.__epochs.getModel() === "FY27 Q1";
+      if (fy27Model) {
+        _flashCounter('#ct-kr-wins',       "95%");
+        _flashCounter('#ct-kpi-wins',      "85%");
+        _flashCounter('#ct-kpi-regr',      "75%");
+        _flashCounter('#ct-missing-pecs',  "65%");
+      } else {
+        _flashCounter('#ct-kr-wins',       krRuleLive ? c.kr_status.total_kr_wins : 0);
+        _flashCounter('#ct-kpi-wins',      krRuleLive ? c.kr_status.total_kpi_wins : 0);
+        _flashCounter('#ct-kpi-regr',      krRuleLive ? c.kr_status.kpi_regressions : 0);
+        _flashCounter('#ct-missing-pecs',  c.kr_status.missing_pecs);
+      }
       // Ideal Config rollup — show wins only
       const ic = c.ideal_config || {wins:0,total:0};
       const totalCusts = c.customers || 0;
       const icRuleLive = !window.__epochs || window.__epochs.get("ideal_config") === window.__epochs.LIVE;
-      _flashCounter('#ct-ic-wins',  icRuleLive ? ic.wins : 0);
+      _flashCounter('#ct-ic-wins',  fy27Model ? "40%" : icRuleLive ? ic.wins : 0);
       const hint = document.querySelector('#ct-ic-hint');
-      if (hint) hint.textContent = !icRuleLive
+      if (hint) hint.textContent = fy27Model
+        ? 'eligible insights accepted'
+        : !icRuleLive
         ? 'FY27 rules pending'
         : ic.total === 0
         ? 'run refresh to populate'
         : `of ${totalCusts} customers GREEN`;
+      if (window.__epochs && window.__epochs.applyModelChrome) window.__epochs.applyModelChrome();
       // Spotlights — show published count only
       const sp = c.spotlights || {published:0, recommended:0, in_flight:0, customers_with_spotlight:0};
       _flashCounter('#ct-sp-wins', sp.published);
@@ -8114,16 +8125,101 @@ window.__queueSkill = (function () {
   const LIVE_EPOCH = "FY26 H2";  // bump this when a new epoch goes live
   const LS_KR  = "fta-ws-epoch-kr";
   const LS_IC  = "fta-ws-epoch-ic";
+  const LS_MODEL = "fta-ws-success-model";
   function getEpoch(kind) {
     const v = localStorage.getItem(kind === "kr" ? LS_KR : LS_IC);
     return EPOCHS.includes(v) ? v : LIVE_EPOCH;
   }
+  function getSuccessModel() {
+    const kr = getEpoch("kr");
+    const ic = getEpoch("ideal_config");
+    if (kr === "FY27 Q1" && ic === "FY27 Q1") return "FY27 Q1";
+    return "FY26 H2";
+  }
+  function setSuccessModel(value) {
+    if (!EPOCHS.includes(value)) value = LIVE_EPOCH;
+    localStorage.setItem(LS_MODEL, value);
+    localStorage.setItem(LS_KR, value);
+    localStorage.setItem(LS_IC, value);
+    syncEpochUI("kr");
+    syncEpochUI("ideal_config");
+    syncSuccessModelUI();
+    applySuccessModelChrome();
+    try { if (typeof window.renderContent === "function") window.renderContent(); } catch {}
+    try { if (typeof updateCounters === "function") updateCounters(); } catch {}
+    setTimeout(applySuccessModelChrome, 0);
+    setTimeout(applySuccessModelChrome, 350);
+  }
   function setEpoch(kind, value) {
     if (!EPOCHS.includes(value)) value = LIVE_EPOCH;
     localStorage.setItem(kind === "kr" ? LS_KR : LS_IC, value);
+    localStorage.setItem(LS_MODEL, getSuccessModel());
     syncEpochUI(kind);
+    syncSuccessModelUI();
+    applySuccessModelChrome();
     try { if (typeof window.renderContent === "function") window.renderContent(); } catch {}
     try { if (typeof updateCounters === "function") updateCounters(); } catch {}
+    setTimeout(applySuccessModelChrome, 0);
+    setTimeout(applySuccessModelChrome, 350);
+  }
+
+  function syncSuccessModelUI() {
+    const sel = document.getElementById("successModelSelect");
+    if (sel && sel.value !== getSuccessModel()) sel.value = getSuccessModel();
+  }
+
+  function applySuccessModelChrome() {
+    const fy27 = getSuccessModel() === "FY27 Q1";
+    const sectionTitle = document.querySelector(".counter-section:has(#ct-kr-wins) .section-hdr h2");
+    const source = document.querySelector(".counter-section:has(#ct-kr-wins) .section-hdr .src");
+    const tileText = (selector, label, hint, title) => {
+      const tile = document.querySelector(selector);
+      if (!tile) return;
+      const lab = tile.querySelector(".label");
+      const h = tile.querySelector(".hint");
+      if (lab) lab.textContent = label;
+      if (h) h.textContent = hint;
+      if (title) tile.title = title;
+    };
+    const tileValue = (selector, value) => {
+      const cell = document.querySelector(`${selector} .value`);
+      if (cell) cell.textContent = value;
+    };
+    const fy27TileSelectors = ['[data-tile="kr-wins"]', '[data-tile="kpi-wins"]', '[data-tile="regressions"]', '[data-tile="missing-pecs"]', '[data-tile="ic-wins"]'];
+    if (sectionTitle) sectionTitle.textContent = fy27 ? "FY27 Success Measures" : "KR & Ideal Config Status";
+    if (source) {
+      source.textContent = fy27 ? "FTBI/Lynx/Power BI · demo" : "MIDAS/FTOP/Lynx";
+      source.title = fy27 ? "FY27 tenant-level configuration health sources (prototype)" : "MIDAS + FTOP + Lynx";
+    }
+    if (fy27) {
+      fy27TileSelectors.forEach(selector => {
+        const cell = document.querySelector(`${selector} .value`);
+        if (cell && !cell.dataset.fy26Value) cell.dataset.fy26Value = cell.textContent || "";
+      });
+      tileText('[data-tile="kr-wins"]', "Ready AI", "target tenants", "FY27 KR3: Ready for AI target = 95% prioritized tenants");
+      tileText('[data-tile="kpi-wins"]', "Config AI", "target tenants", "FY27 KR4: Configured for AI target = 85% prioritized tenants");
+      tileText('[data-tile="regressions"]', "Frontier Ready", "target tenants", "FY27 KR5: Ready for Frontier Adoption target = 75% prioritized tenants");
+      tileText('[data-tile="missing-pecs"]', "Frontier Value", "target tenants", "FY27 KR6: Optimized for Frontier Value target = 65% prioritized tenants");
+      tileText('[data-tile="ic-wins"]', "PQ Insights", "accepted backlog", "FY27 KR2: 40% eligible insights accepted into Engineering backlogs");
+      tileValue('[data-tile="kr-wins"]', "95%");
+      tileValue('[data-tile="kpi-wins"]', "85%");
+      tileValue('[data-tile="regressions"]', "75%");
+      tileValue('[data-tile="missing-pecs"]', "65%");
+      tileValue('[data-tile="ic-wins"]', "40%");
+    } else {
+      fy27TileSelectors.forEach(selector => {
+        const cell = document.querySelector(`${selector} .value`);
+        if (cell && cell.dataset.fy26Value) {
+          cell.textContent = cell.dataset.fy26Value;
+          delete cell.dataset.fy26Value;
+        }
+      });
+      tileText('[data-tile="kr-wins"]', "KR Wins", "customers w/ a WIN", "Customers with at least one KR WIN this FY");
+      tileText('[data-tile="kpi-wins"]', "KPI Wins", "KPI WIN rows earned this FY", "Count of KPI rows with status KPI WIN");
+      tileText('[data-tile="regressions"]', "Regressions", "KR rows regressed", "Count of KPI rows with status REGRESSION");
+      tileText('[data-tile="missing-pecs"]', "Missing PECs", "active KRs w/o PEC", "Active KRs without a PEC backing");
+      tileText('[data-tile="ic-wins"]', "IC Wins", "customers GREEN", "Customers whose Copilot Ideal Config rolls up to GREEN");
+    }
   }
 
   function syncEpochUI(kind) {
@@ -8177,7 +8273,7 @@ window.__queueSkill = (function () {
 
   // Expose for the spotlights/hydrate cycle so a customer-block re-render
   // can re-apply the active epoch's UI state.
-  window.__epochs = { get: getEpoch, set: setEpoch, sync: syncEpochUI, LIVE: LIVE_EPOCH };
+  window.__epochs = { get: getEpoch, set: setEpoch, sync: syncEpochUI, LIVE: LIVE_EPOCH, getModel: getSuccessModel, setModel: setSuccessModel, applyModelChrome: applySuccessModelChrome };
 
   function fmtDate(iso) {
     if (!iso) return "—";
@@ -8216,6 +8312,34 @@ window.__queueSkill = (function () {
     const title = document.getElementById("defModalTitle");
     const epoch = document.getElementById("defModalEpoch");
     const body = document.getElementById("defModalBody");
+    if (kind === "success_model") {
+      const model = getSuccessModel();
+      title.textContent = "Success Model";
+      epoch.textContent = model === "FY27 Q1" ? "FY27 Success Measures" : "FY26 Current Layouts";
+      body.innerHTML = `
+        <div class="def-sub">Demo-only prototype mapping</div>
+        <div class="def-section-title">FY26 Current Layouts</div>
+        <p style="font-size:13px;line-height:1.6;color:var(--cp-text-muted);">
+          Keeps the current KR/KPI workload scorecard and current Copilot Ideal Config layout.
+          This is the continuity view for the existing Workspace experience.
+        </p>
+        <div class="def-section-title">FY27 Success Measures</div>
+        <p style="font-size:13px;line-height:1.6;color:var(--cp-text-muted);">
+          Switches the demo to a tenant-configuration-health model: Ready for AI,
+          Configured for AI, Ready for Frontier Adoption, Optimized for Frontier Value,
+          and Product Quality / Insights. Targets shown are preliminary deck targets,
+          while detailed tenant health reporting is phased in through FY27.
+        </p>
+        <ul>
+          <li><span class="def-name">Ready AI</span><span class="def-rule">Target 95% prioritized tenants Ready for AI.</span></li>
+          <li><span class="def-name">Config AI</span><span class="def-rule">Target 85% prioritized tenants Configured for AI.</span></li>
+          <li><span class="def-name">Frontier Ready</span><span class="def-rule">Target 75% prioritized tenants Ready for Frontier Adoption.</span></li>
+          <li><span class="def-name">Frontier Value</span><span class="def-rule">Target 65% prioritized tenants Optimized for Frontier Value.</span></li>
+          <li><span class="def-name">PQ Insights</span><span class="def-rule">Target 40% eligible insights accepted into Engineering backlog.</span></li>
+        </ul>`;
+      back.classList.add("show");
+      return;
+    }
     const data = kind === "kr" ? cached.kr : cached.ideal_config;
     const headerTitle = kind === "kr" ? "KR Rules" : "Copilot Ideal Config Rules";
     const selectedEpoch = window.__epochs ? window.__epochs.get(kind) : data.epoch;
@@ -8278,9 +8402,11 @@ window.__queueSkill = (function () {
     const icSel = document.getElementById("cfgEpochSelect");
     if (krSel) krSel.value = window.__epochs ? window.__epochs.get("kr") : "FY26 H2";
     if (icSel) icSel.value = window.__epochs ? window.__epochs.get("ideal_config") : "FY26 H2";
+    syncSuccessModelUI();
     if (window.__epochs) {
       window.__epochs.sync("kr");
       window.__epochs.sync("ideal_config");
+      window.__epochs.applyModelChrome();
     }
   }
 
@@ -8288,7 +8414,9 @@ window.__queueSkill = (function () {
   // the rules modal. The select must stop click propagation so opening the
   // dropdown doesn't also fire the wrapper button.
   document.addEventListener("change", (e) => {
-    if (e.target.id === "krEpochSelect" && window.__epochs) {
+    if (e.target.id === "successModelSelect" && window.__epochs) {
+      window.__epochs.setModel(e.target.value);
+    } else if (e.target.id === "krEpochSelect" && window.__epochs) {
       window.__epochs.set("kr", e.target.value);
     } else if (e.target.id === "cfgEpochSelect" && window.__epochs) {
       window.__epochs.set("ideal_config", e.target.value);
