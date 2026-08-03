@@ -2420,6 +2420,24 @@ html[data-theme="win98"] .def-modal-head .def-close {
   margin: 0; font-size: 13px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.5px; color: var(--cp-text-muted);
 }
+.kr-card.fy27-workloads-card .kr-card-hdr {
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--cp-border);
+}
+.kr-card.fy27-workloads-card.collapsed .kr-card-hdr {
+  border-bottom: none;
+}
+.kr-card.fy27-workloads-card .kr-card-hdr h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--cp-text);
+}
 .kr-card.collapsed > :not(.kr-card-hdr) {
   display: none !important;
 }
@@ -4579,7 +4597,7 @@ function renderContent() {
       </div>
     </div>
 
-    <div class="kr-card" id="workloadsCard">
+    <div class="kr-card fy27-workloads-card" id="workloadsCard">
       <div class="kr-card-hdr" onclick="if (!event.target.closest('button,select,input,textarea')) document.getElementById('workloadsCard').classList.toggle('collapsed')">
         <h3><span class="chev">▼</span>Workloads <span class="section-epoch-badge" id="wlSectionEpoch">FY26 H2</span></h3>
         <span style="flex:1"></span>
@@ -11825,25 +11843,30 @@ window.__cartLogModal = (function () {
 }
 .fy27-workload-table {
   table-layout: fixed;
+  width: 100%;
+}
+.fy27-workload-table th,
+.fy27-workload-table td {
+  padding-left: 8px;
+  padding-right: 8px;
 }
 .fy27-workload-table th:nth-child(1),
-.fy27-workload-table td:nth-child(1) {
-  width: 145px;
-}
+.fy27-workload-table td:nth-child(1) { width: 136px; }
 .fy27-workload-table th:nth-child(2),
-.fy27-workload-table td:nth-child(2) {
-  width: 118px;
-}
+.fy27-workload-table td:nth-child(2) { width: 116px; }
 .fy27-workload-table th:nth-child(3),
-.fy27-workload-table td:nth-child(3) {
-  width: 96px;
-}
+.fy27-workload-table td:nth-child(3) { width: 94px; }
 .fy27-workload-table th:nth-child(5),
-.fy27-workload-table td:nth-child(5) {
-  width: 76px;
-}
+.fy27-workload-table td:nth-child(5) { width: 86px; }
 .fy27-workload-table .manual-ic-status {
-  width: 112px;
+  width: 100%;
+  min-width: 0;
+}
+.fy27-workload-table .btn {
+  width: 100%;
+  min-width: 0;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 .fy27-workload-actions {
   display: flex;
