@@ -3866,6 +3866,165 @@ function renderSidebar() {
   });
 }
 
+const FY27_TRACKER_KEY = "fta-workspace-demo-fy27-tracker-v1";
+const FY27_STATUS_OPTIONS = ["Not Started", "In Progress", "On Track", "Blocked", "Complete", "N/A"];
+const FY27_PILLARS = [
+  { id: "ready-ai", label: "Ready AI", desc: "Productivity + security baseline", target: "95%" },
+  { id: "config-ai", label: "Config AI", desc: "Data Security + Copilot ideal config", target: "85%" },
+  { id: "frontier-ready", label: "Frontier Ready", desc: "Agent enablement + governance", target: "75%" },
+  { id: "frontier-value", label: "Frontier Value", desc: "Consumption, analytics, optimization", target: "65%" },
+  { id: "pq-insights", label: "PQ Insights", desc: "Eligible insights accepted by Engineering", target: "40%" },
+];
+
+function isFy27SuccessModel() {
+  return !!(window.__epochs && window.__epochs.getModel && window.__epochs.getModel() === "FY27 Q1");
+}
+
+function fy27TrackerStore() {
+  try {
+    return JSON.parse(localStorage.getItem(FY27_TRACKER_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFy27TrackerStore(store) {
+  localStorage.setItem(FY27_TRACKER_KEY, JSON.stringify(store || {}));
+}
+
+function fy27CustomerRows(custName) {
+  const store = fy27TrackerStore();
+  const cust = store[custName] || {};
+  return FY27_PILLARS.map(p => ({
+    ...p,
+    ...(cust[p.id] || { status: "Not Started", owner: "", next: "" })
+  }));
+}
+
+function fy27StatusClass(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "complete" || s === "on track") return "status-green";
+  if (s === "in progress") return "status-yellow";
+  if (s === "blocked") return "status-red";
+  if (s === "n/a") return "status-na";
+  return "";
+}
+
+function fy27Progress(custName) {
+  const rows = fy27CustomerRows(custName).filter(r => r.status !== "N/A");
+  const done = rows.filter(r => r.status === "Complete" || r.status === "On Track").length;
+  const active = rows.filter(r => r.status === "In Progress").length;
+  const blocked = rows.filter(r => r.status === "Blocked").length;
+  const total = rows.length || FY27_PILLARS.length;
+  return { done, active, blocked, total };
+}
+
+function renderFy27HeaderPills(custName) {
+  const p = fy27Progress(custName);
+  const healthClass = p.blocked ? "ic-health-red" : p.done === p.total ? "ic-health-green" : p.active || p.done ? "ic-health-yellow" : "ic-health-unknown";
+  return `
+    <div class="cust-status-row">
+      <span class="csl-chip ic-health ${healthClass} fy27-rollup-pill" data-fy27-open="1"
+            title="FY27 Success Measures progress — click to open the customer tracker">FY27 ${p.done}/${p.total}</span>
+      <span class="csl-chip csl-met ${p.active ? "" : "csl-zero"}" data-fy27-open="1"
+            title="FY27 workstreams currently in progress">▶ ${p.active} active</span>
+      <span class="csl-chip csl-regr ${p.blocked ? "" : "csl-zero"}" data-fy27-open="1"
+            title="FY27 workstreams currently blocked">▼ ${p.blocked} blocked</span>
+      <span class="csl-chip csl-pec-combined" data-fy27-open="1"
+            title="Customer-level FY27 target model: Ready AI, Config AI, Frontier Ready, Frontier Value, PQ Insights">
+        <span class="pec-combo-label">Targets</span>
+        <span class="pec-combo-cell"><span class="pec-combo-num">95</span><span class="pec-combo-tag">ready</span></span>
+        <span class="pec-combo-cell"><span class="pec-combo-num">85</span><span class="pec-combo-tag">config</span></span>
+        <span class="pec-combo-cell"><span class="pec-combo-num">75</span><span class="pec-combo-tag">frontier</span></span>
+      </span>
+    </div>
+    <div class="cust-status-row">
+      <span class="csl-chip ic-health ic-health-unknown fy27-rollup-pill" data-fy27-open="1"
+            title="Future source: FTBI/Lynx/Power BI tenant-health rollups">source: FTBI/Lynx/Power BI</span>
+      <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${custName.replace(/[^a-z0-9]/gi,'_')}" data-cust="${custName}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
+    </div>`;
+}
+
+function renderFy27CustomerTracker(c) {
+  if (!isFy27SuccessModel()) return "";
+  const rows = fy27CustomerRows(c.n);
+  return `
+    <div class="ic-card fy27-tracker-card" id="fy27TrackerCard">
+      <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27TrackerCard').classList.toggle('collapsed')">
+        <span class="chev">▼</span>
+        <h3>FY27 Success Tracker <span class="section-epoch-badge">FY27 Success Measures</span></h3>
+        <span class="spacer"></span>
+        <span class="ic-source">demo local</span>
+      </div>
+      <div class="ic-body">
+        <div class="fy27-summary-strip">
+          ${rows.map(r => `<div class="fy27-summary-card ${fy27StatusClass(r.status)}">
+            <span class="fy27-signal">${escapeHtml(r.label)}</span>
+            <span class="fy27-score">${escapeHtml(r.target)} · ${escapeHtml(r.status || "Not Started")}</span>
+          </div>`).join("")}
+        </div>
+        <table class="kr-table fy27-tracker-table">
+          <thead><tr>
+            <th>Success Measure</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th>Target</th>
+            <th>Next Step / Evidence</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r => `<tr>
+              <td><span class="fy27-pillar-name">${escapeHtml(r.label)}</span><span class="fy27-pillar-desc">${escapeHtml(r.desc)}</span></td>
+              <td><select class="manual-ic-status ${fy27StatusClass(r.status)}" data-fy27-id="${escapeHtml(r.id)}" data-field="status">
+                ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === r.status ? " selected" : ""}>${o}</option>`).join("")}
+              </select></td>
+              <td><input class="fy27-owner-input" data-fy27-id="${escapeHtml(r.id)}" data-field="owner" value="${escapeHtml(r.owner || "")}" placeholder="FTA / CSAM / SME" /></td>
+              <td><span class="chip prog">${escapeHtml(r.target)}</span></td>
+              <td><textarea class="fy27-next-step" data-fy27-id="${escapeHtml(r.id)}" data-field="next" placeholder="Next action, blocker, evidence link, or FTBI note">${escapeHtml(r.next || "")}</textarea></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+        <div style="font-size:11px;color:var(--cp-text-muted);padding:0 14px 12px;">
+          Demo scaffold: tracks customer effort locally now; later this should persist to SQLite and hydrate target-health signals from FTBI/Lynx/Power BI.
+        </div>
+      </div>
+    </div>`;
+}
+
+function attachFy27TrackerHandlers(custName) {
+  if (!isFy27SuccessModel()) return;
+  document.querySelectorAll("[data-fy27-open]").forEach(el => {
+    el.onclick = e => {
+      e.stopPropagation();
+      const card = document.getElementById("fy27TrackerCard");
+      if (card) {
+        card.classList.remove("collapsed");
+        card.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+  });
+  document.querySelectorAll("[data-fy27-id]").forEach(el => {
+    const save = () => {
+      const id = el.dataset.fy27Id;
+      const field = el.dataset.field;
+      const store = fy27TrackerStore();
+      store[custName] = store[custName] || {};
+      store[custName][id] = store[custName][id] || { status: "Not Started", owner: "", next: "" };
+      store[custName][id][field] = el.value;
+      writeFy27TrackerStore(store);
+      if (field === "status") {
+        el.className = `manual-ic-status ${fy27StatusClass(el.value)}`;
+        const card = el.closest(".fy27-tracker-card");
+        const bodyOpen = card && !card.classList.contains("collapsed");
+        renderContent();
+        const nextCard = document.getElementById("fy27TrackerCard");
+        if (bodyOpen && nextCard) nextCard.classList.remove("collapsed");
+      }
+    };
+    el.addEventListener(el.tagName === "TEXTAREA" || el.tagName === "INPUT" ? "input" : "change", save);
+    el.addEventListener("click", e => e.stopPropagation());
+  });
+}
+
 function renderContent() {
   const c = CUSTOMERS.find(x => x.n === window.activeCust);
   const wrap = document.getElementById("content");
@@ -4031,6 +4190,7 @@ function renderContent() {
         </div>
         <div class="cust-statusline">
           ${(() => {
+            if (isFy27SuccessModel()) return renderFy27HeaderPills(c.n);
             const krRuleLive = !window.__epochs || window.__epochs.get("kr") === window.__epochs.LIVE;
             const krWins  = krRuleLive ? customerKrWins(c).length : 0;
             const kpiWins = krRuleLive ? c.krs.filter(k => k.s === 'KPI WIN').length : 0;
@@ -4169,6 +4329,8 @@ function renderContent() {
       </div>
     </div>
 
+    ${renderFy27CustomerTracker(c)}
+
     <!-- ===== Ideal Config (10 Copilot admin settings) ===== -->
     <div class="ic-card collapsed" id="icCard">
       <div class="ic-hdr" onclick="if (event.target.tagName !== 'BUTTON') document.getElementById('icCard').classList.toggle('collapsed')">
@@ -4188,8 +4350,8 @@ function renderContent() {
           <tbody id="icTableBody"></tbody>
         </table>
         <div class="epoch-empty-state" id="icEpochEmpty" style="display:none;">
-          <h4>No FY27 Q1 data yet</h4>
-          <p>The FY27 Q1 Copilot Ideal Config rules ship on <strong>Jul 1, 2026</strong>. Once they land, this view will start tracking your customer's posture against the new ruleset. Until then, switch back to <strong>FY26 H2</strong> in the topbar to see the active scorecard.</p>
+          <h4>FY27 config rolls up in the Success Tracker</h4>
+          <p>Detailed tenant-health signals will hydrate from FTBI/Lynx/Power BI later. For the demo, track Ready AI and Config AI owner, status, next step, and blocker evidence in the customer-level FY27 Success Tracker above.</p>
         </div>
       </div>
     </div>
@@ -4239,12 +4401,14 @@ function renderContent() {
         </div>
       </div>
       <div class="epoch-empty-state" id="wlEpochEmpty" style="display:none;">
-        <h4>No FY27 Q1 data yet</h4>
-        <p>The FY27 Q1 KR thresholds + workload list ship on <strong>Jul 1, 2026</strong>. Once they land, refresh will start populating this view with the new ruleset. Until then, switch back to <strong>FY26 H2</strong> in the topbar to see the active scorecard.</p>
-        <p style="margin-top:8px;">Historical FY26 H2 data is preserved — switching epochs back to FY26 H2 restores the full view including KR notes and PEC flags.</p>
+        <h4>FY27 workload tracking moved to tenant success measures</h4>
+        <p>FY27 is tracked by customer-level outcomes instead of the FY26 workload scorecard. Use the FY27 Success Tracker above for Ready AI, Config AI, Frontier Ready, Frontier Value, and Product Quality / Insights.</p>
+        <p style="margin-top:8px;">Historical FY26 H2 data is preserved — switching back to FY26 Current Layouts restores the full workload scorecard including KR notes and PEC flags.</p>
       </div>
     </div>
   `;
+
+  attachFy27TrackerHandlers(c.n);
 
   // Mark the active sort column header + tristate-click handler. Done after
   // wrap.innerHTML so the freshly-rendered <th> elements are queryable.
@@ -11319,14 +11483,85 @@ window.__cartLogModal = (function () {
     border-color: var(--cp-danger);
     color: var(--cp-text);
   }
-  .manual-ic-status.status-na {
-    background: var(--cp-surface-soft);
-    border-color: var(--cp-border-strong);
-    color: var(--cp-text-muted);
-  }
-  .manual-pec-row {
-    display: grid;
-    grid-template-columns: 1fr 1.4fr;
+.manual-ic-status.status-na {
+  background: var(--cp-surface-soft);
+  border-color: var(--cp-border-strong);
+  color: var(--cp-text-muted);
+}
+.fy27-tracker-card .ic-hdr h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.fy27-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 14px 0;
+}
+.fy27-summary-card {
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: var(--cp-surface-soft);
+  min-width: 0;
+}
+.fy27-summary-card .fy27-signal {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: var(--cp-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fy27-summary-card .fy27-score {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 750;
+  color: var(--cp-text);
+}
+.fy27-summary-card.status-green { border-color: var(--cp-success); background: rgba(22, 163, 74, 0.10); }
+.fy27-summary-card.status-yellow { border-color: var(--cp-warning); background: rgba(245, 158, 11, 0.12); }
+.fy27-summary-card.status-red { border-color: var(--cp-danger); background: rgba(220, 38, 38, 0.10); }
+.fy27-summary-card.status-na { opacity: 0.74; }
+.fy27-tracker-table th:nth-child(1) { width: 210px; }
+.fy27-tracker-table th:nth-child(2) { width: 130px; }
+.fy27-tracker-table th:nth-child(3) { width: 145px; }
+.fy27-tracker-table th:nth-child(4) { width: 160px; }
+.fy27-tracker-table .fy27-pillar-name {
+  font-weight: 700;
+  color: var(--cp-text);
+}
+.fy27-tracker-table .fy27-pillar-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--cp-text-muted);
+  font-weight: 500;
+}
+.fy27-owner-input,
+.fy27-next-step {
+  width: 100%;
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  box-sizing: border-box;
+}
+.fy27-next-step {
+  min-height: 34px;
+  resize: vertical;
+}
+.fy27-rollup-pill {
+  cursor: pointer;
+}
+.manual-pec-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
     gap: 8px;
     align-items: start;
   }
