@@ -3844,6 +3844,7 @@ const STATUS_ICONS = {
 };
 
 const CUSTOMERS = [];   // populated at runtime from /api/tracker
+window.CUSTOMERS = CUSTOMERS;
 
 // Legacy sample-data helper retained as a safety net only — never called once
 // the API hydrates CUSTOMERS. Real KR rows come from the backend.
@@ -4034,8 +4035,6 @@ function renderFy27HeaderPills(custName) {
             title="Manual FY27 workload projects — click to open the Workloads section">Workloads ${w.done}/${w.total}</span>
     </div>
     <div class="cust-status-row">
-      <span class="csl-chip ic-health ic-health-unknown fy27-rollup-pill" data-fy27-open="1"
-            title="Future source: FTBI/Lynx/Power BI tenant-health rollups">source: FTBI/Lynx/Power BI</span>
       <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${custName.replace(/[^a-z0-9]/gi,'_')}" data-cust="${custName}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
     </div>`;
 }
@@ -4427,7 +4426,6 @@ function renderContent() {
                   data-cust="${c.n}"
                   data-placeholder="—">${c.tpid || ''}</span>
           </span>
-          ${c.ftop_account_id ? `<a class="ftop-link" href="https://fasttrack365.crm.dynamics.com/main.aspx?pagetype=entityrecord&etn=account&id=${c.ftop_account_id}" target="_blank" title="Open this customer's account in FTOP">FTOP account ↗</a>` : ''}
         </div>
         <div class="cust-statusline">
           ${(() => {
@@ -12218,30 +12216,48 @@ window.__cartLogModal = (function () {
     if (!manualEnabled() || !window.CUSTOMERS) return;
     Object.entries(manualStore).forEach(([name, data]) => {
       if (!data.manualCustomer) return;
-      if (window.CUSTOMERS.some(c => c.n === name)) return;
+      const existing = window.CUSTOMERS.find(c => c.n === name);
+      if (existing) {
+        existing.display = existing.display || name;
+        existing.full = data.full || existing.full || name;
+        existing.tpid = data.tpid || existing.tpid || "";
+        return;
+      }
       const template = window.CUSTOMERS[0];
       window.CUSTOMERS.push({
         n: name,
         display: name,
         full: data.full || name,
+        tpid: data.tpid || "",
         krs: (template?.krs || []).map(k => ({ ...k, s: "N/A", c: null, b: null, n: "" }))
       });
     });
   }
   function addCustomer() {
     openModal("Add Customer", `
-      <label>Customer name<input id="manualCustomerName" placeholder="Customer name" /></label>
-      <label>Segment / industry<input id="manualCustomerSegment" placeholder="Manual" /></label>
+      <label>Customer name<input id="manualCustomerName" placeholder="Customer name" required /></label>
+      <label>TPID<input id="manualCustomerTpid" placeholder="TPID" inputmode="numeric" /></label>
     `, () => {
-      const name = document.getElementById("manualCustomerName").value.trim();
-      if (!name) return showToast("Customer name is required");
-      const segment = document.getElementById("manualCustomerSegment").value.trim() || "Manual";
+      const nameInput = document.getElementById("manualCustomerName");
+      const name = nameInput.value.trim();
+      if (!name) {
+        nameInput.focus();
+        nameInput.reportValidity?.();
+        return showToast("Customer name is required");
+      }
+      const tpid = (document.getElementById("manualCustomerTpid").value || "").replace(/\D/g, "");
       const s = custStore(name);
       s.manualCustomer = true;
-      s.full = `${name} (${segment})`;
+      s.full = name;
+      s.tpid = tpid;
       writeStore();
       ensureManualCustomers();
+      const c = window.CUSTOMERS?.find(x => x.n === name);
+      if (c) c.tpid = tpid;
+      window.activeCust = name;
+      localStorage.setItem("fta-workspace-active-cust", name);
       if (typeof renderSidebar === "function") renderSidebar();
+      if (typeof renderContent === "function") renderContent();
       if (typeof updateCounters === "function") updateCounters();
       closeModal();
       showToast("Customer added");
