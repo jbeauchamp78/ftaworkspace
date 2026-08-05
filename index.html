@@ -3903,7 +3903,48 @@ const FY27_TRACKER_KEY = "fta-workspace-demo-fy27-tracker-v1";
 const FY27_WORKLOAD_KEY = "fta-workspace-demo-fy27-workloads-v1";
 const FY27_STATUS_OPTIONS = ["Not Started", "In Progress", "On Track", "Blocked", "Complete", "N/A"];
 const FY27_PILLARS = [
-  { id: "ready-ai", label: "Ready AI", desc: "Productivity + security baseline", goals: ["Confirm Productivity baseline", "Confirm Security baseline"] },
+  {
+    id: "ready-ai",
+    label: "Ready AI",
+    title: "FY27 KR Q1 - Ready for AI",
+    desc: "Productivity + security baseline",
+    sections: [
+      {
+        title: "Productivity Baseline",
+        summary: "7 of 8 | 6 required + 1 of 2 optimal",
+        goals: [
+          { type: "REQ", goal: "Teams Enablement" },
+          { type: "REQ", goal: "Exchange Online" },
+          { type: "REQ", goal: "Entra ID Identity" },
+          { type: "REQ", goal: "Network Connectivity" },
+          { type: "REQ", goal: "ODSP + KFM" },
+          { type: "REQ", goal: "Allow Feedback to Microsoft" },
+          { type: "OPT", goal: "Application Readiness" },
+          { type: "OPT", goal: "Endpoint Platform Health" }
+        ]
+      },
+      {
+        title: "Security Baseline",
+        summary: "10 of 14 | 7 required + 3 of 7 optimal",
+        goals: [
+          { type: "REQ", goal: "Block Basic auth prompts" },
+          { type: "REQ", goal: "Block FPRPC Protocol" },
+          { type: "REQ", goal: "Block legacy browser auth" },
+          { type: "REQ", goal: "Ancient formats: Protected View" },
+          { type: "REQ", goal: "Old formats: save as modern" },
+          { type: "REQ", goal: "Remove SharePoint Store access" },
+          { type: "REQ", goal: "Block OLE Graph + OrgChart" },
+          { type: "OPT", goal: "PRA for Admins" },
+          { type: "OPT", goal: "PRA for All Users" },
+          { type: "OPT", goal: "Manage Software Updates" },
+          { type: "OPT", goal: "Endpoint Protection Foundation" },
+          { type: "OPT", goal: "Protect Apps + Data - Mobile" },
+          { type: "OPT", goal: "Email + Office apps protection" },
+          { type: "OPT", goal: "Enable Purview Audit Logging" }
+        ]
+      }
+    ]
+  },
   { id: "config-ai", label: "Config AI", desc: "Data Security + Copilot ideal config", goals: ["Data Security ideal config", "Copilot ideal config"] },
   { id: "frontier-ready", label: "Frontier Ready", desc: "Agent enablement + governance", goals: ["Agent enablement plan", "Protected agents governance", "Consumption billing readiness"] },
   { id: "frontier-value", label: "Frontier Value", desc: "Consumption, analytics, optimization", goals: ["Usage analytics enabled", "Consumption optimization review", "Value evidence captured"] },
@@ -3926,19 +3967,47 @@ function writeFy27TrackerStore(store) {
   localStorage.setItem(FY27_TRACKER_KEY, JSON.stringify(store || {}));
 }
 
+function fy27DefaultGoals(pillar) {
+  if (Array.isArray(pillar.sections)) {
+    return pillar.sections.flatMap(section => section.goals.map(item => ({
+      section: section.title,
+      type: item.type || "",
+      goal: item.goal || String(item || "")
+    })));
+  }
+  return (pillar.goals || []).map(goal => ({ section: "", type: "", goal }));
+}
+
 function fy27GoalDefaults(pillar, saved = {}) {
   const existing = Array.isArray(saved.goals) && saved.goals.length ? saved.goals : null;
-  if (existing) return existing.map((g, i) => ({
-    goal: g.goal || pillar.goals[i] || `Goal ${i + 1}`,
+  const defaults = fy27DefaultGoals(pillar);
+  if (existing) return Array.from({ length: Math.max(existing.length, defaults.length) }, (_, i) => {
+    const g = existing[i] || {};
+    return {
+      section: g.section || defaults[i]?.section || "",
+      type: g.type || defaults[i]?.type || "",
+      goal: g.goal || defaults[i]?.goal || `Goal ${i + 1}`,
     status: g.status || saved.status || "Not Started",
     owner: g.owner || saved.owner || "",
     notes: g.notes || saved.next || ""
-  }));
-  return pillar.goals.map(goal => ({
-    goal,
+    };
+  });
+  return defaults.map(g => ({
+    ...g,
     status: saved.status || "Not Started",
     owner: saved.owner || "",
     notes: saved.next || ""
+  }));
+}
+
+function fy27GoalSections(pillar) {
+  if (!Array.isArray(pillar.sections)) return [{ title: "", summary: "", goals: pillar.goals.map((g, index) => ({ ...g, index })) }];
+  return pillar.sections.map(section => ({
+    title: section.title,
+    summary: section.summary || "",
+    goals: pillar.goals
+      .map((g, index) => ({ ...g, index }))
+      .filter(g => g.section === section.title)
   }));
 }
 
@@ -4064,30 +4133,39 @@ function renderFy27CustomerTracker(c) {
         </div>
         <div class="fy27-tab-panel">
           <div class="fy27-tab-intro">
-            <strong>${escapeHtml(active.label)}</strong>
+            <strong>${escapeHtml(active.title || active.label)}</strong>
             <span>${escapeHtml(active.desc)}</span>
             <button type="button" class="btn secondary" id="btnFy27AddGoal" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
           </div>
-          <table class="kr-table fy27-tracker-table">
-            <thead><tr>
-              <th>Goal</th>
-              <th>Status</th>
-              <th>Owner</th>
-              <th>Notes</th>
-              <th style="width:70px">Action</th>
-            </tr></thead>
-            <tbody>
-              ${active.goals.map((g, idx) => `<tr>
-                <td><input class="fy27-goal-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${idx}" data-field="goal" value="${escapeHtml(g.goal || "")}" placeholder="Goal" /></td>
-                <td><select class="manual-ic-status ${fy27StatusClass(g.status)}" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${idx}" data-field="status">
-                  ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === g.status ? " selected" : ""}>${o}</option>`).join("")}
-                </select></td>
-                <td><input class="fy27-owner-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${idx}" data-field="owner" value="${escapeHtml(g.owner || "")}" placeholder="FTA / CSAM / SME" /></td>
-                <td><textarea class="fy27-next-step" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${idx}" data-field="notes" placeholder="Next action, blocker, evidence link, or FTBI note">${escapeHtml(g.notes || "")}</textarea></td>
-                <td><button type="button" class="btn secondary fy27-remove-goal" data-fy27-remove-goal="${escapeHtml(active.id)}" data-goal-index="${idx}" title="Remove this goal">Remove</button></td>
-              </tr>`).join("")}
-            </tbody>
-          </table>
+          ${fy27GoalSections(active).map(section => `
+            <div class="fy27-goal-subsection">
+              ${section.title ? `<div class="fy27-subsection-hdr"><strong>${escapeHtml(section.title)}</strong><span>${escapeHtml(section.summary)}</span></div>` : ""}
+              <table class="kr-table fy27-tracker-table">
+                <thead><tr>
+                  <th>Goal</th>
+                  <th>Status</th>
+                  <th>Owner</th>
+                  <th>Notes</th>
+                  <th>Action</th>
+                </tr></thead>
+                <tbody>
+                  ${section.goals.map(g => `<tr>
+                    <td>
+                      <div class="fy27-goal-cell">
+                        ${g.type ? `<span class="fy27-req-chip ${g.type === "OPT" ? "opt" : "req"}">${escapeHtml(g.type)}</span>` : ""}
+                        <input class="fy27-goal-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="goal" value="${escapeHtml(g.goal || "")}" placeholder="Goal" />
+                      </div>
+                    </td>
+                    <td><select class="manual-ic-status ${fy27StatusClass(g.status)}" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="status">
+                      ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === g.status ? " selected" : ""}>${o}</option>`).join("")}
+                    </select></td>
+                    <td><input class="fy27-owner-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="owner" value="${escapeHtml(g.owner || "")}" placeholder="FTA / CSAM / SME" /></td>
+                    <td><textarea class="fy27-next-step" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="notes" placeholder="Next action, blocker, evidence link, or FTBI note">${escapeHtml(g.notes || "")}</textarea></td>
+                    <td><button type="button" class="btn secondary fy27-remove-goal" data-fy27-remove-goal="${escapeHtml(active.id)}" data-goal-index="${g.index}" title="Remove this goal">Remove</button></td>
+                  </tr>`).join("")}
+                </tbody>
+              </table>
+            </div>`).join("")}
         </div>
         <div style="font-size:11px;color:var(--cp-text-muted);padding:0 14px 12px;">
           Demo scaffold: measure goals are locally editable now; later this should persist to SQLite and hydrate tenant-health signals from FTBI/Lynx/Power BI.
@@ -4146,7 +4224,7 @@ function addFy27Goal(custName, pillarId) {
   const pillar = FY27_PILLARS.find(p => p.id === pillarId);
   const existing = store[custName][pillarId] || {};
   const goals = fy27GoalDefaults(pillar, existing);
-  goals.push({ goal: "New goal", status: "Not Started", owner: "", notes: "" });
+  goals.push({ section: pillar.sections?.[0]?.title || "", type: "", goal: "New goal", status: "Not Started", owner: "", notes: "" });
   store[custName][pillarId] = { goals };
   writeFy27TrackerStore(store);
 }
@@ -11769,10 +11847,33 @@ window.__cartLogModal = (function () {
 .fy27-summary-card.status-yellow { border-color: var(--cp-warning); background: rgba(245, 158, 11, 0.12); }
 .fy27-summary-card.status-red { border-color: var(--cp-danger); background: rgba(220, 38, 38, 0.10); }
 .fy27-summary-card.status-na { opacity: 0.74; }
-.fy27-tracker-table th:nth-child(1) { width: 210px; }
-.fy27-tracker-table th:nth-child(2) { width: 130px; }
-.fy27-tracker-table th:nth-child(3) { width: 145px; }
-.fy27-tracker-table th:nth-child(4) { width: 160px; }
+.fy27-tracker-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.fy27-tracker-table th,
+.fy27-tracker-table td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.fy27-tracker-table th:nth-child(1),
+.fy27-tracker-table td:nth-child(1) { width: 260px; }
+.fy27-tracker-table th:nth-child(2),
+.fy27-tracker-table td:nth-child(2) { width: 124px; }
+.fy27-tracker-table th:nth-child(3),
+.fy27-tracker-table td:nth-child(3) { width: 150px; }
+.fy27-tracker-table th:nth-child(5),
+.fy27-tracker-table td:nth-child(5) { width: 76px; }
+.fy27-tracker-table .manual-ic-status {
+  width: 100%;
+  min-width: 0;
+}
+.fy27-tracker-table .btn {
+  width: 100%;
+  min-width: 0;
+  padding-left: 6px;
+  padding-right: 6px;
+}
 .fy27-tracker-table .fy27-pillar-name {
   font-weight: 700;
   color: var(--cp-text);
@@ -11822,6 +11923,54 @@ window.__cartLogModal = (function () {
 }
 .fy27-tab-intro span {
   flex: 1;
+}
+.fy27-goal-subsection {
+  margin-top: 12px;
+}
+.fy27-goal-subsection:first-of-type {
+  margin-top: 0;
+}
+.fy27-subsection-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0 7px;
+}
+.fy27-subsection-hdr strong {
+  color: var(--cp-text);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.fy27-subsection-hdr span {
+  color: var(--cp-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+.fy27-goal-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.fy27-req-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  border: 1px solid rgba(0,120,212,0.30);
+  background: rgba(0,120,212,0.10);
+  color: #005A9E;
+}
+.fy27-req-chip.opt {
+  border-color: rgba(245,158,11,0.42);
+  background: rgba(245,158,11,0.14);
+  color: #8A5A00;
 }
 .fy27-goal-input,
 .fy27-workload-input,
