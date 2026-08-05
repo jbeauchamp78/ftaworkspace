@@ -4020,6 +4020,18 @@ function fy27CustomerRows(custName) {
   }));
 }
 
+function fy27Pillar(id) {
+  return FY27_PILLARS.find(p => p.id === id);
+}
+
+function fy27ReadyAiRow(custName) {
+  return fy27CustomerRows(custName).find(r => r.id === "ready-ai");
+}
+
+function fy27SuccessTrackerRows(custName) {
+  return fy27CustomerRows(custName).filter(r => r.id !== "ready-ai");
+}
+
 function fy27StatusClass(status) {
   const s = String(status || "").toLowerCase();
   if (s === "complete" || s === "on track") return "status-green";
@@ -4108,10 +4120,70 @@ function renderFy27HeaderPills(custName) {
     </div>`;
 }
 
+function renderFy27GoalSectionTables(active) {
+  return fy27GoalSections(active).map(section => `
+    <div class="fy27-goal-subsection">
+      ${section.title ? `<div class="fy27-subsection-hdr"><strong>${escapeHtml(section.title)}</strong><span>${escapeHtml(section.summary)}</span></div>` : ""}
+      <table class="kr-table fy27-tracker-table">
+        <thead><tr>
+          <th>Goal</th>
+          <th>Status</th>
+          <th>Owner</th>
+          <th>Notes</th>
+          <th>Action</th>
+        </tr></thead>
+        <tbody>
+          ${section.goals.map(g => `<tr>
+            <td>
+              <div class="fy27-goal-cell">
+                ${g.type ? `<span class="fy27-req-chip ${g.type === "OPT" ? "opt" : "req"}">${escapeHtml(g.type)}</span>` : ""}
+                <input class="fy27-goal-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="goal" value="${escapeHtml(g.goal || "")}" placeholder="Goal" />
+              </div>
+            </td>
+            <td><select class="manual-ic-status ${fy27StatusClass(g.status)}" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="status">
+              ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === g.status ? " selected" : ""}>${o}</option>`).join("")}
+            </select></td>
+            <td><input class="fy27-owner-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="owner" value="${escapeHtml(g.owner || "")}" placeholder="FTA / CSAM / SME" /></td>
+            <td><textarea class="fy27-next-step" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="notes" placeholder="Next action, blocker, evidence link, or FTBI note">${escapeHtml(g.notes || "")}</textarea></td>
+            <td><button type="button" class="btn secondary fy27-remove-goal" data-fy27-remove-goal="${escapeHtml(active.id)}" data-goal-index="${g.index}" title="Remove this goal">Remove</button></td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`).join("");
+}
+
+function renderFy27ReadyAiSection(c) {
+  if (!isFy27SuccessModel()) return "";
+  const active = fy27ReadyAiRow(c.n);
+  if (!active) return "";
+  return `
+    <div class="ic-card fy27-ready-ai-card" id="fy27ReadyAiCard">
+      <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27ReadyAiCard').classList.toggle('collapsed')">
+        <span class="chev">▼</span>
+        <h3>${escapeHtml(active.title || active.label)} <span class="section-epoch-badge">KR3</span></h3>
+        <span class="spacer"></span>
+        <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
+      </div>
+      <div class="ic-body">
+        <div class="fy27-tab-panel">
+          <div class="fy27-tab-intro">
+            <strong>${escapeHtml(active.label)}</strong>
+            <span>${escapeHtml(active.desc)}</span>
+          </div>
+          ${renderFy27GoalSectionTables(active)}
+        </div>
+        <div style="font-size:11px;color:var(--cp-text-muted);padding:0 14px 12px;">
+          Slide 11 baseline configuration tracker. Rows are locally editable in Demo; later this should persist to SQLite and hydrate tenant-health signals.
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderFy27CustomerTracker(c) {
   if (!isFy27SuccessModel()) return "";
-  const rows = fy27CustomerRows(c.n);
-  const activeId = localStorage.getItem("fta-workspace-demo-fy27-active-tab") || rows[0]?.id || "ready-ai";
+  const rows = fy27SuccessTrackerRows(c.n);
+  const requestedActiveId = localStorage.getItem("fta-workspace-demo-fy27-active-tab");
+  const activeId = rows.some(r => r.id === requestedActiveId) ? requestedActiveId : rows[0]?.id;
   const active = rows.find(r => r.id === activeId) || rows[0];
   return `
     <div class="ic-card fy27-tracker-card" id="fy27TrackerCard">
@@ -4135,37 +4207,9 @@ function renderFy27CustomerTracker(c) {
           <div class="fy27-tab-intro">
             <strong>${escapeHtml(active.title || active.label)}</strong>
             <span>${escapeHtml(active.desc)}</span>
-            <button type="button" class="btn secondary" id="btnFy27AddGoal" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
+            <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
           </div>
-          ${fy27GoalSections(active).map(section => `
-            <div class="fy27-goal-subsection">
-              ${section.title ? `<div class="fy27-subsection-hdr"><strong>${escapeHtml(section.title)}</strong><span>${escapeHtml(section.summary)}</span></div>` : ""}
-              <table class="kr-table fy27-tracker-table">
-                <thead><tr>
-                  <th>Goal</th>
-                  <th>Status</th>
-                  <th>Owner</th>
-                  <th>Notes</th>
-                  <th>Action</th>
-                </tr></thead>
-                <tbody>
-                  ${section.goals.map(g => `<tr>
-                    <td>
-                      <div class="fy27-goal-cell">
-                        ${g.type ? `<span class="fy27-req-chip ${g.type === "OPT" ? "opt" : "req"}">${escapeHtml(g.type)}</span>` : ""}
-                        <input class="fy27-goal-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="goal" value="${escapeHtml(g.goal || "")}" placeholder="Goal" />
-                      </div>
-                    </td>
-                    <td><select class="manual-ic-status ${fy27StatusClass(g.status)}" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="status">
-                      ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === g.status ? " selected" : ""}>${o}</option>`).join("")}
-                    </select></td>
-                    <td><input class="fy27-owner-input" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="owner" value="${escapeHtml(g.owner || "")}" placeholder="FTA / CSAM / SME" /></td>
-                    <td><textarea class="fy27-next-step" data-fy27-id="${escapeHtml(active.id)}" data-goal-index="${g.index}" data-field="notes" placeholder="Next action, blocker, evidence link, or FTBI note">${escapeHtml(g.notes || "")}</textarea></td>
-                    <td><button type="button" class="btn secondary fy27-remove-goal" data-fy27-remove-goal="${escapeHtml(active.id)}" data-goal-index="${g.index}" title="Remove this goal">Remove</button></td>
-                  </tr>`).join("")}
-                </tbody>
-              </table>
-            </div>`).join("")}
+          ${renderFy27GoalSectionTables(active)}
         </div>
         <div style="font-size:11px;color:var(--cp-text-muted);padding:0 14px 12px;">
           Demo scaffold: measure goals are locally editable now; later this should persist to SQLite and hydrate tenant-health signals from FTBI/Lynx/Power BI.
@@ -4270,21 +4314,21 @@ function attachFy27TrackerHandlers(custName) {
       if (bodyOpen && nextCard) nextCard.classList.remove("collapsed");
     };
   });
-  const addGoal = document.getElementById("btnFy27AddGoal");
-  if (addGoal) {
+  document.querySelectorAll("[data-fy27-add-goal]").forEach(addGoal => {
     addGoal.onclick = e => {
       e.stopPropagation();
       addFy27Goal(custName, addGoal.dataset.fy27AddGoal);
       renderContent();
-      document.getElementById("fy27TrackerCard")?.classList.remove("collapsed");
+      document.getElementById(addGoal.dataset.fy27AddGoal === "ready-ai" ? "fy27ReadyAiCard" : "fy27TrackerCard")?.classList.remove("collapsed");
     };
-  }
+  });
   document.querySelectorAll("[data-fy27-remove-goal]").forEach(btn => {
     btn.onclick = e => {
       e.stopPropagation();
+      const cardId = btn.closest(".fy27-ready-ai-card") ? "fy27ReadyAiCard" : "fy27TrackerCard";
       removeFy27Goal(custName, btn.dataset.fy27RemoveGoal, Number(btn.dataset.goalIndex || 0));
       renderContent();
-      document.getElementById("fy27TrackerCard")?.classList.remove("collapsed");
+      document.getElementById(cardId)?.classList.remove("collapsed");
     };
   });
   document.querySelectorAll("[data-fy27-id]").forEach(el => {
@@ -4295,10 +4339,11 @@ function attachFy27TrackerHandlers(custName) {
       saveFy27GoalField(custName, id, goalIndex, field, el.value);
       if (field === "status") {
         el.className = `manual-ic-status ${fy27StatusClass(el.value)}`;
-        const card = el.closest(".fy27-tracker-card");
+        const card = el.closest(".fy27-tracker-card, .fy27-ready-ai-card");
         const bodyOpen = card && !card.classList.contains("collapsed");
+        const cardId = card?.id;
         renderContent();
-        const nextCard = document.getElementById("fy27TrackerCard");
+        const nextCard = cardId ? document.getElementById(cardId) : null;
         if (bodyOpen && nextCard) nextCard.classList.remove("collapsed");
       }
     };
@@ -4645,6 +4690,8 @@ function renderContent() {
         </table>
       </div>
     </div>
+
+    ${renderFy27ReadyAiSection(c)}
 
     ${renderFy27CustomerTracker(c)}
 
