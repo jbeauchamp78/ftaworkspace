@@ -1206,9 +1206,23 @@ body.kr-expanded .cust-actions-dropdown .kr-expand-toggle { display: none; }
 body.heatmap-view .cust-workspace-btn { display: inline-flex; }
 body.heatmap-view .cust-actions-dropdown #btnHeatmap { display: none; }
 .cust-action-menu { position: relative; margin-left: auto; }
+.cust-action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
 .cust-actions-ellipsis {
   width: 34px; height: 34px; padding: 0;
   font-size: 20px; line-height: 1; font-weight: 700;
+}
+.cust-collapse-all-btn {
+  height: 26px;
+  padding: 3px 8px;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
 }
 .cust-actions-dropdown {
   display: none;
@@ -4357,7 +4371,6 @@ function renderFy27ReadyAiSection(c) {
         <span class="chev">▼</span>
         <h3>${escapeHtml(active.title || active.label)} <span class="section-epoch-badge">KR3</span></h3>
         <span class="spacer"></span>
-        <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
       </div>
       <div class="ic-body">
         <div class="fy27-tab-panel">
@@ -4384,7 +4397,6 @@ function renderFy27ConfigAiSection(c) {
         <span class="chev">▼</span>
         <h3>${escapeHtml(active.title || active.label)} <span class="section-epoch-badge">KR4</span></h3>
         <span class="spacer"></span>
-        <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
       </div>
       <div class="ic-body">
         <div class="fy27-tab-panel">
@@ -4411,7 +4423,6 @@ function renderFy27FrontierReadySection(c) {
         <span class="chev">▼</span>
         <h3>${escapeHtml(active.title || active.label)} <span class="section-epoch-badge">KR5</span></h3>
         <span class="spacer"></span>
-        <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
       </div>
       <div class="ic-body">
         <div class="fy27-tab-panel">
@@ -4438,7 +4449,6 @@ function renderFy27FrontierValueSection(c) {
         <span class="chev">▼</span>
         <h3>${escapeHtml(active.title || active.label)} <span class="section-epoch-badge">KR6</span></h3>
         <span class="spacer"></span>
-        <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
       </div>
       <div class="ic-body">
         <div class="fy27-tab-panel">
@@ -4458,15 +4468,12 @@ function renderFy27FrontierValueSection(c) {
 function renderFy27GuidedPathSection(c) {
   if (!isFy27SuccessModel()) return "";
   const rows = fy27GuidedPathRows(c.n);
-  const progress = fy27GuidedPathProgress(c.n);
-  const healthClass = progress.blocked ? "ic-health-red" : progress.done === progress.total ? "ic-health-green" : progress.active || progress.done ? "ic-health-yellow" : "ic-health-unknown";
   return `
     <div class="ic-card fy27-guided-path-card" id="fy27GuidedPathCard">
       <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27GuidedPathCard').classList.toggle('collapsed')">
         <span class="chev">▼</span>
         <h3>FY27 Guided Path <span class="section-epoch-badge">Frontier</span></h3>
         <span class="spacer"></span>
-        <span class="csl-chip ic-health ${healthClass}" title="Guided Path completed/on-track stages">${progress.done}/${progress.total}</span>
       </div>
       <div class="ic-body">
         <table class="kr-table fy27-guided-path-table">
@@ -4510,7 +4517,6 @@ function renderFy27CustomerTracker(c) {
         <span class="chev">▼</span>
         <h3>FY27 Success Tracker <span class="section-epoch-badge">FY27 Success Measures</span></h3>
         <span class="spacer"></span>
-        <span class="ic-source">demo local</span>
       </div>
       <div class="ic-body">
         <div class="fy27-summary-strip">
@@ -4526,7 +4532,6 @@ function renderFy27CustomerTracker(c) {
           <div class="fy27-tab-intro">
             <strong>${escapeHtml(active.title || active.label)}</strong>
             <span>${escapeHtml(active.desc)}</span>
-            <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
           </div>
           ${renderFy27GoalSectionTables(active)}
         </div>
@@ -4949,27 +4954,31 @@ function renderContent() {
               title="Collapse current expanded view">⛶ Collapse</button>
       <button class="btn secondary cust-workspace-btn" type="button"
               title="Return to the Customer Workspace view">Customer Workspace</button>
-      <div class="cust-action-menu" data-cust="${c.n}">
-        <button class="btn secondary cust-actions-ellipsis" type="button"
-                title="Customer actions" aria-label="Customer actions">⋮</button>
-        <div class="cust-actions-dropdown" role="menu" aria-label="Customer actions">
-          <button class="btn secondary cust-action-item kr-expand-btn kr-expand-toggle"
-                  title="Expand current view: hides sidebar">⛶ Expand</button>
-          <button class="btn secondary cust-action-item" id="btnHeatmap"
-                  title="Toggle between Customer Workspace and M365 Usage Heatmap">🗺️ M365 Usage Heatmap</button>
-          <button class="btn secondary cust-action-item" id="btnRefreshCustomer" data-cust="${c.n}"
-                  data-stamp="${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}"
-                  title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Scout bridge.&#10;&#10;Last refresh: ${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : 'Not yet pulled from MIDAS')}">🔄 Refresh This Customer</button>
-          <div class="cust-action-divider"></div>
-          <button class="btn secondary cust-action-item cust-insight-btn" data-cust="${c.n}"
-                  title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
-          <button class="btn secondary cust-action-item cust-submit-pec-btn" data-cust="${c.n}"
-                  title="Open a generic PEC create modal for this customer. No workload is pre-selected.">+ Submit PEC</button>
-          <button class="btn secondary cust-action-item cust-submit-spotlight-btn" data-cust="${c.n}"
-                  title="Open a generic Spotlight draft modal for this customer. No workload is pre-selected.">✨ Submit Spotlight</button>
-          <button class="btn secondary cust-action-item cust-submit-esn-btn" data-cust="${c.n}"
-                  title="Start an attended ESN refresh for this customer in Scout. Drafts must be reviewed/submitted through the ESN editor.">📝 Submit ESN</button>
+      <div class="cust-action-stack">
+        <div class="cust-action-menu" data-cust="${c.n}">
+          <button class="btn secondary cust-actions-ellipsis" type="button"
+                  title="Customer actions" aria-label="Customer actions">⋮</button>
+          <div class="cust-actions-dropdown" role="menu" aria-label="Customer actions">
+            <button class="btn secondary cust-action-item kr-expand-btn kr-expand-toggle"
+                    title="Expand current view: hides sidebar">⛶ Expand</button>
+            <button class="btn secondary cust-action-item" id="btnHeatmap"
+                    title="Toggle between Customer Workspace and M365 Usage Heatmap">🗺️ M365 Usage Heatmap</button>
+            <button class="btn secondary cust-action-item" id="btnRefreshCustomer" data-cust="${c.n}"
+                    data-stamp="${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : '')}"
+                    title="Pull fresh MIDAS data for ALL workloads (KR + Non-KR), FTOP PECs, and Lynx admin config for this customer only. Runs in the background through the Scout bridge.&#10;&#10;Last refresh: ${(typeof window.__nonKrFetchedAt === 'function' ? window.__nonKrFetchedAt(c.n) : 'Not yet pulled from MIDAS')}">🔄 Refresh This Customer</button>
+            <div class="cust-action-divider"></div>
+            <button class="btn secondary cust-action-item cust-insight-btn" data-cust="${c.n}"
+                    title="Submit an FT Feedback (Insight) on behalf of this customer — Microsoft product gap that's blocking adoption.">💡 Submit Insight</button>
+            <button class="btn secondary cust-action-item cust-submit-pec-btn" data-cust="${c.n}"
+                    title="Open a generic PEC create modal for this customer. No workload is pre-selected.">+ Submit PEC</button>
+            <button class="btn secondary cust-action-item cust-submit-spotlight-btn" data-cust="${c.n}"
+                    title="Open a generic Spotlight draft modal for this customer. No workload is pre-selected.">✨ Submit Spotlight</button>
+            <button class="btn secondary cust-action-item cust-submit-esn-btn" data-cust="${c.n}"
+                    title="Start an attended ESN refresh for this customer in Scout. Drafts must be reviewed/submitted through the ESN editor.">📝 Submit ESN</button>
+          </div>
         </div>
+        <button class="btn secondary cust-collapse-all-btn" type="button"
+                title="Collapse all customer sections">Collapse All</button>
       </div>
     </div>
 
@@ -5090,12 +5099,12 @@ function renderContent() {
       <div class="kr-card-hdr" onclick="if (!event.target.closest('button,select,input,textarea')) document.getElementById('workloadsCard').classList.toggle('collapsed')">
         <h3><span class="chev">▼</span>Workloads <span class="section-epoch-badge" id="wlSectionEpoch">FY26 H2</span></h3>
         <span style="flex:1"></span>
-        <div class="kr-mode-toggle" id="krModeToggle" role="tablist" aria-label="Switch between KR and Non-KR workload tracking">
+        ${!isFy27SuccessModel() ? `<div class="kr-mode-toggle" id="krModeToggle" role="tablist" aria-label="Switch between KR and Non-KR workload tracking">
           <button type="button" data-mode="kr" class="active" role="tab" aria-selected="true">Key Results</button>
           <button type="button" data-mode="nonkr" role="tab" aria-selected="false">Non-KR</button>
         </div>
         <button type="button" class="wl-chart-btn" id="btnWlChart" data-cust="${c.n}"
-                title="MoM progress chart for all KR workloads — multi-line view with per-workload KPI threshold overlay">📈 Chart</button>
+                title="MoM progress chart for all KR workloads — multi-line view with per-workload KPI threshold overlay">📈 Chart</button>` : ""}
       </div>
       ${renderFy27WorkloadProjects(c)}
       <div id="krTableWrap">
@@ -7799,6 +7808,16 @@ document.addEventListener("click", (e) => {
   }
   if (!e.target.closest(".cust-action-menu")) {
     document.querySelectorAll(".cust-action-menu.open").forEach(m => m.classList.remove("open"));
+  }
+  const collapseAll = e.target.closest(".cust-collapse-all-btn");
+  if (collapseAll) {
+    e.preventDefault(); e.stopPropagation();
+    document.querySelectorAll("#content .ic-card, #content .kr-card, #content .todo-card, #content .fta-notes-card")
+      .forEach(card => {
+        if (card.id === "heatmapCard") return;
+        card.classList.add("collapsed");
+      });
+    return;
   }
   const genericPec = e.target.closest(".cust-submit-pec-btn");
   if (genericPec) {
