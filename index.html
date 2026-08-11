@@ -3945,7 +3945,39 @@ const FY27_PILLARS = [
       }
     ]
   },
-  { id: "config-ai", label: "Config AI", desc: "Data Security + Copilot ideal config", goals: ["Data Security ideal config", "Copilot ideal config"] },
+  {
+    id: "config-ai",
+    label: "Config AI",
+    title: "FY27 KR Q1 - Configured for AI",
+    desc: "Data Security + Copilot ideal config",
+    sections: [
+      {
+        title: "Data Security Ideal Config",
+        summary: "5 of 7 | 3 required + 2 of 4 optimal",
+        goals: [
+          { type: "REQ", goal: "Sensitive Data Protection" },
+          { type: "REQ", goal: "Purview DLP - Copilot + SharePoint" },
+          { type: "REQ", goal: "Microsoft Purview DSPM" },
+          { type: "OPT", goal: "Endpoint + Teams DLP" },
+          { type: "OPT", goal: "Insider Risk Management" },
+          { type: "OPT", goal: "Communications Compliance - conditional" },
+          { type: "OPT", goal: "Data Lifecycle Management" }
+        ]
+      },
+      {
+        title: "Copilot Ideal Config",
+        summary: "5 of 6 | 4 required + 1 of 2 optimal",
+        goals: [
+          { type: "REQ", goal: "Turn on Web Search" },
+          { type: "REQ", goal: "Anthropic Sub-processor" },
+          { type: "REQ", goal: "Anthropic Models in M365 Apps" },
+          { type: "REQ", goal: "Connector Enabled" },
+          { type: "OPT", goal: "Pin Copilot to Windows Taskbar" },
+          { type: "OPT", goal: "Allow 1P Researcher Agent" }
+        ]
+      }
+    ]
+  },
   { id: "frontier-ready", label: "Frontier Ready", desc: "Agent enablement + governance", goals: ["Agent enablement plan", "Protected agents governance", "Consumption billing readiness"] },
   { id: "frontier-value", label: "Frontier Value", desc: "Consumption, analytics, optimization", goals: ["Usage analytics enabled", "Consumption optimization review", "Value evidence captured"] },
   { id: "pq-insights", label: "PQ Insights", desc: "Eligible insights accepted by Engineering", goals: ["Product blocker identified", "Insight submitted", "Engineering backlog response"] },
@@ -4028,8 +4060,12 @@ function fy27ReadyAiRow(custName) {
   return fy27CustomerRows(custName).find(r => r.id === "ready-ai");
 }
 
+function fy27ConfigAiRow(custName) {
+  return fy27CustomerRows(custName).find(r => r.id === "config-ai");
+}
+
 function fy27SuccessTrackerRows(custName) {
-  return fy27CustomerRows(custName).filter(r => r.id !== "ready-ai");
+  return fy27CustomerRows(custName).filter(r => r.id !== "ready-ai" && r.id !== "config-ai");
 }
 
 function fy27StatusClass(status) {
@@ -4179,6 +4215,33 @@ function renderFy27ReadyAiSection(c) {
     </div>`;
 }
 
+function renderFy27ConfigAiSection(c) {
+  if (!isFy27SuccessModel()) return "";
+  const active = fy27ConfigAiRow(c.n);
+  if (!active) return "";
+  return `
+    <div class="ic-card fy27-config-ai-card" id="fy27ConfigAiCard">
+      <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27ConfigAiCard').classList.toggle('collapsed')">
+        <span class="chev">▼</span>
+        <h3>${escapeHtml(active.title || active.label)} <span class="section-epoch-badge">KR4</span></h3>
+        <span class="spacer"></span>
+        <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
+      </div>
+      <div class="ic-body">
+        <div class="fy27-tab-panel">
+          <div class="fy27-tab-intro">
+            <strong>${escapeHtml(active.label)}</strong>
+            <span>${escapeHtml(active.desc)}</span>
+          </div>
+          ${renderFy27GoalSectionTables(active)}
+        </div>
+        <div style="font-size:11px;color:var(--cp-text-muted);padding:0 14px 12px;">
+          Slide 16 ideal-configuration tracker. Rows are locally editable in Demo; later this should persist to SQLite and hydrate tenant-health signals.
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderFy27CustomerTracker(c) {
   if (!isFy27SuccessModel()) return "";
   const rows = fy27SuccessTrackerRows(c.n);
@@ -4319,13 +4382,13 @@ function attachFy27TrackerHandlers(custName) {
       e.stopPropagation();
       addFy27Goal(custName, addGoal.dataset.fy27AddGoal);
       renderContent();
-      document.getElementById(addGoal.dataset.fy27AddGoal === "ready-ai" ? "fy27ReadyAiCard" : "fy27TrackerCard")?.classList.remove("collapsed");
+      document.getElementById(addGoal.dataset.fy27AddGoal === "ready-ai" ? "fy27ReadyAiCard" : addGoal.dataset.fy27AddGoal === "config-ai" ? "fy27ConfigAiCard" : "fy27TrackerCard")?.classList.remove("collapsed");
     };
   });
   document.querySelectorAll("[data-fy27-remove-goal]").forEach(btn => {
     btn.onclick = e => {
       e.stopPropagation();
-      const cardId = btn.closest(".fy27-ready-ai-card") ? "fy27ReadyAiCard" : "fy27TrackerCard";
+      const cardId = btn.closest(".fy27-ready-ai-card") ? "fy27ReadyAiCard" : btn.closest(".fy27-config-ai-card") ? "fy27ConfigAiCard" : "fy27TrackerCard";
       removeFy27Goal(custName, btn.dataset.fy27RemoveGoal, Number(btn.dataset.goalIndex || 0));
       renderContent();
       document.getElementById(cardId)?.classList.remove("collapsed");
@@ -4339,7 +4402,7 @@ function attachFy27TrackerHandlers(custName) {
       saveFy27GoalField(custName, id, goalIndex, field, el.value);
       if (field === "status") {
         el.className = `manual-ic-status ${fy27StatusClass(el.value)}`;
-        const card = el.closest(".fy27-tracker-card, .fy27-ready-ai-card");
+        const card = el.closest(".fy27-tracker-card, .fy27-ready-ai-card, .fy27-config-ai-card");
         const bodyOpen = card && !card.classList.contains("collapsed");
         const cardId = card?.id;
         renderContent();
@@ -4692,6 +4755,8 @@ function renderContent() {
     </div>
 
     ${renderFy27ReadyAiSection(c)}
+
+    ${renderFy27ConfigAiSection(c)}
 
     ${renderFy27CustomerTracker(c)}
 
