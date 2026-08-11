@@ -5047,6 +5047,8 @@ function renderContent() {
       </div>
     </div>
 
+    ${renderFy27GuidedPathSection(c)}
+
     ${renderFy27ReadyAiSection(c)}
 
     ${renderFy27ConfigAiSection(c)}
@@ -5055,10 +5057,9 @@ function renderContent() {
 
     ${renderFy27FrontierValueSection(c)}
 
-    ${renderFy27GuidedPathSection(c)}
-
     ${renderFy27CustomerTracker(c)}
 
+    ${!isFy27SuccessModel() ? `
     <!-- ===== Ideal Config (10 Copilot admin settings) ===== -->
     <div class="ic-card collapsed" id="icCard">
       <div class="ic-hdr" onclick="if (event.target.tagName !== 'BUTTON') document.getElementById('icCard').classList.toggle('collapsed')">
@@ -5083,6 +5084,7 @@ function renderContent() {
         </div>
       </div>
     </div>
+    ` : ""}
 
     <div class="kr-card fy27-workloads-card" id="workloadsCard">
       <div class="kr-card-hdr" onclick="if (!event.target.closest('button,select,input,textarea')) document.getElementById('workloadsCard').classList.toggle('collapsed')">
@@ -13115,7 +13117,7 @@ window.__cartLogModal = (function () {
     });
   }
   function addGuidedPath() {
-    if (!manualEnabled() || document.getElementById("manualGuidedPath")) return;
+    if (!manualEnabled() || document.getElementById("manualGuidedPath") || document.getElementById("fy27GuidedPathCard")) return;
     const ic = document.querySelector(".ic-card, [id*='ideal']");
     const parent = ic?.parentElement || document.querySelector(".content");
     if (!parent) return;
