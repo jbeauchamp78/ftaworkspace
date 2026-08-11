@@ -3978,8 +3978,65 @@ const FY27_PILLARS = [
       }
     ]
   },
-  { id: "frontier-ready", label: "Frontier Ready", desc: "Agent enablement + governance", goals: ["Agent enablement plan", "Protected agents governance", "Consumption billing readiness"] },
-  { id: "frontier-value", label: "Frontier Value", desc: "Consumption, analytics, optimization", goals: ["Usage analytics enabled", "Consumption optimization review", "Value evidence captured"] },
+  {
+    id: "frontier-ready",
+    label: "Frontier Ready",
+    title: "FY27 KR Q1 - Ready for Frontier Adoption",
+    desc: "Agent enablement, consumption billing, and protected agents",
+    sections: [
+      {
+        title: "Agent Enablement",
+        summary: "5 of 6 | 5 required + 0 of 1 optimal",
+        goals: [
+          { type: "REQ", goal: "Enable Frontier" },
+          { type: "REQ", goal: "Enable Allowed Agent types" },
+          { type: "REQ", goal: "Enable User Access to Agents" },
+          { type: "REQ", goal: "Enable Agent Sharing" },
+          { type: "REQ", goal: "Risk-based Conditional Access - Entra" },
+          { type: "OPT", goal: "Enable Copilot Studio" }
+        ]
+      },
+      {
+        title: "Consumption Billing",
+        summary: "Enabled",
+        goals: [
+          { type: "REQ", goal: "Valid billing policy + at least one Daybreak service" }
+        ]
+      },
+      {
+        title: "Protected Agents",
+        summary: "1 required + 1 of 3 optimal",
+        goals: [
+          { type: "REQ", goal: "Risk-based Conditional Access" },
+          { type: "OPT", goal: "Grounding DLP" },
+          { type: "OPT", goal: "Insider Risk Management" },
+          { type: "OPT", goal: "Information Protection" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "frontier-value",
+    label: "Frontier Value",
+    title: "FY27 KR Q1 - Optimized for Frontier Value",
+    desc: "Copilot Analytics + Consumption Optimization",
+    sections: [
+      {
+        title: "Copilot Analytics",
+        summary: "MAP >= 80%",
+        goals: [
+          { type: "REQ", goal: "Monthly analyzed population (MAP) >= 80%" }
+        ]
+      },
+      {
+        title: "Consumption Optimization",
+        summary: "20% seats",
+        goals: [
+          { type: "REQ", goal: "Seats with a Consumption Billing Policy applied >= 20%" }
+        ]
+      }
+    ]
+  },
   { id: "pq-insights", label: "PQ Insights", desc: "Eligible insights accepted by Engineering", goals: ["Product blocker identified", "Insight submitted", "Engineering backlog response"] },
 ];
 
@@ -4064,8 +4121,16 @@ function fy27ConfigAiRow(custName) {
   return fy27CustomerRows(custName).find(r => r.id === "config-ai");
 }
 
+function fy27FrontierReadyRow(custName) {
+  return fy27CustomerRows(custName).find(r => r.id === "frontier-ready");
+}
+
+function fy27FrontierValueRow(custName) {
+  return fy27CustomerRows(custName).find(r => r.id === "frontier-value");
+}
+
 function fy27SuccessTrackerRows(custName) {
-  return fy27CustomerRows(custName).filter(r => r.id !== "ready-ai" && r.id !== "config-ai");
+  return fy27CustomerRows(custName).filter(r => !["ready-ai", "config-ai", "frontier-ready", "frontier-value"].includes(r.id));
 }
 
 function fy27StatusClass(status) {
@@ -4242,6 +4307,60 @@ function renderFy27ConfigAiSection(c) {
     </div>`;
 }
 
+function renderFy27FrontierReadySection(c) {
+  if (!isFy27SuccessModel()) return "";
+  const active = fy27FrontierReadyRow(c.n);
+  if (!active) return "";
+  return `
+    <div class="ic-card fy27-frontier-ready-card" id="fy27FrontierReadyCard">
+      <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27FrontierReadyCard').classList.toggle('collapsed')">
+        <span class="chev">▼</span>
+        <h3>${escapeHtml(active.title || active.label)} <span class="section-epoch-badge">KR5</span></h3>
+        <span class="spacer"></span>
+        <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
+      </div>
+      <div class="ic-body">
+        <div class="fy27-tab-panel">
+          <div class="fy27-tab-intro">
+            <strong>${escapeHtml(active.label)}</strong>
+            <span>${escapeHtml(active.desc)}</span>
+          </div>
+          ${renderFy27GoalSectionTables(active)}
+        </div>
+        <div style="font-size:11px;color:var(--cp-text-muted);padding:0 14px 12px;">
+          Slide 20 readiness-condition tracker. Rows are locally editable in Demo; later this should persist to SQLite and hydrate agent readiness signals.
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderFy27FrontierValueSection(c) {
+  if (!isFy27SuccessModel()) return "";
+  const active = fy27FrontierValueRow(c.n);
+  if (!active) return "";
+  return `
+    <div class="ic-card fy27-frontier-value-card" id="fy27FrontierValueCard">
+      <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27FrontierValueCard').classList.toggle('collapsed')">
+        <span class="chev">▼</span>
+        <h3>${escapeHtml(active.title || active.label)} <span class="section-epoch-badge">KR6</span></h3>
+        <span class="spacer"></span>
+        <button type="button" class="btn secondary" data-fy27-add-goal="${escapeHtml(active.id)}">+ Add Goal</button>
+      </div>
+      <div class="ic-body">
+        <div class="fy27-tab-panel">
+          <div class="fy27-tab-intro">
+            <strong>${escapeHtml(active.label)}</strong>
+            <span>${escapeHtml(active.desc)}</span>
+          </div>
+          ${renderFy27GoalSectionTables(active)}
+        </div>
+        <div style="font-size:11px;color:var(--cp-text-muted);padding:0 14px 12px;">
+          Slide 23 value-optimization tracker. Rows are locally editable in Demo; later this should persist to SQLite and hydrate analytics/consumption signals.
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderFy27CustomerTracker(c) {
   if (!isFy27SuccessModel()) return "";
   const rows = fy27SuccessTrackerRows(c.n);
@@ -4347,6 +4466,15 @@ function removeFy27Goal(custName, pillarId, goalIndex) {
   writeFy27TrackerStore(store);
 }
 
+function fy27CardIdForPillar(pillarId) {
+  return {
+    "ready-ai": "fy27ReadyAiCard",
+    "config-ai": "fy27ConfigAiCard",
+    "frontier-ready": "fy27FrontierReadyCard",
+    "frontier-value": "fy27FrontierValueCard"
+  }[pillarId] || "fy27TrackerCard";
+}
+
 function attachFy27TrackerHandlers(custName) {
   if (!isFy27SuccessModel()) return;
   document.querySelectorAll("[data-fy27-open]").forEach(el => {
@@ -4382,13 +4510,13 @@ function attachFy27TrackerHandlers(custName) {
       e.stopPropagation();
       addFy27Goal(custName, addGoal.dataset.fy27AddGoal);
       renderContent();
-      document.getElementById(addGoal.dataset.fy27AddGoal === "ready-ai" ? "fy27ReadyAiCard" : addGoal.dataset.fy27AddGoal === "config-ai" ? "fy27ConfigAiCard" : "fy27TrackerCard")?.classList.remove("collapsed");
+      document.getElementById(fy27CardIdForPillar(addGoal.dataset.fy27AddGoal))?.classList.remove("collapsed");
     };
   });
   document.querySelectorAll("[data-fy27-remove-goal]").forEach(btn => {
     btn.onclick = e => {
       e.stopPropagation();
-      const cardId = btn.closest(".fy27-ready-ai-card") ? "fy27ReadyAiCard" : btn.closest(".fy27-config-ai-card") ? "fy27ConfigAiCard" : "fy27TrackerCard";
+      const cardId = btn.closest(".ic-card")?.id || fy27CardIdForPillar(btn.dataset.fy27RemoveGoal);
       removeFy27Goal(custName, btn.dataset.fy27RemoveGoal, Number(btn.dataset.goalIndex || 0));
       renderContent();
       document.getElementById(cardId)?.classList.remove("collapsed");
@@ -4402,7 +4530,7 @@ function attachFy27TrackerHandlers(custName) {
       saveFy27GoalField(custName, id, goalIndex, field, el.value);
       if (field === "status") {
         el.className = `manual-ic-status ${fy27StatusClass(el.value)}`;
-        const card = el.closest(".fy27-tracker-card, .fy27-ready-ai-card, .fy27-config-ai-card");
+        const card = el.closest(".fy27-tracker-card, .fy27-ready-ai-card, .fy27-config-ai-card, .fy27-frontier-ready-card, .fy27-frontier-value-card");
         const bodyOpen = card && !card.classList.contains("collapsed");
         const cardId = card?.id;
         renderContent();
@@ -4757,6 +4885,10 @@ function renderContent() {
     ${renderFy27ReadyAiSection(c)}
 
     ${renderFy27ConfigAiSection(c)}
+
+    ${renderFy27FrontierReadySection(c)}
+
+    ${renderFy27FrontierValueSection(c)}
 
     ${renderFy27CustomerTracker(c)}
 
