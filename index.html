@@ -3916,6 +3916,8 @@ function renderSidebar() {
 const FY27_TRACKER_KEY = "fta-workspace-demo-fy27-tracker-v1";
 const FY27_WORKLOAD_KEY = "fta-workspace-demo-fy27-workloads-v1";
 const FY27_GUIDED_PATH_KEY = "fta-workspace-demo-fy27-guided-path-v1";
+const FY27_TOI_KEY = "fta-workspace-demo-fy27-toi-v1";
+const FY27_SELECTED_TOI_KEY = "fta-workspace-demo-fy27-selected-toi-v1";
 const FY27_STATUS_OPTIONS = ["Not Started", "In Progress", "On Track", "Blocked", "Complete", "N/A"];
 const FY27_GUIDED_PATH_STAGES = [
   {
@@ -4109,6 +4111,84 @@ function isFy27SuccessModel() {
   return !!(window.__epochs && window.__epochs.getModel && window.__epochs.getModel() === "FY27 Q1");
 }
 
+function fy27Slug(s) {
+  return String(s || "tenant").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "tenant";
+}
+
+function fy27ToiStore() {
+  try {
+    return JSON.parse(localStorage.getItem(FY27_TOI_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFy27ToiStore(store) {
+  localStorage.setItem(FY27_TOI_KEY, JSON.stringify(store || {}));
+}
+
+function fy27DefaultToiRows(custName) {
+  const safe = fy27Slug(custName);
+  return [
+    {
+      id: `${safe}-primary`,
+      name: "Primary Tenant",
+      tenantId: "",
+      seats: "",
+      eligible: "Yes",
+      coverage: "FTA + PEC needed",
+      notes: "TOI if this tenant is in the top 80% of M365 seats and has at least 150 seats."
+    }
+  ];
+}
+
+function fy27ToiRows(custName) {
+  const store = fy27ToiStore();
+  const rows = store[custName];
+  return Array.isArray(rows) && rows.length ? rows : fy27DefaultToiRows(custName);
+}
+
+function writeFy27ToiRows(custName, rows) {
+  const store = fy27ToiStore();
+  store[custName] = rows;
+  writeFy27ToiStore(store);
+}
+
+function fy27SelectedToiMap() {
+  try {
+    return JSON.parse(localStorage.getItem(FY27_SELECTED_TOI_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function fy27SelectedToiId(custName) {
+  const rows = fy27ToiRows(custName);
+  const map = fy27SelectedToiMap();
+  return rows.some(r => r.id === map[custName]) ? map[custName] : rows[0]?.id;
+}
+
+function setFy27SelectedToi(custName, tenantId) {
+  const map = fy27SelectedToiMap();
+  map[custName] = tenantId;
+  localStorage.setItem(FY27_SELECTED_TOI_KEY, JSON.stringify(map));
+}
+
+function fy27SelectedToi(custName) {
+  const id = fy27SelectedToiId(custName);
+  return fy27ToiRows(custName).find(r => r.id === id) || fy27ToiRows(custName)[0];
+}
+
+function fy27TenantScopedPillar(pillarId) {
+  return ["ready-ai", "config-ai", "frontier-ready", "frontier-value"].includes(pillarId);
+}
+
+function fy27PillarStoreKey(custName, pillarId) {
+  if (!fy27TenantScopedPillar(pillarId)) return custName;
+  const tenant = fy27SelectedToi(custName);
+  return `${custName}::${tenant?.id || "primary"}`;
+}
+
 function fy27TrackerStore() {
   try {
     return JSON.parse(localStorage.getItem(FY27_TRACKER_KEY) || "{}") || {};
@@ -4167,11 +4247,16 @@ function fy27GoalSections(pillar) {
 
 function fy27CustomerRows(custName) {
   const store = fy27TrackerStore();
-  const cust = store[custName] || {};
-  return FY27_PILLARS.map(p => ({
-    ...p,
-    goals: fy27GoalDefaults(p, cust[p.id] || {})
-  }));
+  return FY27_PILLARS.map(p => {
+    const storeKey = fy27PillarStoreKey(custName, p.id);
+    const cust = store[storeKey] || {};
+    return {
+      ...p,
+      storeKey,
+      tenantScoped: fy27TenantScopedPillar(p.id),
+      goals: fy27GoalDefaults(p, cust[p.id] || {})
+    };
+  });
 }
 
 function fy27Pillar(id) {
@@ -4308,6 +4393,8 @@ function renderFy27HeaderPills(custName) {
   const p = fy27Progress(custName);
   const w = fy27WorkloadProgress(custName);
   const gp = fy27GuidedPathProgress(custName);
+  const toiRows = fy27ToiRows(custName);
+  const toiEligible = toiRows.filter(r => r.eligible === "Yes").length;
   const healthClass = p.blocked ? "ic-health-red" : p.done === p.total ? "ic-health-green" : p.active || p.done ? "ic-health-yellow" : "ic-health-unknown";
   const workloadClass = w.blocked ? "ic-health-red" : w.done === w.total ? "ic-health-green" : w.active || w.done ? "ic-health-yellow" : "ic-health-unknown";
   const guidedClass = gp.blocked ? "ic-health-red" : gp.done === gp.total ? "ic-health-green" : gp.active || gp.done ? "ic-health-yellow" : "ic-health-unknown";
@@ -4323,9 +4410,73 @@ function renderFy27HeaderPills(custName) {
             title="Manual FY27 workload projects — click to open the Workloads section">Workloads ${w.done}/${w.total}</span>
       <span class="csl-chip ic-health ${guidedClass}" data-fy27-guided-open="1"
             title="FY27 Guided Path journey stages — click to open the Guided Path section">Guided Path ${gp.done}/${gp.total}</span>
+      <span class="csl-chip ic-health ic-health-unknown" data-fy27-toi-open="1"
+            title="Tenants of Interest — click to open tenant list">TOI ${toiEligible}/${toiRows.length}</span>
     </div>
     <div class="cust-status-row">
       <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${custName.replace(/[^a-z0-9]/gi,'_')}" data-cust="${custName}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
+    </div>`;
+}
+
+function renderFy27ToiContext(custName) {
+  if (!isFy27SuccessModel()) return "";
+  const tenant = fy27SelectedToi(custName);
+  if (!tenant) return "";
+  const seats = tenant.seats ? `${Number(tenant.seats).toLocaleString()} M365 seats` : "M365 seats not set";
+  const eligible = tenant.eligible === "Yes" ? "TOI eligible" : "Excluded";
+  return `
+    <div class="fy27-toi-context" id="fy27ToiContext">
+      <span class="fy27-toi-kicker">Measuring tenant</span>
+      <strong>${escapeHtml(tenant.name || "Primary Tenant")}</strong>
+      <span>${escapeHtml(tenant.tenantId || "tenant ID/domain not set")}</span>
+      <span>${escapeHtml(seats)}</span>
+      <span class="fy27-toi-badge ${tenant.eligible === "Yes" ? "eligible" : "excluded"}">${eligible}</span>
+    </div>`;
+}
+
+function renderFy27ToiSection(c) {
+  if (!isFy27SuccessModel()) return "";
+  const rows = fy27ToiRows(c.n);
+  const selectedId = fy27SelectedToiId(c.n);
+  return `
+    <div class="ic-card fy27-toi-card collapsed" id="fy27ToiCard">
+      <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27ToiCard').classList.toggle('collapsed')">
+        <span class="chev">▼</span>
+        <h3>Tenants of Interest <span class="section-epoch-badge">TOI</span></h3>
+        <span class="spacer"></span>
+      </div>
+      <div class="ic-body">
+        <table class="kr-table fy27-toi-table">
+          <thead><tr>
+            <th>Measure</th>
+            <th>Tenant</th>
+            <th>Tenant ID / Domain</th>
+            <th>M365 Seats</th>
+            <th>TOI</th>
+            <th>Coverage</th>
+            <th>Notes</th>
+            <th>Action</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map((r, idx) => `<tr>
+              <td><input type="radio" name="selectedToi" data-toi-select="${idx}" ${r.id === selectedId ? "checked" : ""} title="Use this tenant for KR3-KR6 measurement" /></td>
+              <td><input class="fy27-toi-input" data-toi-index="${idx}" data-field="name" value="${escapeHtml(r.name || "")}" placeholder="Tenant name" /></td>
+              <td><input class="fy27-toi-input" data-toi-index="${idx}" data-field="tenantId" value="${escapeHtml(r.tenantId || "")}" placeholder="tenant.onmicrosoft.com / tenant ID" /></td>
+              <td><input class="fy27-toi-input" data-toi-index="${idx}" data-field="seats" value="${escapeHtml(r.seats || "")}" inputmode="numeric" placeholder="Seats" /></td>
+              <td><select class="manual-ic-status ${r.eligible === "Yes" ? "status-green" : "status-na"}" data-toi-index="${idx}" data-field="eligible">
+                ${["Yes", "No"].map(v => `<option value="${v}"${r.eligible === v ? " selected" : ""}>${v}</option>`).join("")}
+              </select></td>
+              <td><input class="fy27-toi-input" data-toi-index="${idx}" data-field="coverage" value="${escapeHtml(r.coverage || "")}" placeholder="FTA / PEC coverage" /></td>
+              <td><textarea class="fy27-next-step" data-toi-index="${idx}" data-field="notes" placeholder="Reason, exclusion, or action needed">${escapeHtml(r.notes || "")}</textarea></td>
+              <td><button type="button" class="btn secondary fy27-remove-toi" data-remove-toi="${idx}">Remove</button></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+        <div class="fy27-workload-actions">
+          <button type="button" class="btn secondary" id="btnFy27AddToi">+ Add Tenant</button>
+          <span>TOI = tenant in a prioritized TPID, inside the top 80% of M365 seats, with at least 150 seats. Selected tenant scopes KR3-KR6.</span>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -4576,35 +4727,38 @@ function renderFy27WorkloadProjects(c) {
 
 function saveFy27GoalField(custName, pillarId, goalIndex, field, value) {
   const store = fy27TrackerStore();
-  store[custName] = store[custName] || {};
+  const storeKey = fy27PillarStoreKey(custName, pillarId);
+  store[storeKey] = store[storeKey] || {};
   const pillar = FY27_PILLARS.find(p => p.id === pillarId);
-  const existing = store[custName][pillarId] || {};
+  const existing = store[storeKey][pillarId] || {};
   const goals = fy27GoalDefaults(pillar, existing);
   goals[goalIndex] = goals[goalIndex] || { goal: "", status: "Not Started", owner: "", notes: "" };
   goals[goalIndex][field] = value;
-  store[custName][pillarId] = { goals };
+  store[storeKey][pillarId] = { goals };
   writeFy27TrackerStore(store);
 }
 
 function addFy27Goal(custName, pillarId) {
   const store = fy27TrackerStore();
-  store[custName] = store[custName] || {};
+  const storeKey = fy27PillarStoreKey(custName, pillarId);
+  store[storeKey] = store[storeKey] || {};
   const pillar = FY27_PILLARS.find(p => p.id === pillarId);
-  const existing = store[custName][pillarId] || {};
+  const existing = store[storeKey][pillarId] || {};
   const goals = fy27GoalDefaults(pillar, existing);
   goals.push({ section: pillar.sections?.[0]?.title || "", type: "", goal: "New goal", status: "Not Started", owner: "", notes: "" });
-  store[custName][pillarId] = { goals };
+  store[storeKey][pillarId] = { goals };
   writeFy27TrackerStore(store);
 }
 
 function removeFy27Goal(custName, pillarId, goalIndex) {
   const store = fy27TrackerStore();
-  store[custName] = store[custName] || {};
+  const storeKey = fy27PillarStoreKey(custName, pillarId);
+  store[storeKey] = store[storeKey] || {};
   const pillar = FY27_PILLARS.find(p => p.id === pillarId);
-  const existing = store[custName][pillarId] || {};
+  const existing = store[storeKey][pillarId] || {};
   const goals = fy27GoalDefaults(pillar, existing);
   goals.splice(goalIndex, 1);
-  store[custName][pillarId] = { goals: goals.length ? goals : [{ goal: "New goal", status: "Not Started", owner: "", notes: "" }] };
+  store[storeKey][pillarId] = { goals: goals.length ? goals : [{ goal: "New goal", status: "Not Started", owner: "", notes: "" }] };
   writeFy27TrackerStore(store);
 }
 
@@ -4644,6 +4798,71 @@ function attachFy27TrackerHandlers(custName) {
         card.classList.remove("collapsed");
         card.scrollIntoView({ behavior: "smooth", block: "start" });
       }
+    };
+  });
+  document.querySelectorAll("[data-fy27-toi-open]").forEach(el => {
+    el.onclick = e => {
+      e.stopPropagation();
+      const card = document.getElementById("fy27ToiCard");
+      if (card) {
+        card.classList.remove("collapsed");
+        card.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+  });
+  document.querySelectorAll("[data-toi-select]").forEach(el => {
+    el.onchange = e => {
+      e.stopPropagation();
+      const rows = fy27ToiRows(custName);
+      const idx = Number(el.dataset.toiSelect || 0);
+      if (rows[idx]) setFy27SelectedToi(custName, rows[idx].id);
+      renderContent();
+      document.getElementById("fy27ToiCard")?.classList.remove("collapsed");
+    };
+    el.addEventListener("click", e => e.stopPropagation());
+  });
+  document.querySelectorAll("[data-toi-index]").forEach(el => {
+    const save = () => {
+      const idx = Number(el.dataset.toiIndex || 0);
+      const field = el.dataset.field;
+      const rows = fy27ToiRows(custName);
+      rows[idx] = rows[idx] || fy27DefaultToiRows(custName)[0];
+      rows[idx][field] = field === "seats" ? String(el.value || "").replace(/\D/g, "") : el.value;
+      if (field === "seats" && el.value !== rows[idx][field]) el.value = rows[idx][field];
+      writeFy27ToiRows(custName, rows);
+      if (field === "eligible") el.className = `manual-ic-status ${el.value === "Yes" ? "status-green" : "status-na"}`;
+      if (["name", "tenantId", "seats", "eligible"].includes(field)) {
+        const open = !document.getElementById("fy27ToiCard")?.classList.contains("collapsed");
+        renderContent();
+        if (open) document.getElementById("fy27ToiCard")?.classList.remove("collapsed");
+      }
+    };
+    el.addEventListener(el.tagName === "TEXTAREA" || el.tagName === "INPUT" ? "input" : "change", save);
+    el.addEventListener("click", e => e.stopPropagation());
+  });
+  const addToi = document.getElementById("btnFy27AddToi");
+  if (addToi) {
+    addToi.onclick = e => {
+      e.stopPropagation();
+      const rows = fy27ToiRows(custName);
+      rows.push({ id: `${fy27Slug(custName)}-${Date.now()}`, name: "New Tenant", tenantId: "", seats: "", eligible: "Yes", coverage: "FTA + PEC needed", notes: "" });
+      writeFy27ToiRows(custName, rows);
+      renderContent();
+      document.getElementById("fy27ToiCard")?.classList.remove("collapsed");
+    };
+  }
+  document.querySelectorAll("[data-remove-toi]").forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      const rows = fy27ToiRows(custName);
+      const idx = Number(btn.dataset.removeToi || 0);
+      const selected = fy27SelectedToiId(custName);
+      rows.splice(idx, 1);
+      const nextRows = rows.length ? rows : fy27DefaultToiRows(custName);
+      writeFy27ToiRows(custName, nextRows);
+      if (!nextRows.some(r => r.id === selected)) setFy27SelectedToi(custName, nextRows[0].id);
+      renderContent();
+      document.getElementById("fy27ToiCard")?.classList.remove("collapsed");
     };
   });
   document.querySelectorAll("[data-fy27-tab]").forEach(btn => {
@@ -5055,6 +5274,10 @@ function renderContent() {
         </table>
       </div>
     </div>
+
+    ${renderFy27ToiSection(c)}
+
+    ${renderFy27ToiContext(c.n)}
 
     ${renderFy27GuidedPathSection(c)}
 
@@ -12446,6 +12669,83 @@ window.__cartLogModal = (function () {
   min-width: 0;
   padding-left: 6px;
   padding-right: 6px;
+}
+.fy27-toi-context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--cp-border);
+  border-radius: 14px;
+  background: var(--cp-surface-soft);
+  color: var(--cp-text-muted);
+  font-size: 12px;
+}
+.fy27-toi-context strong {
+  color: var(--cp-text);
+  font-size: 13px;
+}
+.fy27-toi-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--cp-text-muted);
+}
+.fy27-toi-badge {
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.fy27-toi-badge.eligible {
+  border-color: var(--cp-success);
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--cp-text);
+}
+.fy27-toi-badge.excluded {
+  background: var(--cp-surface);
+  color: var(--cp-text-muted);
+}
+.fy27-toi-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.fy27-toi-table th,
+.fy27-toi-table td {
+  padding-left: 8px;
+  padding-right: 8px;
+  vertical-align: top;
+}
+.fy27-toi-table th:nth-child(1),
+.fy27-toi-table td:nth-child(1) { width: 64px; text-align: center; }
+.fy27-toi-table th:nth-child(2),
+.fy27-toi-table td:nth-child(2) { width: 150px; }
+.fy27-toi-table th:nth-child(3),
+.fy27-toi-table td:nth-child(3) { width: 210px; }
+.fy27-toi-table th:nth-child(4),
+.fy27-toi-table td:nth-child(4) { width: 100px; }
+.fy27-toi-table th:nth-child(5),
+.fy27-toi-table td:nth-child(5) { width: 82px; }
+.fy27-toi-table th:nth-child(6),
+.fy27-toi-table td:nth-child(6) { width: 150px; }
+.fy27-toi-table th:nth-child(8),
+.fy27-toi-table td:nth-child(8) { width: 76px; }
+.fy27-toi-table .manual-ic-status,
+.fy27-toi-table .btn {
+  width: 100%;
+  min-width: 0;
+}
+.fy27-toi-input {
+  width: 100%;
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  box-sizing: border-box;
 }
 .fy27-guided-path-table {
   table-layout: fixed;
