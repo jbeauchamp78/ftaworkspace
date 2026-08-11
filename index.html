@@ -3901,7 +3901,58 @@ function renderSidebar() {
 
 const FY27_TRACKER_KEY = "fta-workspace-demo-fy27-tracker-v1";
 const FY27_WORKLOAD_KEY = "fta-workspace-demo-fy27-workloads-v1";
+const FY27_GUIDED_PATH_KEY = "fta-workspace-demo-fy27-guided-path-v1";
 const FY27_STATUS_OPTIONS = ["Not Started", "In Progress", "On Track", "Blocked", "Complete", "N/A"];
+const FY27_GUIDED_PATH_STAGES = [
+  {
+    stage: "Kickoff",
+    next: "Confirm sponsor, scope, tenant, and success path.",
+    assets: "Guided Path kickoff deck; customer intake notes",
+    handoff: "FastTrack owns kickoff; customer confirms sponsor and scope."
+  },
+  {
+    stage: "Copilot Foundations",
+    next: "Validate tenant readiness and baseline configuration blockers.",
+    assets: "Foundations workshop; readiness checklist",
+    handoff: "FastTrack owns readiness triage; SMEs support blockers."
+  },
+  {
+    stage: "Analytics for M365 Copilot",
+    next: "Review Copilot usage, readiness, and value signals.",
+    assets: "Analytics workshop; M365 Copilot reports",
+    handoff: "FastTrack guides interpretation; customer owns follow-through."
+  },
+  {
+    stage: "Copilot User Enablement",
+    next: "Run awareness and enablement motion for priority audiences.",
+    assets: "Discover Copilot; What's New in Copilot; Discover Agents",
+    handoff: "FastTrack owns awareness; CSU/ABS owns deeper adoption and OCM."
+  },
+  {
+    stage: "Agent Enablement",
+    next: "Identify agent scenarios and enable required tenant controls.",
+    assets: "Agent Enablement Grow session; Agent readiness assets",
+    handoff: "FastTrack enables readiness; Copilot SMEs support scenario depth."
+  },
+  {
+    stage: "Agent Governance",
+    next: "Confirm protected-agent, DLP, and lifecycle governance path.",
+    assets: "Agent governance guidance; Protected Agents checklist",
+    handoff: "SME/security owners drive controls; FastTrack coordinates motion."
+  },
+  {
+    stage: "Agent Analytics",
+    next: "Measure agent usage, consumption, and optimization signals.",
+    assets: "Agent analytics guidance; consumption reporting",
+    handoff: "FastTrack reviews signals; customer/CSU drive optimization plan."
+  },
+  {
+    stage: "Agent Design & Development",
+    next: "Route validated agent opportunities to build/design support.",
+    assets: "Agent design playbook; handoff resources",
+    handoff: "FastTrack hands off to pro-code/low-code agent delivery resources."
+  }
+];
 const FY27_PILLARS = [
   {
     id: "ready-ai",
@@ -4191,6 +4242,45 @@ function writeFy27WorkloadRows(custName, rows) {
   writeFy27WorkloadStore(store);
 }
 
+function fy27GuidedPathStore() {
+  try {
+    return JSON.parse(localStorage.getItem(FY27_GUIDED_PATH_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFy27GuidedPathStore(store) {
+  localStorage.setItem(FY27_GUIDED_PATH_KEY, JSON.stringify(store || {}));
+}
+
+function fy27GuidedPathRows(custName) {
+  const store = fy27GuidedPathStore();
+  const saved = store[custName] || [];
+  return FY27_GUIDED_PATH_STAGES.map((stage, index) => ({
+    ...stage,
+    status: saved[index]?.status || "Not Started",
+    owner: saved[index]?.owner || "",
+    next: saved[index]?.next || stage.next,
+    assets: saved[index]?.assets || stage.assets,
+    handoff: saved[index]?.handoff || stage.handoff
+  }));
+}
+
+function writeFy27GuidedPathRows(custName, rows) {
+  const store = fy27GuidedPathStore();
+  store[custName] = rows;
+  writeFy27GuidedPathStore(store);
+}
+
+function fy27GuidedPathProgress(custName) {
+  const rows = fy27GuidedPathRows(custName).filter(r => r.status !== "N/A");
+  const done = rows.filter(r => r.status === "Complete" || r.status === "On Track").length;
+  const active = rows.filter(r => r.status === "In Progress").length;
+  const blocked = rows.filter(r => r.status === "Blocked").length;
+  return { done, active, blocked, total: rows.length || FY27_GUIDED_PATH_STAGES.length };
+}
+
 function fy27WorkloadProgress(custName) {
   const rows = fy27WorkloadRows(custName).filter(r => r.status !== "N/A");
   const done = rows.filter(r => r.status === "Complete" || r.status === "On Track").length;
@@ -4203,8 +4293,10 @@ function fy27WorkloadProgress(custName) {
 function renderFy27HeaderPills(custName) {
   const p = fy27Progress(custName);
   const w = fy27WorkloadProgress(custName);
+  const gp = fy27GuidedPathProgress(custName);
   const healthClass = p.blocked ? "ic-health-red" : p.done === p.total ? "ic-health-green" : p.active || p.done ? "ic-health-yellow" : "ic-health-unknown";
   const workloadClass = w.blocked ? "ic-health-red" : w.done === w.total ? "ic-health-green" : w.active || w.done ? "ic-health-yellow" : "ic-health-unknown";
+  const guidedClass = gp.blocked ? "ic-health-red" : gp.done === gp.total ? "ic-health-green" : gp.active || gp.done ? "ic-health-yellow" : "ic-health-unknown";
   return `
     <div class="cust-status-row">
       <span class="csl-chip ic-health ${healthClass} fy27-rollup-pill" data-fy27-open="1"
@@ -4215,6 +4307,8 @@ function renderFy27HeaderPills(custName) {
             title="FY27 measures currently blocked">▼ ${p.blocked} blocked</span>
       <span class="csl-chip ic-health ${workloadClass}" data-fy27-workload-open="1"
             title="Manual FY27 workload projects — click to open the Workloads section">Workloads ${w.done}/${w.total}</span>
+      <span class="csl-chip ic-health ${guidedClass}" data-fy27-guided-open="1"
+            title="FY27 Guided Path journey stages — click to open the Guided Path section">Guided Path ${gp.done}/${gp.total}</span>
     </div>
     <div class="cust-status-row">
       <span class="csl-chip csl-spotlight csl-zero" id="cust-sp-chip-${custName.replace(/[^a-z0-9]/gi,'_')}" data-cust="${custName}" title="✨ Published spotlights for this customer (click for details)">✨ <span class="sp-count">—</span> spotlights</span>
@@ -4361,6 +4455,49 @@ function renderFy27FrontierValueSection(c) {
     </div>`;
 }
 
+function renderFy27GuidedPathSection(c) {
+  if (!isFy27SuccessModel()) return "";
+  const rows = fy27GuidedPathRows(c.n);
+  const progress = fy27GuidedPathProgress(c.n);
+  const healthClass = progress.blocked ? "ic-health-red" : progress.done === progress.total ? "ic-health-green" : progress.active || progress.done ? "ic-health-yellow" : "ic-health-unknown";
+  return `
+    <div class="ic-card fy27-guided-path-card" id="fy27GuidedPathCard">
+      <div class="ic-hdr" onclick="if (!event.target.closest('select,input,textarea,button')) document.getElementById('fy27GuidedPathCard').classList.toggle('collapsed')">
+        <span class="chev">▼</span>
+        <h3>FY27 Guided Path <span class="section-epoch-badge">Frontier</span></h3>
+        <span class="spacer"></span>
+        <span class="csl-chip ic-health ${healthClass}" title="Guided Path completed/on-track stages">${progress.done}/${progress.total}</span>
+      </div>
+      <div class="ic-body">
+        <table class="kr-table fy27-guided-path-table">
+          <thead><tr>
+            <th>Stage</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th>Next Action</th>
+            <th>Assets</th>
+            <th>Handoff / Exit Criteria</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map((r, idx) => `<tr>
+              <td><strong>${idx + 1}. ${escapeHtml(r.stage)}</strong></td>
+              <td><select class="manual-ic-status ${fy27StatusClass(r.status)}" data-guided-path-index="${idx}" data-field="status">
+                ${FY27_STATUS_OPTIONS.map(o => `<option value="${o}"${o === r.status ? " selected" : ""}>${o}</option>`).join("")}
+              </select></td>
+              <td><input class="fy27-owner-input" data-guided-path-index="${idx}" data-field="owner" value="${escapeHtml(r.owner || "")}" placeholder="Owner" /></td>
+              <td><textarea class="fy27-next-step" data-guided-path-index="${idx}" data-field="next" placeholder="Next action">${escapeHtml(r.next || "")}</textarea></td>
+              <td><textarea class="fy27-next-step" data-guided-path-index="${idx}" data-field="assets" placeholder="Assets, recordings, decks, playbooks">${escapeHtml(r.assets || "")}</textarea></td>
+              <td><textarea class="fy27-next-step" data-guided-path-index="${idx}" data-field="handoff" placeholder="Ownership handoff and exit criteria">${escapeHtml(r.handoff || "")}</textarea></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+        <div style="font-size:11px;color:var(--cp-text-muted);padding:10px 14px 12px;border-top:1px solid var(--cp-border);">
+          Tracks the customer journey from Copilot readiness through agent enablement, governance, analytics, and design/development handoff.
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderFy27CustomerTracker(c) {
   if (!isFy27SuccessModel()) return "";
   const rows = fy27SuccessTrackerRows(c.n);
@@ -4494,6 +4631,16 @@ function attachFy27TrackerHandlers(custName) {
       if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
     };
   });
+  document.querySelectorAll("[data-fy27-guided-open]").forEach(el => {
+    el.onclick = e => {
+      e.stopPropagation();
+      const card = document.getElementById("fy27GuidedPathCard");
+      if (card) {
+        card.classList.remove("collapsed");
+        card.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+  });
   document.querySelectorAll("[data-fy27-tab]").forEach(btn => {
     btn.onclick = e => {
       e.stopPropagation();
@@ -4552,6 +4699,24 @@ function attachFy27TrackerHandlers(custName) {
       if (field === "status") {
         el.className = `manual-ic-status ${fy27StatusClass(el.value)}`;
         renderContent();
+      }
+    };
+    el.addEventListener(el.tagName === "TEXTAREA" || el.tagName === "INPUT" ? "input" : "change", save);
+    el.addEventListener("click", e => e.stopPropagation());
+  });
+  document.querySelectorAll("[data-guided-path-index]").forEach(el => {
+    const save = () => {
+      const idx = Number(el.dataset.guidedPathIndex || 0);
+      const field = el.dataset.field;
+      const rows = fy27GuidedPathRows(custName);
+      rows[idx] = rows[idx] || { stage: FY27_GUIDED_PATH_STAGES[idx]?.stage || `Stage ${idx + 1}`, status: "Not Started", owner: "", next: "", assets: "", handoff: "" };
+      rows[idx][field] = el.value;
+      writeFy27GuidedPathRows(custName, rows);
+      if (field === "status") {
+        el.className = `manual-ic-status ${fy27StatusClass(el.value)}`;
+        const open = !document.getElementById("fy27GuidedPathCard")?.classList.contains("collapsed");
+        renderContent();
+        if (open) document.getElementById("fy27GuidedPathCard")?.classList.remove("collapsed");
       }
     };
     el.addEventListener(el.tagName === "TEXTAREA" || el.tagName === "INPUT" ? "input" : "change", save);
@@ -4889,6 +5054,8 @@ function renderContent() {
     ${renderFy27FrontierReadySection(c)}
 
     ${renderFy27FrontierValueSection(c)}
+
+    ${renderFy27GuidedPathSection(c)}
 
     ${renderFy27CustomerTracker(c)}
 
@@ -12259,6 +12426,30 @@ window.__cartLogModal = (function () {
   padding-left: 6px;
   padding-right: 6px;
 }
+.fy27-guided-path-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.fy27-guided-path-table th,
+.fy27-guided-path-table td {
+  padding-left: 8px;
+  padding-right: 8px;
+  vertical-align: top;
+}
+.fy27-guided-path-table th:nth-child(1),
+.fy27-guided-path-table td:nth-child(1) { width: 170px; }
+.fy27-guided-path-table th:nth-child(2),
+.fy27-guided-path-table td:nth-child(2) { width: 118px; }
+.fy27-guided-path-table th:nth-child(3),
+.fy27-guided-path-table td:nth-child(3) { width: 105px; }
+.fy27-guided-path-table th:nth-child(4),
+.fy27-guided-path-table td:nth-child(4) { width: 22%; }
+.fy27-guided-path-table th:nth-child(5),
+.fy27-guided-path-table td:nth-child(5) { width: 22%; }
+.fy27-guided-path-table .manual-ic-status {
+  width: 100%;
+  min-width: 0;
+}
 .fy27-workload-actions {
   display: flex;
   align-items: center;
@@ -12379,9 +12570,10 @@ window.__cartLogModal = (function () {
     "Copilot User Enablement",
     "Agent Enablement",
     "Agent Governance",
-    "Analytics for Agents",
+    "Agent Analytics",
     "Agent Design & Development"
   ];
+  const guidedPathDefaults = Object.fromEntries(FY27_GUIDED_PATH_STAGES.map(x => [x.stage, x]));
   let modalSave = null;
   let manualStore = readStore();
   let applying = false;
@@ -12934,23 +13126,30 @@ window.__cartLogModal = (function () {
     s.guidedPath = s.guidedPath || {};
     const options = ["Not Started", "In Progress", "Complete", "Blocked", "Deferred", "N/A"];
     sec.innerHTML = `
-      <div class="ic-hdr" role="button" tabindex="0"><span class="chev">▼</span><h3>Copilot Guided Path <span class="section-epoch-badge">FY27 Q1</span></h3><span class="spacer"></span><span class="ic-source">manual</span></div>
+      <div class="ic-hdr" role="button" tabindex="0"><span class="chev">▼</span><h3>FY27 Guided Path <span class="section-epoch-badge">Frontier</span></h3><span class="spacer"></span><span class="ic-source">manual</span></div>
       <div class="ic-body">
-        <table class="kr-table ic-table">
+        <table class="kr-table fy27-guided-path-table">
           <thead><tr>
-            <th style="width: 260px">Journey Point</th>
-            <th style="width: 130px">Status</th>
-            <th style="min-width: 240px">Notes</th>
+            <th>Stage</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th>Next Action</th>
+            <th>Assets</th>
+            <th>Handoff / Exit Criteria</th>
           </tr></thead>
           <tbody>
             ${guidedPath.map((x, i) => {
-              const row = s.guidedPath[x] || { status: "Not Started", notes: "" };
+              const defaults = guidedPathDefaults[x] || { next: "", assets: "", handoff: "" };
+              const row = s.guidedPath[x] || { status: "Not Started", owner: "", next: defaults.next, assets: defaults.assets, handoff: defaults.handoff };
               return `<tr>
-                <td>${i + 1}. ${esc(x)}</td>
+                <td><strong>${i + 1}. ${esc(x)}</strong></td>
                 <td><select class="manual-ic-status ${statusClass(row.status)}" data-gp="${i}" data-field="status">
                   ${options.map(v => `<option value="${v}"${row.status === v ? " selected" : ""}>${v}</option>`).join("")}
                 </select></td>
-                <td><textarea class="manual-ic-note" data-gp="${i}" data-field="notes" placeholder="Manual Guided Path note">${esc(row.notes || "")}</textarea></td>
+                <td><input class="fy27-owner-input" data-gp="${i}" data-field="owner" value="${esc(row.owner || "")}" placeholder="Owner" /></td>
+                <td><textarea class="manual-ic-note" data-gp="${i}" data-field="next" placeholder="Next action">${esc(row.next || "")}</textarea></td>
+                <td><textarea class="manual-ic-note" data-gp="${i}" data-field="assets" placeholder="Assets, recordings, decks, playbooks">${esc(row.assets || "")}</textarea></td>
+                <td><textarea class="manual-ic-note" data-gp="${i}" data-field="handoff" placeholder="Handoff and exit criteria">${esc(row.handoff || "")}</textarea></td>
               </tr>`;
             }).join("")}
           </tbody>
