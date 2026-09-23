@@ -15885,7 +15885,7 @@ window.__cartLogModal = (function () {
         </div>
         <div class="help-callout tip"><strong>Read-only by default.</strong> Nothing writes back to MIDAS / FTOP / Lynx. The only writes are: KR notes you type, customer nicknames, and items you queue to the Scout bridge (and those still require your approval before they run).</div>
         <h5>Who built this</h5>
-        <p>This is an internal FastTrack Architect tool. Backend = FastAPI + SQLite (lives in OneDrive under <code>FastTrack Items/OKR Cx Assessments/Cx-KR-Tracker.db</code> for cross-device sync). Frontend = vanilla JS SPA served from localhost:8765. No server in the cloud — everything runs on your machine.</p>`,
+        <p>This is an internal FastTrack Architect tool. Backend = FastAPI + SQLite (lives in OneDrive under <code>&lt;your-folder&gt;/workspace.db</code> for cross-device sync). Frontend = vanilla JS SPA served from localhost. No server in the cloud — everything runs on your machine.</p>`,
 
       quickstart: `
         <h4>Quick Start (first 5 minutes)</h4>
@@ -16112,7 +16112,7 @@ window.__cartLogModal = (function () {
         <p>Selection persists via localStorage. First load defaults to Workspace but doesn't commit — the first explicit pick is what sticks.</p>
         <h5>Install as a desktop PWA</h5>
         <ol>
-          <li>Open <code>http://localhost:8765/</code> in a regular Edge tab.</li>
+          <li>Open <code>http://localhost/</code> in a regular Edge tab.</li>
           <li>In the address bar, click the <strong>install icon</strong> (or ⋯ menu → Apps → Install this site as an app).</li>
           <li>Edge creates a Start Menu shortcut with the FTA Workspace icon — pin it to your taskbar for one-click access.</li>
         </ol>
@@ -16131,10 +16131,10 @@ window.__cartLogModal = (function () {
           <tr><td>App icon shows generic Edge globe on taskbar</td><td>Install as PWA (Themes & PWA section) — gives the app its own taskbar identity.</td></tr>
         </table>
         <h5>Server not running?</h5>
-        <p>Open Scout and run <code>/ftaworkspace</code>. The skill health-checks the localhost:8765 server and restarts it if down.</p>
+        <p>Open Scout and run <code>/ftaworkspace</code>. The skill health-checks the localhost server and restarts it if down.</p>
         <h5>Database location</h5>
         <p>SQLite DB lives at:</p>
-        <p><code>~\\OneDrive - Microsoft\\Documents\\FastTrack Items\\OKR Cx Assessments\\Cx-KR-Tracker.db</code></p>
+        <p><code>&lt;your-folder&gt;/workspace.db</code></p>
         <p>Backups auto-saved to <code>backups/</code> sibling folder before each refresh.</p>`,
 
       privacy: `
