@@ -3635,6 +3635,17 @@ body.krheatmap-view.kr-expanded .content { margin: 24px 24px 12px 24px !importan
 .hm-status-group.g-ONBOARDED      { background: rgba(146, 208, 80, 0.14); border-left: 4px solid #92D050; }
 .hm-status-group.g-STATUS_UNKNOWN { background: rgba(232, 232, 232, 0.40); border-left: 4px solid #b0b0b0; }
 .hm-status-group.g-NOT_LICENSED   { background: rgba(0, 0, 0, 0.04); border-left: 4px solid #000000; }
+/* FY27 KR statuses. The groups above are the M365 heatmap's vocabulary
+   (NO_INTENT / ONBOARDED / …) and do not overlap with the KR status set, so
+   the KR heatmap's By Status layout would otherwise render every bucket in
+   the same unstyled grey. Colours match the KR legend swatches. */
+.hm-status-group.g-KR-MET          { background: rgba(146, 208, 80, 0.14); border-left: 4px solid #92D050; }
+.hm-status-group.g-KR-IN_PROGRESS  { background: rgba(0, 176, 240, 0.10); border-left: 4px solid #00B0F0; }
+.hm-status-group.g-KR-AT_RISK      { background: rgba(232, 17, 35, 0.10);  border-left: 4px solid #E81123; }
+.hm-status-group.g-KR-NOT_STARTED  { background: rgba(232, 232, 232, 0.40); border-left: 4px solid #b0b0b0; }
+/* `N/A` becomes `N_A` via the class-name munge (space and slash -> underscore),
+   so this selector must match that, not a hand-written "NA". */
+.hm-status-group.g-KR-N_A          { background: rgba(191, 191, 191, 0.12); border-left: 4px solid #BFBFBF; }
 .hm-status-hdr {
   display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
   font-weight: 600; font-size: 13px; color: var(--cp-text);
@@ -5447,6 +5458,19 @@ function renderContent() {
     <div class="hm-card" id="krHeatmapCard" style="display:none;">
       <div class="hm-card-hdr">
         <h3>FY27 Q1 KR Conditions Heatmap</h3>
+        <!-- Layout selector, mirroring the M365 heatmap's (#hmLayout).
+             Its own id and its own localStorage key: the two heatmaps show
+             different things and an FTA who wants triage on one does not
+             necessarily want it on the other. -->
+        <select id="krHmLayout" class="btn secondary" style="padding:5px 28px 5px 12px; font-size:12px; cursor:pointer;
+                -webkit-appearance:none; -moz-appearance:none; appearance:none;
+                background-image:linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+                background-position:calc(100% - 13px) calc(50% - 2px), calc(100% - 8px) calc(50% - 2px);
+                background-size:5px 5px, 5px 5px; background-repeat:no-repeat;" title="Switch heatmap layout">
+          <option value="slide">▦ Original (default)</option>
+          <option value="bands">▤ Bands</option>
+          <option value="status">⚑ By Status</option>
+        </select>
         <div class="hm-legend">
           <span class="hm-leg"><span class="hm-swatch" style="background:#92D050"></span> Met</span>
           <span class="hm-leg"><span class="hm-swatch" style="background:#00B0F0"></span> In Progress</span>
@@ -5463,6 +5487,11 @@ function renderContent() {
       </div>
       <div id="krHeatmapBody"><div style="text-align:center;padding:30px;color:var(--cp-text-muted)">loading…</div></div>
       <div style="font-size:11px;color:var(--cp-text-muted);margin-top:14px;border-top:1px solid var(--cp-border);padding-top:8px" id="krHeatmapFoot"></div>
+      <div style="font-size:11px;color:var(--cp-text-muted);margin-top:6px">
+        Click any tile to set its FY27 status and add a note. This writes the FTA's
+        recorded status for that configuration — the blue FTBI chip is measured
+        evidence and is never overwritten.
+      </div>
     </div>
 
     <div class="fta-notes-card collapsed" id="ftaNotesCard">
@@ -11619,11 +11648,34 @@ document.addEventListener("click", (e) => {
   // from that module would be a ReferenceError - the same cross-IIFE scope
   // trap that has bitten toast, _flashCounter and pecActive in this file.
   window.__ensureLib = ensureLib;
+
+  /* Elements html2canvas must not try to rasterise.
+   *
+   * html2canvas 1.4.1 cannot parse `currentColor` inside a gradient: it
+   * resolves the stop to undefined and then reads `.type` off it, throwing
+   * "Cannot read properties of undefined (reading 'type')" and failing the
+   * WHOLE export. Both layout <select>s draw their dropdown arrow with
+   * `linear-gradient(45deg, transparent 50%, currentColor 50%)`, so adding
+   * one to the KR heatmap card broke its PNG export immediately — and the
+   * M365 card had carried the same latent bug, untested, since its own
+   * selector shipped.
+   *
+   * Skipping them is also the correct export behaviour on its own terms: a
+   * dropdown is a UI control, not content, and has no business appearing in
+   * an exported image. Exposed on window because the two heatmaps live in
+   * separate IIFEs — the same reason __ensureLib is shared rather than
+   * copied. */
+  function skipForExport(el) {
+    return !!(el && el.tagName === "SELECT");
+  }
+  window.__skipForExport = skipForExport;
   async function exportHeatmapPng() {
     try {
       await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", "html2canvas");
       const node = document.getElementById("heatmapCard");
-      const canvas = await window.html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+      const canvas = await window.html2canvas(node, {
+        scale: 2, backgroundColor: "#ffffff", ignoreElements: window.__skipForExport,
+      });
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
       a.download = `heatmap-${currentCust || "customer"}-${new Date().toISOString().slice(0,10)}.png`;
@@ -11728,6 +11780,10 @@ document.addEventListener("click", (e) => {
     "NOT STARTED": "Not Started",
     "N/A": "N/A",
   };
+  // Mirrors app/fy27.py FY27_STATUSES exactly. The PATCH endpoint rejects
+  // anything outside this list with a 400, so an option the server will not
+  // accept must never reach the dropdown.
+  const FY27_STATUSES = ["NOT STARTED", "IN PROGRESS", "AT RISK", "MET", "N/A"];
 
   const esc = (s) => String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -11780,14 +11836,17 @@ document.addEventListener("click", (e) => {
             </div>`;
   }
 
-  function conditionBand(kr, cond, evIndex) {
+  function conditionBand(kr, cond, evIndex, opts) {
+    const showKr = !opts || opts.showKr !== false;
     const cfgs = (cond.configs || []).map(c => ({ ...c, __kr: kr.kr_key, __cond: cond.condition_id }));
     const met = cfgs.filter(c => (c.status || "").toUpperCase() === "MET").length;
     const allMet = cfgs.length > 0 && met === cfgs.length;
     return `
       <div class="hm-cat">
         <div class="hm-cat-label kc-cat-label">
-          <div class="kc-kr">${esc(kr.kr_key)} · ${esc((cond.condition_id || "").toUpperCase())}</div>
+          <div class="kc-kr">${showKr
+            ? esc(kr.kr_key) + " · " + esc((cond.condition_id || "").toUpperCase())
+            : esc(kr.kr_key)}</div>
           <div class="kc-cond">${esc(cond.name)}</div>
           ${cond.rule ? `<div class="kc-rule">${esc(cond.rule)}</div>` : ""}
           <span class="kc-tally ${allMet ? "kc-all-met" : ""}">${met}/${cfgs.length} met</span>
@@ -11801,6 +11860,72 @@ document.addEventListener("click", (e) => {
             : `<div style="font-size:11px;color:var(--cp-text-muted);padding:8px">No configurations defined for this condition.</div>`}
         </div>
       </div>`;
+  }
+
+  // ---------- Layouts ----------
+  // Three views of the same data, mirroring the M365 heatmap's selector:
+  //   slide  — presentation-shaped: KR heading, then its condition bands
+  //   bands  — the same bands with the KR headings removed (compact)
+  //   status — flattened and bucketed by status (the triage view)
+  const KR_LAYOUT_KEY = "fta-kr-heatmap-layout";
+  const KR_STATUS_ORDER = ["AT RISK", "IN PROGRESS", "NOT STARTED", "MET", "N/A"];
+
+  function layoutSlide(krs, evIndex) {
+    return krs.map(kr => `
+      <div class="kc-kr-head">
+        <span class="kc-kr-key">${esc(kr.kr_key)}</span>
+        <span class="kc-kr-title">${esc(kr.title)}</span>
+        <span class="kc-kr-measure">${esc(kr.measure || "")}</span>
+      </div>
+      ${(kr.condition_detail || []).map(c => conditionBand(kr, c, evIndex)).join("")}
+    `).join("");
+  }
+
+  function layoutBands(krs, evIndex) {
+    // No KR headings — every condition is a peer band. The KR key stays on the
+    // band label, otherwise a band is unattributable once the heads are gone.
+    return krs.flatMap(kr =>
+      (kr.condition_detail || []).map(c => conditionBand(kr, c, evIndex, { showKr: true }))
+    ).join("");
+  }
+
+  function layoutStatus(krs, evIndex) {
+    // Flatten every configuration, then bucket. Keeps the KR/condition origin
+    // on each tile's tooltip (tileHtml already builds it) so a tile is still
+    // traceable after grouping destroys the visual hierarchy.
+    const all = [];
+    for (const kr of krs) {
+      for (const cond of (kr.condition_detail || [])) {
+        for (const cfg of (cond.configs || [])) {
+          all.push({
+            cfg: { ...cfg, __kr: kr.kr_key, __cond: cond.condition_id },
+            ev: evIndex[evidenceKey(kr.kr_key, cond.condition_id, cfg.config_id)],
+            status: (cfg.status || "NOT STARTED").toUpperCase(),
+          });
+        }
+      }
+    }
+    const buckets = {};
+    KR_STATUS_ORDER.forEach(s => { buckets[s] = []; });
+    for (const row of all) {
+      (buckets[row.status] || (buckets[row.status] = [])).push(row);
+    }
+    return `<div class="hm-status-grid">
+      ${KR_STATUS_ORDER.map(s => {
+        const rows = buckets[s] || [];
+        return `<div class="hm-status-group g-KR-${s.replace(/[ /]/g, "_")}">
+          <div class="hm-status-hdr">
+            <span>${esc(STATUS_LABEL[s] || s)}</span>
+            <span class="hm-status-count">${rows.length}</span>
+          </div>
+          <div class="hm-tiles">
+            ${rows.length
+              ? rows.map(r => tileHtml(r.cfg, r.ev)).join("")
+              : `<div style="font-size:11px;color:var(--cp-text-muted);padding:8px">Nothing in this state.</div>`}
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`;
   }
 
   function render(payload) {
@@ -11819,14 +11944,19 @@ document.addEventListener("click", (e) => {
       evIndex[evidenceKey(r.kr_key, r.condition_id, r.config_id)] = r;
     }
 
-    body.innerHTML = krs.map(kr => `
-      <div class="kc-kr-head">
-        <span class="kc-kr-key">${esc(kr.kr_key)}</span>
-        <span class="kc-kr-title">${esc(kr.title)}</span>
-        <span class="kc-kr-measure">${esc(kr.measure || "")}</span>
-      </div>
-      ${(kr.condition_detail || []).map(c => conditionBand(kr, c, evIndex)).join("")}
-    `).join("");
+    const layout = localStorage.getItem(KR_LAYOUT_KEY) || "slide";
+    const sel = document.getElementById("krHmLayout");
+    if (sel) sel.value = layout;
+    body.innerHTML = layout === "status" ? layoutStatus(krs, evIndex)
+                   : layout === "bands"  ? layoutBands(krs, evIndex)
+                   :                       layoutSlide(krs, evIndex);
+
+    // Bind the editor. Scoped to THIS body, exactly like the M365 heatmap
+    // binds its own — a delegated document listener on ".hm-tile" would fire
+    // for both heatmaps, since they deliberately share the tile class.
+    body.querySelectorAll(".hm-tile").forEach(tile => {
+      tile.onclick = () => openCfgEditor(tile.dataset.kr, tile.dataset.cond, tile.dataset.config);
+    });
 
     if (foot) {
       const totalCfg = krs.reduce((n, k) => n + (k.condition_detail || [])
@@ -11845,6 +11975,152 @@ document.addEventListener("click", (e) => {
             : "");
     }
   }
+
+  // ---------- Tile editor ----------
+  // Mirrors the M365 heatmap's tile editor, but writes the FY27 CONFIG status
+  // rather than a heatmap override: PATCH /api/customer/{n}/fy27-config/...
+  //
+  // Deliberately self-contained. A patchCfg() already exists in the KR
+  // conditions section, but it lives in a different IIFE — reaching across
+  // that boundary is the single most common bug in this file (toast,
+  // _flashCounter, pecActive and ensureLib have each bitten), so this owns its
+  // own fetch rather than depending on another closure staying reachable.
+  //
+  // Its backdrop id is krHmEditor, NOT hmEditor: sharing the M365 editor would
+  // mean two modules writing the same DOM with different save semantics.
+  let editingCfg = null;   // { kr, cond, config, name }
+
+  function buildCfgEditor() {
+    if (document.getElementById("krHmEditor")) return;
+    const back = document.createElement("div");
+    back.className = "hm-editor-backdrop";
+    back.id = "krHmEditor";
+    // Reuses the .hm-editor / .hm-ed-* classes the M365 editor is styled with,
+    // so the two editors look identical without duplicating CSS.
+    back.innerHTML = `
+      <div class="hm-editor">
+        <h4 id="krEdName">Configuration</h4>
+        <div class="hm-ed-sub" id="krEdSub"></div>
+        <label>FY27 status</label>
+        <select id="krEdStatus">
+          ${FY27_STATUSES.map(s => `<option value="${s}">${esc(STATUS_LABEL[s] || s)}</option>`).join("")}
+        </select>
+        <div class="hm-ed-source" id="krEdEvidence"></div>
+        <label>Note (optional)</label>
+        <textarea id="krEdNote" placeholder="e.g. Blocked on the tenant-side firewall change; ticket with the customer."></textarea>
+        <div class="hm-ed-actions">
+          <button class="btn secondary hm-ed-clear" id="krEdReset">Reset to Not Started</button>
+          <button class="btn secondary" id="krEdCancel">Cancel</button>
+          <button class="btn" id="krEdSave">Save status</button>
+        </div>
+      </div>`;
+    document.body.appendChild(back);
+    back.addEventListener("click", (e) => { if (e.target === back) back.classList.remove("show"); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && back.classList.contains("show")) back.classList.remove("show");
+    });
+  }
+
+  function findCfg(krKey, condId, cfgId) {
+    for (const kr of ((lastPayload && lastPayload.krs) || [])) {
+      if (kr.kr_key !== krKey) continue;
+      for (const cond of (kr.condition_detail || [])) {
+        if (cond.condition_id !== condId) continue;
+        for (const cfg of (cond.configs || [])) {
+          if (String(cfg.config_id) === String(cfgId)) return { kr, cond, cfg };
+        }
+      }
+    }
+    return null;
+  }
+
+  function openCfgEditor(krKey, condId, cfgId) {
+    const hit = findCfg(krKey, condId, cfgId);
+    if (!hit) return;
+    buildCfgEditor();
+    editingCfg = { kr: krKey, cond: condId, config: cfgId, name: hit.cfg.name };
+
+    document.getElementById("krEdName").textContent = hit.cfg.name || cfgId;
+    const role = (hit.cfg.role || "").toLowerCase();
+    document.getElementById("krEdSub").textContent =
+      `${krKey} · ${(condId || "").toUpperCase()} — ${hit.cond.name}`
+      + (role ? `  (${role === "required" ? "Required" : "Optimal"})` : "");
+
+    const status = (hit.cfg.status || "NOT STARTED").toUpperCase();
+    document.getElementById("krEdStatus").value =
+      FY27_STATUSES.includes(status) ? status : "NOT STARTED";
+    document.getElementById("krEdNote").value = hit.cfg.notes || "";
+
+    // Show what FTBI measured, so the FTA is overriding with the evidence in
+    // view rather than from memory.
+    const ev = (lastPayload.evidence || [])
+      .find(r => evidenceKey(r.kr_key, r.condition_id, r.config_id) === evidenceKey(krKey, condId, cfgId));
+    document.getElementById("krEdEvidence").textContent =
+      ev && typeof ev.healthy_tenants === "number"
+        ? `FTBI evidence: ${ev.healthy_tenants} of ${ev.total_tenants} tenant(s) healthy`
+          + (ev.source ? ` · source: ${ev.source}` : "")
+        : "FTBI evidence: none recorded for this configuration";
+
+    document.getElementById("krHmEditor").classList.add("show");
+  }
+
+  async function saveCfg(status, notes) {
+    if (!editingCfg || !currentNick) return;
+    const { kr, cond, config } = editingCfg;
+    const url = `/api/customer/${encodeURIComponent(currentNick)}`
+      + `/fy27-config/${encodeURIComponent(kr)}/${encodeURIComponent(cond)}/${encodeURIComponent(config)}`;
+    const r = await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, notes }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.detail || `HTTP ${r.status}`);
+    }
+    // Update the in-memory payload so the re-render reflects the save without
+    // a round trip. Re-fetching here would also discard the evidence rows,
+    // which are loaded separately and best-effort.
+    const hit = findCfg(kr, cond, config);
+    if (hit) { hit.cfg.status = status; hit.cfg.notes = notes; }
+  }
+
+  document.addEventListener("click", async (e) => {
+    const back = document.getElementById("krHmEditor");
+    if (!back || !back.classList.contains("show")) return;
+    if (e.target.id === "krEdCancel") {
+      back.classList.remove("show");
+    } else if (e.target.id === "krEdReset" || e.target.id === "krEdSave") {
+      const reset = e.target.id === "krEdReset";
+      const status = reset ? "NOT STARTED" : document.getElementById("krEdStatus").value;
+      const notes = reset ? "" : document.getElementById("krEdNote").value;
+      try {
+        await saveCfg(status, notes);
+        back.classList.remove("show");
+        if (lastPayload) render(lastPayload);
+        // window.toast is a DOM NODE here (the container has id="toast"), so a
+        // bare toast(...) call dies with "not a function" inside an async
+        // handler and the failure is swallowed. Go through __api.
+        if (window.__api && typeof window.__api.toast === "function") {
+          window.__api.toast(reset ? "Configuration reset" : "FY27 status saved", "ok");
+        }
+      } catch (err) {
+        if (window.__api && typeof window.__api.toast === "function") {
+          window.__api.toast("Save failed: " + err.message, "err");
+        } else {
+          alert("Save failed: " + err.message);
+        }
+      }
+    }
+  });
+
+  // Layout dropdown — re-renders from the payload already in memory.
+  document.addEventListener("change", (e) => {
+    if (e.target && e.target.id === "krHmLayout") {
+      localStorage.setItem(KR_LAYOUT_KEY, e.target.value);
+      if (lastPayload) render(lastPayload);
+    }
+  });
 
   async function load(nick) {
     currentNick = nick;
@@ -11905,7 +12181,13 @@ document.addEventListener("click", (e) => {
       await ensureLib("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", "html2canvas");
       const node = document.getElementById("krHeatmapCard");
       if (!node) throw new Error("heatmap not open");
-      const canvas = await window.html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+      const canvas = await window.html2canvas(node, {
+        scale: 2, backgroundColor: "#ffffff",
+        // Cross-IIFE: this module has no `skipForExport` of its own, so it
+        // must go through window.__skipForExport. A bare call would be a
+        // ReferenceError — the exact class of bug __ensureLib exists for.
+        ignoreElements: window.__skipForExport || (() => false),
+      });
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
       a.download = `fy27-kr-heatmap-${currentNick || "customer"}-${new Date().toISOString().slice(0, 10)}.png`;

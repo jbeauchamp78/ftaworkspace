@@ -173,7 +173,11 @@
         for (const kr of out.krs) {
           const k = `${cust}|${kr.kr_key}`;
           if (MUT.fy27[k]) Object.assign(kr, MUT.fy27[k]);
-          for (const cond of kr.conditions || []) {
+          // condition_detail, NOT conditions. `kr.conditions` is a list of
+          // condition NAMES (strings) — iterating it yields strings whose
+          // .configs is undefined, so every config edit was silently dropped
+          // and the KR heatmap's tile editor appeared to do nothing in DEMO.
+          for (const cond of kr.condition_detail || []) {
             for (const cfg of cond.configs || []) {
               const ck = `${cust}|${kr.kr_key}|${cond.condition_id || cond.id}|${cfg.config_id || cfg.id}`;
               if (MUT.cfg[ck]) Object.assign(cfg, MUT.cfg[ck]);
