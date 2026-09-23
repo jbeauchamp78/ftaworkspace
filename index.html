@@ -5318,13 +5318,18 @@ function renderContent() {
                    heatmap IIFE closes itself. -->
               <button class="btn secondary cust-action-item cust-workspace-btn" type="button"
                       title="Return to the default Customer View">↩ Customer View</button>
-              ${/* Pilot scope: KR Conditions heatmap is enabled for TYRELL CARE
-                    only while the layout is validated. Gated here rather than
-                    rendered-then-hidden so it cannot be clicked on a customer
-                    whose condition data has not been reviewed. */ ""}
-              ${c.n === "TYRELL CARE" ? `
+              <!-- FY27 Q1 KR Conditions heatmap — available on EVERY customer
+                   (2026-09-23). It shipped pilot-gated to a single customer
+                   "while the layout is validated", which also meant 24 of 25
+                   customers silently had no entry in the menu.
+                   Verified before ungating: all 25 customers return the same
+                   shape from /api/customer/{n}/fy27-krs — 4 KRs, 7 conditions,
+                   46 configs, no errors and no empties. The condition
+                   framework is definitional (the FY27 KR model), not
+                   per-customer data; only the per-config STATUSES vary, and
+                   an unreviewed status renders as "not started" by design. -->
               <button class="btn secondary cust-action-item" id="btnKrHeatmap"
-                      title="FY27 Q1 KR Conditions Heatmap — every KR3/KR4/KR5 condition and its configurations. Does not replace the Key Results heatmap.">🎯 FY27 Q1 KR Heatmap</button>` : ""}
+                      title="FY27 Q1 KR Conditions Heatmap — every KR3/KR4/KR5 condition and its configurations. Does not replace the Key Results heatmap.">🎯 FY27 Q1 KR Heatmap</button>
               <button class="btn secondary cust-action-item" id="btnHeatmap"
                       title="Toggle between Customer Workspace and M365 Usage Heatmap">🗺️ M365 Usage Heatmap</button>
               <button class="btn secondary cust-action-item" id="btnRefreshCustomer" data-cust="${c.n}"
