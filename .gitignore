@@ -1,0 +1,31 @@
+# Defence in depth. This repo is PUBLIC.
+#
+# The deploy script only ever copies files out of demo-bundle/, so none of the
+# following should be able to arrive here. These patterns exist so that a
+# future change to the copy step, or a manual drag-and-drop, cannot quietly
+# publish something that must never be public.
+
+# Real-to-fake name lookup used to sanitise the demo. Publishing it would
+# defeat the entire sanitisation exercise.
+_demo_name_map.json
+
+# Databases and backups — the live tracker holds real customer data.
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+backups/
+
+# Application source. Only the built bundle belongs here.
+app/
+scripts/
+tests/
+*.py
+*.ps1
+
+# Local noise
+.venv/
+__pycache__/
+*.log
+.DS_Store
+Thumbs.db
