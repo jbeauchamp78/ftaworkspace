@@ -467,6 +467,38 @@ html[data-theme="win98"] .info-pill {
   overflow-y: auto;
 }
 .drill-panel.daily-focus-drill { max-height: 480px; }
+/* KR Wins: summary line + four KR sections is ~480px of content. At the
+   default 240px cap the KR6 section — the one that explains the tile's total —
+   sat below the fold, so the FTA saw three "0 wins" rows next to a tile
+   reading 2 and reasonably concluded the tile was wrong. */
+.drill-panel.kr-wins-drill { max-height: 520px; }
+/* Active PECs: the table declares width:100%, but .drill-list is a CSS GRID
+   with content-sized columns, so 100% resolved against shrink-to-fit and the
+   table rendered in the left ~40% of the panel while Title wrapped to four
+   lines. Forcing a single 1fr column is the same fix the campaigns drill
+   needed. table-layout:fixed then makes the per-column widths authoritative —
+   without it the browser re-derives them from content and Title loses again. */
+.drill-panel.active-pecs-drill .drill-list { grid-template-columns: 1fr; }
+.drill-panel.active-pecs-drill { max-height: 460px; }
+.drill-panel.active-pecs-drill .pec-card-table { table-layout: fixed; width: 100%; }
+.drill-panel.active-pecs-drill .pec-card-table th:nth-child(1),
+.drill-panel.active-pecs-drill .pec-card-table td:nth-child(1) { width: 11%; }
+.drill-panel.active-pecs-drill .pec-card-table th:nth-child(2),
+.drill-panel.active-pecs-drill .pec-card-table td:nth-child(2) { width: 14%; }
+/* Title and Workload carry the long content and get the space. Measured
+   against the live data rather than guessed: titles run 14-60 chars (median
+   33) and workload up to 76 — the multi-workload PECs like "Copilot in
+   Defender; Copilot in Purview; Copilot in Entra; Copilot in Intune" are the
+   real hog, so Workload needs more than its old 20%. */
+.drill-panel.active-pecs-drill .pec-card-table th:nth-child(3),
+.drill-panel.active-pecs-drill .pec-card-table td:nth-child(3) { width: 34%; }
+.drill-panel.active-pecs-drill .pec-card-table th:nth-child(4),
+.drill-panel.active-pecs-drill .pec-card-table td:nth-child(4) { width: 25%; }
+.drill-panel.active-pecs-drill .pec-card-table th:nth-child(5),
+.drill-panel.active-pecs-drill .pec-card-table td:nth-child(5) { width: 10%; }
+.drill-panel.active-pecs-drill .pec-card-table th:nth-child(6),
+.drill-panel.active-pecs-drill .pec-card-table td:nth-child(6) { width: 6%; }
+.drill-panel.active-pecs-drill .pec-card-table td { overflow-wrap: anywhere; }
 .drill-panel.todo-heatmap-drill {
   max-height: none;
   overflow: visible;
@@ -3181,6 +3213,16 @@ html[data-theme="win98"] .def-modal-head .def-close {
 }
 
 /* --- KR Wins drill (FY27) --- */
+/* Summary line: states what the tile's number is made of, because the tile
+   sums two different units (customers at MET + KR6 engagements). */
+.krw-summary {
+  padding: 8px 10px; margin-bottom: 8px; border-radius: 8px;
+  background: rgba(0, 120, 212, 0.06); border: 1px solid rgba(0, 120, 212, 0.22);
+  font-size: 12px; line-height: 1.5; color: var(--cp-text);
+}
+.krw-summary-note {
+  display: block; margin-top: 4px; font-size: 11px; color: var(--cp-text-muted);
+}
 .krw-group { margin-bottom: 14px; }
 .krw-group-hdr {
   display: flex; align-items: baseline; gap: 8px; padding: 6px 2px;
@@ -8398,6 +8440,15 @@ async function renderDrillPanel(tile) {
   const panel = document.getElementById("drillPanel");
   panel.classList.toggle("daily-focus-drill", tile === "customers");
   panel.classList.toggle("todo-heatmap-drill", tile === "todo-actions");
+  // KR Wins has FOUR sections (KR3/KR4/KR5/KR6) plus a summary line — about
+  // 480px of content against the default 240px cap. KR6 is the section that
+  // explains the tile's total, and it was the one below the fold, so the FTA
+  // saw three zeros next to a tile reading 2.
+  panel.classList.toggle("kr-wins-drill", tile === "kr-wins");
+  // Active PECs lists customer / PEC / title / workload / SME / stage. At the
+  // default width the title column wrapped to four lines while half the panel
+  // sat empty.
+  panel.classList.toggle("active-pecs-drill", tile === "active-pecs");
   panel.style.display = "block";
 
   if (tile === "customers") {
@@ -8743,7 +8794,32 @@ async function renderDrillPanel(tile) {
     };
 
     const sections = [];
-    (w.krs_meta || ["KR3", "KR4", "KR5"]).forEach(() => {});
+    // Lead with what the tile's number is MADE OF.
+    //
+    // The tile sums two different units — customers at MET (KR3/4/5) and KR6
+    // engagements — and the drill listed them as four equal sections. With 0
+    // config wins and 2 engagement wins, the FTA saw "KR3 0 · KR4 0 · KR5 0",
+    // had to scroll past a 240px fold to reach KR6, and reasonably concluded
+    // the tile was wrong. Stating the arithmetic first answers that before it
+    // becomes a question.
+    {
+      const stateTotal = ["KR3", "KR4", "KR5"]
+        .reduce((n, k) => n + (((w.state_wins || {})[k] || {}).count || 0), 0);
+      const k6w = (w.kr6 || {});
+      const k6n = k6w.reachable ? (k6w.wins || 0) : null;
+      const total = k6n === null ? stateTotal : stateTotal + k6n;
+      sections.push(`
+        <div class="krw-summary">
+          <strong>${total}</strong> total =
+          <strong>${stateTotal}</strong> configuration win${stateTotal === 1 ? "" : "s"}
+          (KR3/KR4/KR5 — a customer whose every scoreable condition is met)
+          + <strong>${k6n === null ? "—" : k6n}</strong> engagement win${k6n === 1 ? "" : "s"}
+          (KR6 — each qualifying business-value engagement).
+          ${k6n === null ? `<em>KR6 could not be read from FTOP, so it is unknown, not zero.</em>` : ""}
+          <span class="krw-summary-note">A green cell in the Key Results Heatmap is one
+          CONDITION met, not a KR win — a KR win needs every condition.</span>
+        </div>`);
+    }
     ["KR3", "KR4", "KR5"].forEach(kr => {
       const s = (w.state_wins || {})[kr] || { count: 0, customers: [] };
       const body = s.count
