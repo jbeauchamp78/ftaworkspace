@@ -272,7 +272,7 @@
     // Refresh-style POSTs report success without pretending to have done real
     // work: the demo has no backend to refresh from, and inventing new numbers
     // on each press would make the demo look non-deterministic.
-    [/^\/api\/(refresh|campaigns\/refresh|customer-actions\/refresh|pecs\/refresh|deployments\/refresh|counters\/refresh-[a-z-]+|insights\/refresh-ftbi|spotlights\/sync-ftop|fy27\/(toi|evidence)\/refresh)$/,
+    [/^\/api\/(refresh|campaigns\/refresh|campaigns\/engagement\/refresh|customer-actions\/refresh|pecs\/refresh|deployments\/refresh|counters\/refresh-[a-z-]+|insights\/refresh-ftbi|spotlights\/sync-ftop|fy27\/(toi|evidence)\/refresh)$/,
       () => ok({ demo_note: "Refresh is a no-op in DEMO — all data is synthetic." })],
     [/^\/api\/customer\/([^/]+)\/(refresh|non-krs\/refresh|logo\/resolve)$/,
       () => ok({ demo_note: "Refresh is a no-op in DEMO." })],

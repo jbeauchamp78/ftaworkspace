@@ -2723,6 +2723,23 @@ table.krhm {
 }
 .ps-table th { font-weight: 600; color: var(--cp-text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
 .ps-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Campaign Status.
+ *
+ * Without fixed widths the browser shrink-to-fits every column to its content,
+ * so removing HLS Lead and Programme would simply let Campaign and Prio sprawl
+ * into the gap instead of pulling the table left and giving Breakdown the
+ * room. table-layout:fixed makes these percentages authoritative — the same
+ * reason the Campaigns drill needed it.
+ *
+ * Breakdown is the widest column on purpose: it now carries the FTA's own
+ * free-text note from the drill, which is the part a reader actually reads. */
+.ps-camp-table { table-layout: fixed; }
+.ps-camp-table th:nth-child(1), .ps-camp-table td:nth-child(1) { width: 26%; }
+.ps-camp-table th:nth-child(2), .ps-camp-table td:nth-child(2) { width: 7%; }
+.ps-camp-table th:nth-child(3), .ps-camp-table td:nth-child(3) { width: 11%; }
+.ps-camp-table th:nth-child(4), .ps-camp-table td:nth-child(4) { width: 10%; }
+.ps-camp-table th:nth-child(5), .ps-camp-table td:nth-child(5) { width: 46%; }
+.ps-camp-table td:nth-child(5) { white-space: normal; overflow-wrap: anywhere; }
 .ps-caveat {
   margin-top: 14px; padding: 9px 12px; border-radius: 8px;
   background: rgba(201,138,0,.08); border: 1px solid rgba(201,138,0,.35);
@@ -7541,35 +7558,52 @@ window.__confirmDialog = function ({ title, body, confirmLabel = "Confirm",
       campBlock += `<p class="ps-sub">No FY27 campaigns in the SharePoint list.</p>`;
     } else {
       const cRows = camp.campaigns || [];
-      const totalEngaged = cRows.reduce((n, r) => n + (r.engaged || 0), 0);
-      campBlock += `<table class="ps-table"><thead><tr>`
-        + `<th>Campaign</th><th>Prio</th><th>HLS Lead</th><th>Programme</th>`
+      // Engaged now comes from ACTIVE PECs, not the hand-set per-customer
+      // status. That status had no editor left once the per-customer Campaign
+      // Status section folded into the Campaigns drill, so this column read
+      // "0 / 24" for every campaign and told leadership nothing.
+      const totalEngaged = cRows.reduce((n, r) => n + (r.pec_engaged || 0), 0);
+      const anyInferred = cRows.some(r => r.pec_confidence === "inferred");
+      campBlock += `<table class="ps-table ps-camp-table"><thead><tr>`
+        + `<th>Campaign</th><th>Prio</th><th>Target</th>`
         + `<th>Engaged</th><th>Breakdown</th>`
         + `</tr></thead><tbody>`
         + cRows.map(r => {
-            const counts = r.counts || {};
-            const parts = Object.keys(counts)
-              .filter(k => k !== "NOT STARTED")
-              .sort()
-              .map(k => `${counts[k]} ${k.toLowerCase()}`);
             const name = r.playbook_url
               ? `<a href="${esc(r.playbook_url)}" target="_blank" rel="noopener">${esc(r.campaign)}</a>`
               : esc(r.campaign);
+            // Breakdown is the FTA's own note from the Campaigns drill. The
+            // per-status tally it used to show was derived from the same
+            // empty table as Engaged, so it rendered an em dash on every row.
+            const note = (r.note || "").trim();
+            const who = (r.pec_customers || []).join(", ");
+            const wl = (r.pec_workloads || []).join(", ");
+            const engTip = r.pec_engaged
+              ? `${r.pec_engaged} customer(s) with an active PEC: ${who}`
+                + (wl ? `\nMatched on workload: ${wl}` : "")
+              : (wl ? `No active PEC matching: ${wl}` : "No workload mapping for this campaign");
             return `<tr>`
               + `<td><strong>${name}</strong></td>`
               + `<td>${esc(r.priority || "—")}</td>`
-              + `<td>${esc(r.owner || "—")}</td>`
-              + `<td>${esc(r.programme_status || "—")}</td>`
-              + `<td>${r.engaged || 0} / ${camp.customers || 0}</td>`
-              + `<td>${parts.length ? esc(parts.join(" · ")) : "<span class='ps-muted'>—</span>"}</td>`
+              + `<td>${esc(r.target_date || "—")}</td>`
+              + `<td title="${esc(engTip)}">${r.pec_engaged || 0} / ${camp.customers || 0}`
+              + `${r.pec_confidence === "inferred" ? ` <span class="ps-muted" title="Campaign-to-workload link is inferred, not sourced">*</span>` : ""}`
+              + `</td>`
+              + `<td>${note ? esc(note) : "<span class='ps-muted'>—</span>"}</td>`
               + `</tr>`;
           }).join("")
         + `</tbody></table>`
         + `<p class="ps-sub"><strong>${cRows.length}</strong> FY27 campaigns · `
         + `<strong>${totalEngaged}</strong> customer-campaign engagements across `
         + `<strong>${camp.customers || 0}</strong> customers. `
-        + `“Programme” is the campaign lead’s status and is the same for every `
-        + `customer; “Engaged” counts customers this FTA has moved off NOT STARTED.</p>`;
+        + `“Engaged” counts customers with an ACTIVE PEC delivering the campaign; `
+        + `“Breakdown” is the note from the Campaigns tile drill.`
+        + (anyInferred
+            ? ` Rows marked <span class="ps-muted">*</span> rest on an inferred `
+              + `campaign-to-workload link — the source list carries no workload `
+              + `column.`
+            : "")
+        + `</p>`;
     }
 
     // === 5 & 6. Spotlights and Insights — quarterly obligation =============
