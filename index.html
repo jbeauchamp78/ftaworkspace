@@ -3212,6 +3212,50 @@ html[data-theme="win98"] .def-modal-head .def-close {
   border-style: dashed; font-style: italic;
 }
 
+/* --- KR Conditions Heatmap: customer-facing guidance ---------------------
+   Sourced from the FY27 Customer Copilot Readiness workbook so the heatmap can
+   be shown to a customer without anyone opening the spreadsheet. */
+
+/* Info pill beside a condition title — the workbook's category description. */
+.kc-info-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; margin-left: 6px; padding: 0;
+  border-radius: 50%; border: 1px solid var(--cp-accent, #0078d4);
+  background: transparent; color: var(--cp-accent, #0078d4);
+  font-size: 10px; font-weight: 700; font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1; cursor: pointer; vertical-align: middle; flex: 0 0 auto;
+}
+.kc-info-pill:hover { background: var(--cp-accent, #0078d4); color: #fff; }
+/* position:fixed so the popover is not clipped by the heatmap card's overflow;
+   z-index above the card but below the tile editor's 9100 backdrop. */
+.kc-info-pop {
+  position: fixed; z-index: 9000; width: 320px;
+  background: var(--cp-surface); border: 1px solid var(--cp-border);
+  border-radius: 10px; padding: 10px 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+  font-size: 12px; line-height: 1.5; color: var(--cp-text);
+}
+.kc-info-pop h5 { margin: 0 0 5px; font-size: 12px; font-weight: 600; }
+.kc-info-pop p { margin: 0 0 5px; }
+.kc-info-pop .kc-info-scope { color: var(--cp-text-muted); font-size: 11px; }
+
+/* Guidance block inside the tile editor. */
+.kr-ed-guide { margin: 6px 0 2px; }
+.kr-ed-guide-block { margin-bottom: 8px; }
+.kr-ed-guide-block h5 {
+  margin: 0 0 2px; font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .03em; color: var(--cp-text-muted);
+}
+.kr-ed-guide-block p {
+  margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--cp-text);
+}
+.kr-ed-guide-link { font-size: 11.5px; }
+.kr-ed-guide-none { font-size: 11px; color: var(--cp-text-muted); font-style: italic; }
+/* The editor can now carry several paragraphs, so it must be able to scroll
+   rather than overflow the viewport on a small window. */
+.hm-editor { max-height: 82vh; overflow-y: auto; }
+
 /* --- KR Wins drill (FY27) --- */
 /* Summary line: states what the tile's number is made of, because the tile
    sums two different units (customers at MET + KR6 engagements). */
@@ -11951,13 +11995,24 @@ document.addEventListener("click", (e) => {
     const cfgs = (cond.configs || []).map(c => ({ ...c, __kr: kr.kr_key, __cond: cond.condition_id }));
     const met = cfgs.filter(c => (c.status || "").toUpperCase() === "MET").length;
     const allMet = cfgs.length > 0 && met === cfgs.length;
+    // Category description from the FY27 Readiness workbook (Start!A27:C31),
+    // keyed by "KR|condition name". Five of the seven conditions have one;
+    // Consumption Billing and Protected Agents have no workbook category, so
+    // they simply get no pill rather than an invented description.
+    const gd = (GUIDE && GUIDE.by_condition) ? GUIDE.by_condition[`${kr.kr_key}|${cond.name}`] : null;
+    const pill = gd
+      ? `<button type="button" class="kc-info-pill" title="What this section covers"
+                 data-desc="${esc(gd.description || "")}"
+                 data-scope="${esc(gd.scope || "")}"
+                 data-cat="${esc(gd.category || cond.name)}">i</button>`
+      : "";
     return `
       <div class="hm-cat">
         <div class="hm-cat-label kc-cat-label">
           <div class="kc-kr">${showKr
             ? esc(kr.kr_key) + " · " + esc((cond.condition_id || "").toUpperCase())
             : esc(kr.kr_key)}</div>
-          <div class="kc-cond">${esc(cond.name)}</div>
+          <div class="kc-cond">${esc(cond.name)}${pill}</div>
           ${cond.rule ? `<div class="kc-rule">${esc(cond.rule)}</div>` : ""}
           <span class="kc-tally ${allMet ? "kc-all-met" : ""}">${met}/${cfgs.length} met</span>
           ${cond.scoreable === false
@@ -12099,6 +12154,23 @@ document.addEventListener("click", (e) => {
   // Its backdrop id is krHmEditor, NOT hmEditor: sharing the M365 editor would
   // mean two modules writing the same DOM with different save semantics.
   let editingCfg = null;   // { kr, cond, config, name }
+  // Customer-facing guidance from the FY27 Readiness workbook, fetched once.
+  // Kept OUT of the fy27-krs payload deliberately: it is static taxonomy, so
+  // re-sending ~46 paragraphs on every heatmap load (and on every re-render
+  // after an edit) would be pure waste.
+  let GUIDE = null;
+  async function ensureGuidance() {
+    if (GUIDE) return GUIDE;
+    try {
+      const r = await fetch("/api/fy27/guidance", { cache: "force-cache" });
+      GUIDE = await r.json();
+    } catch (e) {
+      // A missing catalog must degrade to "no extra detail", never break the
+      // heatmap — the grid is still useful without the prose.
+      GUIDE = { ok: false, guidance: {}, by_condition: {} };
+    }
+    return GUIDE;
+  }
 
   function buildCfgEditor() {
     if (document.getElementById("krHmEditor")) return;
@@ -12116,6 +12188,7 @@ document.addEventListener("click", (e) => {
           ${FY27_STATUSES.map(s => `<option value="${s}">${esc(STATUS_LABEL[s] || s)}</option>`).join("")}
         </select>
         <div class="hm-ed-source" id="krEdEvidence"></div>
+        <div id="krEdGuide" class="kr-ed-guide"></div>
         <label>Note (optional)</label>
         <textarea id="krEdNote" placeholder="e.g. Blocked on the tenant-side firewall change; ticket with the customer."></textarea>
         <div class="hm-ed-actions">
@@ -12172,6 +12245,33 @@ document.addEventListener("click", (e) => {
         : "FTBI evidence: none recorded for this configuration";
 
     document.getElementById("krHmEditor").classList.add("show");
+
+    // Customer-facing guidance. Filled asynchronously so the editor opens
+    // immediately — the FTA's status dropdown must never wait on prose.
+    const guideHost = document.getElementById("krEdGuide");
+    guideHost.innerHTML = "";
+    ensureGuidance().then(g => {
+      // Guard against a slow fetch landing after the FTA moved to another
+      // tile: only paint if this is still the configuration on screen.
+      if (!editingCfg || editingCfg.config !== cfgId) return;
+      const info = ((g && g.guidance) || {})[cfgId];
+      if (!info) {
+        guideHost.innerHTML =
+          `<div class="kr-ed-guide-none">No readiness guidance mapped for this configuration.</div>`;
+        return;
+      }
+      const bits = [];
+      if (info.actions) bits.push(
+        `<div class="kr-ed-guide-block"><h5>Microsoft recommended actions</h5>
+           <p>${esc(info.actions)}</p></div>`);
+      if (info.why) bits.push(
+        `<div class="kr-ed-guide-block"><h5>Why it matters</h5>
+           <p>${esc(info.why)}</p></div>`);
+      if (info.url) bits.push(
+        `<div class="kr-ed-guide-block"><a href="${esc(info.url)}" target="_blank"
+           rel="noopener" class="kr-ed-guide-link">Reference documentation ↗</a></div>`);
+      guideHost.innerHTML = bits.join("");
+    });
   }
 
   async function saveCfg(status, notes) {
@@ -12232,6 +12332,34 @@ document.addEventListener("click", (e) => {
     }
   });
 
+  // Condition info pill -> popover with the workbook's category description.
+  // Delegated on document because the bands are re-rendered on every layout
+  // switch and after every save; per-element handlers would be lost each time.
+  document.addEventListener("click", (e) => {
+    const pill = e.target.closest(".kc-info-pill");
+    document.querySelectorAll(".kc-info-pop").forEach(p => p.remove());
+    if (!pill) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pop = document.createElement("div");
+    pop.className = "kc-info-pop";
+    pop.innerHTML =
+      `<h5>${esc(pill.dataset.cat || "")}</h5>`
+      + (pill.dataset.desc ? `<p>${esc(pill.dataset.desc)}</p>` : "")
+      + (pill.dataset.scope ? `<p class="kc-info-scope"><strong>Covers:</strong> ${esc(pill.dataset.scope)}</p>` : "");
+    document.body.appendChild(pop);
+    const r = pill.getBoundingClientRect();
+    // Positioned in VIEWPORT coordinates (position:fixed) so it is not clipped
+    // by the heatmap card's own overflow, and flipped left when it would run
+    // off the right edge.
+    const w = 320;
+    pop.style.top = `${Math.round(r.bottom + 6)}px`;
+    pop.style.left = `${Math.round(Math.min(r.left, window.innerWidth - w - 16))}px`;
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") document.querySelectorAll(".kc-info-pop").forEach(p => p.remove());
+  });
+
   async function load(nick) {
     currentNick = nick;
     const card = document.getElementById("krHeatmapCard");
@@ -12255,6 +12383,10 @@ document.addEventListener("click", (e) => {
         catch (e) { console.warn("[kr-heatmap] evidence parse failed:", e); }
       }
       lastPayload = payload;
+      // Guidance must be in hand BEFORE the first paint, or the condition
+      // info pills would be missing until something happened to re-render.
+      // It is cached after the first call, so layout switches stay instant.
+      await ensureGuidance();
       render(payload);
     } catch (e) {
       body.innerHTML = `<div style="padding:20px;color:var(--cp-danger)">Failed to load KR conditions: ${esc(e.message)}</div>`;
