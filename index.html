@@ -11996,10 +11996,14 @@ document.addEventListener("click", (e) => {
     const met = cfgs.filter(c => (c.status || "").toUpperCase() === "MET").length;
     const allMet = cfgs.length > 0 && met === cfgs.length;
     // Category description from the FY27 Readiness workbook (Start!A27:C31),
-    // keyed by "KR|condition name". Five of the seven conditions have one;
-    // Consumption Billing and Protected Agents have no workbook category, so
-    // they simply get no pill rather than an invented description.
-    const gd = (GUIDE && GUIDE.by_condition) ? GUIDE.by_condition[`${kr.kr_key}|${cond.name}`] : null;
+    // keyed by "KR3|c1" — the condition_id, not the display name. The DEMO
+    // build sanitises condition names while the guidance catalog is copied
+    // verbatim, so a name-keyed lookup matched nothing there and no pills
+    // rendered; condition_id survives both sanitisation and a rename.
+    // Five of the seven conditions have a workbook category; Consumption
+    // Billing and Protected Agents get no pill rather than a made-up one.
+    const gd = (GUIDE && GUIDE.by_condition)
+      ? GUIDE.by_condition[`${kr.kr_key}|${cond.condition_id}`] : null;
     const pill = gd
       ? `<button type="button" class="kc-info-pill" title="What this section covers"
                  data-desc="${esc(gd.description || "")}"
@@ -12162,7 +12166,12 @@ document.addEventListener("click", (e) => {
   async function ensureGuidance() {
     if (GUIDE) return GUIDE;
     try {
-      const r = await fetch("/api/fy27/guidance", { cache: "force-cache" });
+      // no-cache (revalidate), NOT force-cache. force-cache served a STALE
+      // catalog after a re-import — the browser kept the old name-keyed
+      // payload and every info pill silently vanished. Revalidation costs one
+      // conditional request and is the difference between a data file that
+      // updates and one that looks broken until the cache expires.
+      const r = await fetch("/api/fy27/guidance", { cache: "no-cache" });
       GUIDE = await r.json();
     } catch (e) {
       // A missing catalog must degrade to "no extra detail", never break the
