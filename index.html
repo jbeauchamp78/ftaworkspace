@@ -455,6 +455,34 @@ html[data-theme="win98"] .info-pill {
 .counter .hint { display: none; }
 
 /* Drill-down panel */
+
+/* ===== One height for every tile drill ====================================
+   Measured before this rule, the drills rendered at six different heights —
+   caps of 240 / 460 / 480 / 520 / 677px and one uncapped — so the page jumped
+   every time the FTA moved between tiles, and several drills scrolled for no
+   reason (Regressions needed 299px against a 240px cap; Insights needed 584).
+
+   A fixed `height`, not a max-height: a short drill (the DQ tiles need 103px,
+   Spotlights 147px) deliberately pads out to the same box rather than
+   collapsing, which is the point — the layout stops moving.
+
+   600px, chosen from the measured content of every drill rather than picked:
+
+     To Do Heatmap  536     Campaigns  489     KR Wins    539
+     Insights       584     Customers  785     ActivePECs 917
+     L1 Unknown    1033
+
+   The To Do Heatmap (536) was the reference, but at exactly 536 both KR Wins
+   and Insights overflow by 3px and 48px — each would raise a scrollbar for a
+   sliver of content, which is worse than the padding it saves. 600 is the
+   smallest value where nothing scrolls for a trivial amount. Above it only
+   Customers, Active PECs and L1 Unknown scroll, and those are 185-433px over:
+   genuinely too tall for any window once the counter row sits above them.
+
+   Panel top edge is ~288px, so 288+600 = 888 against a 977px viewport — it
+   still fits on screen. Retune with --drill-h; nothing else sets a height. */
+:root { --drill-h: 600px; }
+
 .drill-panel {
   margin: 0 24px 12px;
   border: 1px solid var(--cp-border);
@@ -463,15 +491,10 @@ html[data-theme="win98"] .info-pill {
   box-shadow: 0 0 2px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08);
   padding: 12px 18px 14px;
   flex-shrink: 0;
-  max-height: 240px;
+  box-sizing: border-box;
+  height: var(--drill-h);
   overflow-y: auto;
 }
-.drill-panel.daily-focus-drill { max-height: 480px; }
-/* KR Wins: summary line + four KR sections is ~480px of content. At the
-   default 240px cap the KR6 section — the one that explains the tile's total —
-   sat below the fold, so the FTA saw three "0 wins" rows next to a tile
-   reading 2 and reasonably concluded the tile was wrong. */
-.drill-panel.kr-wins-drill { max-height: 520px; }
 /* Active PECs: the table declares width:100%, but .drill-list is a CSS GRID
    with content-sized columns, so 100% resolved against shrink-to-fit and the
    table rendered in the left ~40% of the panel while Title wrapped to four
@@ -479,7 +502,6 @@ html[data-theme="win98"] .info-pill {
    needed. table-layout:fixed then makes the per-column widths authoritative —
    without it the browser re-derives them from content and Title loses again. */
 .drill-panel.active-pecs-drill .drill-list { grid-template-columns: 1fr; }
-.drill-panel.active-pecs-drill { max-height: 460px; }
 .drill-panel.active-pecs-drill .pec-card-table { table-layout: fixed; width: 100%; }
 .drill-panel.active-pecs-drill .pec-card-table th:nth-child(1),
 .drill-panel.active-pecs-drill .pec-card-table td:nth-child(1) { width: 11%; }
@@ -499,10 +521,6 @@ html[data-theme="win98"] .info-pill {
 .drill-panel.active-pecs-drill .pec-card-table th:nth-child(6),
 .drill-panel.active-pecs-drill .pec-card-table td:nth-child(6) { width: 6%; }
 .drill-panel.active-pecs-drill .pec-card-table td { overflow-wrap: anywhere; }
-.drill-panel.todo-heatmap-drill {
-  max-height: none;
-  overflow: visible;
-}
 .drill-empty { color: var(--cp-text-muted); font-size: 12px; padding: 14px 4px; font-style: italic; }
 .drill-queue-btn {
   background: var(--cp-accent-soft); color: var(--cp-accent);
@@ -583,6 +601,17 @@ html[data-theme="win98"] .info-pill {
   padding: 12px;
   box-shadow: 0 0 2px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08);
 }
+/* This card's .section-hdr has no other styling (that class elsewhere is
+   scoped to .counter-row), so without this it is plain stacked block flow —
+   h2, then the subtitle span on its own line, with nowhere predictable for
+   the new info button to land. Flex + wrap keeps title/subtitle/button on
+   one row when there's room and lets the button drop to its own line in a
+   narrow panel rather than overlapping the subtitle text. */
+.lab-focus-card .section-hdr {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 2px;
+}
+.lab-focus-card .section-hdr h2 { margin: 0; font-size: 14px; }
+.lab-focus-card .section-hdr .src { font-size: 11px; color: var(--cp-text-muted); }
 .lab-feed-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .lab-feed-row {
   display: grid;
@@ -595,15 +624,96 @@ html[data-theme="win98"] .info-pill {
   padding: 8px 10px;
 }
 .lab-feed-icon {
-  width: 24px; height: 24px; border-radius: 999px;
+  min-width: 24px; height: 24px; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center;
+  gap: 3px; padding: 0 6px;
   background: var(--cp-accent-soft); color: var(--cp-accent);
   font-size: 12px; font-weight: 800;
 }
 .lab-feed-title { font-size: 12px; font-weight: 700; color: var(--cp-text); }
 .lab-feed-detail { font-size: 11px; color: var(--cp-text-muted); margin-top: 2px; }
 .lab-score { font-weight: 800; color: var(--cp-accent); }
+/* Campaign priority band — the PRIMARY sort key of the Customer Priority
+   View, so it gets top billing next to the score rather than being buried in
+   the reasons text. A > B > C > D; colors echo the ps-q chip palette used
+   for the FY27 quarter strip so "urgent" reads the same way across the app. */
+.lab-band {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 5px;
+  font-size: 10px; font-weight: 800; margin-right: 4px;
+}
+.lab-band-a { background: rgba(179,74,60,.16); color: #B34A3C; }
+.lab-band-b { background: rgba(0,120,212,.14); color: #0B5FA5; }
+.lab-band-c { background: var(--cp-surface-soft); color: var(--cp-text-muted); }
+.lab-band-d { background: transparent; color: var(--cp-text-soft); border: 1px dashed var(--cp-border); }
+.focus-score-tier-hdr {
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--cp-text-muted); margin: 10px 0 2px; padding-top: 6px;
+  border-top: 1px solid var(--cp-border);
+}
+.focus-score-tier-hdr:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 .focus-score-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* "How is this calculated?" info button, next to the Customer Priority View
+   header. Styled like .def-pill's info dot elsewhere in the app, but with a
+   visible label — this opens a reference document, not a one-word tooltip,
+   so it needs to read as clickable prose, not a decoration. */
+.pm-info-btn {
+  appearance: none; border: 1px solid var(--cp-border); background: var(--cp-surface);
+  color: var(--cp-accent, #0078D4); border-radius: 999px; cursor: pointer;
+  font-size: 11px; font-weight: 600; padding: 3px 10px; margin-left: auto;
+  white-space: nowrap;
+}
+.pm-info-btn:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent, #0078D4); }
+
+/* The methodology modal needs more width than .def-modal's 640px default —
+   it holds a per-tier weights TABLE, not a short prose summary, and at 640px
+   the "What it means" column wrapped to the point of unreadability. Its own
+   class rather than widening .def-modal globally, so every other modal built
+   on that base (Priority Score, KR definitions, etc.) keeps its compact size. */
+.priority-methodology-modal { max-width: 760px; max-height: 86vh; }
+.pm-principle { font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
+.pm-sortkey {
+  font-size: 11.5px; color: var(--cp-text-muted); margin-bottom: 18px;
+  padding: 6px 10px; background: var(--cp-surface-soft); border-radius: 8px;
+}
+.pm-sortkey code { font-size: 11px; }
+.pm-tier { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--cp-border); }
+.pm-tier:last-of-type { border-bottom: none; }
+.pm-tier-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pm-tier-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--cp-accent, #0078D4); color: #fff;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.pm-tier-hdr h4 { margin: 0; font-size: 14px; font-weight: 700; }
+.pm-tier-sources { font-size: 12px; margin-bottom: 8px; }
+.pm-tier-sources ul { margin: 4px 0 0; padding-left: 18px; }
+.pm-tier-sources li { margin: 2px 0; color: var(--cp-text-muted); }
+.pm-band-rule {
+  font-size: 12px; margin-bottom: 10px; padding: 7px 10px;
+  background: rgba(179,74,60,.08); border-left: 3px solid #B34A3C; border-radius: 0 6px 6px 0;
+}
+.pm-weights-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pm-weights-table th {
+  text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--cp-text-muted); padding: 4px 8px; border-bottom: 1px solid var(--cp-border);
+}
+.pm-weights-table th.num, .pm-weights-table td.num { text-align: right; }
+.pm-weights-table td { padding: 5px 8px; border-bottom: 1px solid var(--cp-border); vertical-align: top; }
+.pm-weights-table td:first-child { font-weight: 600; white-space: nowrap; }
+.pm-weights-table td.num { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--cp-accent, #0078D4); }
+.pm-detail { color: var(--cp-text-muted); }
+.pm-known-gap {
+  font-size: 11.5px; margin-top: 8px; padding: 7px 10px; color: var(--cp-text-muted);
+  background: var(--cp-surface-soft); border-radius: 6px; font-style: italic;
+}
+.pm-excluded { margin-top: 4px; }
+.pm-excluded h4 { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
+.pm-excluded ul { margin: 0; padding-left: 18px; font-size: 12.5px; }
+.pm-excluded li { margin: 4px 0; color: var(--cp-text-muted); }
+.pm-excluded li strong { color: var(--cp-text); }
 .focus-score-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2831,6 +2941,27 @@ table.krhm {
 .ps-doing { font-size: 11.5px; line-height: 1.5; }
 .ps-ok  { color: #2E7D32; font-weight: 600; }
 .ps-gap { color: #B34A3C; font-weight: 600; }
+
+/* Quarterly commitment strip — Q1..Q4 at a glance.
+   The Spotlight and Insight obligations are one per QUARTER, but the summary
+   previously showed only the current quarter beside a year-to-date total.
+   "1 in FY27" reads identically whether Q1 was satisfied or missed, so a
+   missed quarter was invisible the moment the next one began. Four small
+   chips make the shape of the year legible in one glance. */
+.ps-qstrip { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.ps-q {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--cp-border);
+  font-size: 11px; line-height: 1.6; white-space: nowrap;
+}
+.ps-q .ps-q-lbl { font-weight: 600; letter-spacing: .02em; }
+.ps-q .ps-q-n   { font-variant-numeric: tabular-nums; }
+.ps-q-met     { background: rgba(46,125,50,.12);  border-color: rgba(46,125,50,.45);  color: #2E7D32; }
+.ps-q-miss    { background: rgba(179,74,60,.10);  border-color: rgba(179,74,60,.45);  color: #B34A3C; }
+/* The quarter in play is neither met nor missed — there is still time. */
+.ps-q-current { background: rgba(0,120,212,.10); border-color: rgba(0,120,212,.45); color: #0B5FA5; }
+.ps-q-future  { color: var(--cp-text-muted); border-style: dashed; }
 .ps-body ol { margin: 4px 0; padding-left: 20px; }
 .ps-body ol li { margin: 5px 0; }
 
@@ -4591,6 +4722,76 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
     color:#fff;pointer-events:none;z-index:40;box-shadow:0 1px 3px rgba(0,0,0,.35)}
   [data-cap-mark="degraded"]::after{background:#c98a00}
   [data-cap-mark="unavailable"]::after{background:#c0392b}
+
+  /* ===== Collapsed-section height standard =====================================
+     Every collapsible section renders at the SAME height when collapsed.
+
+     Measured live before this rule existed (collapsed card heights, px):
+       Key Results        39.67   <- .kr-card.fy27-card
+       FTA Notes          40.18   <- .fta-notes-card
+       PECs               42.61   <- .todo-card
+       KR Heatmap         44.00   <- .heatmap-section (hard-coded max-height:44px)
+       To Do              46.26   <- .todo-card
+       Workloads          48.67   <- .kr-card
+       Portfolio Summary  52.06   <- .aichat-section
+
+     40px was the most common value (2 of 7 — Key Results and FTA Notes both
+     round to it); every other section was a one-off. So 40px is the standard.
+
+     The spread was never intentional: each header carried its own vertical
+     padding (0 / 10 / 12) or margin (.kr-card-hdr uses margin:8px 14px 10px),
+     and the row then grew to whatever its tallest control happened to be —
+     To Do's tool buttons (24.9), Portfolio Summary's context badge (26.7),
+     Workloads' KR/Non-KR toggle (29.3). Two sections sharing .todo-card still
+     differed by 3.7px for that reason alone.
+
+     So the height is pinned on the CARD and the header is told to fill it with
+     its vertical padding/margin zeroed, rather than trying to reconcile six
+     different padding schemes. Horizontal padding/margin is deliberately NOT
+     touched — that is per-section indentation, not height.
+
+     Headroom check: the tallest header control is the Workloads toggle at
+     29.33px against 38.67px of inner height (40px minus the 1.33px borders),
+     so nothing clips. Verified clip-free across all 7 sections after applying.
+
+     Only the COLLAPSED state is constrained; expanded layouts are untouched.
+     To retune, change --sec-collapsed-h — nothing else hard-codes the value.
+     ============================================================================ */
+  :root { --sec-collapsed-h: 40px; }
+
+  .aichat-section.collapsed,
+  .heatmap-section.collapsed,
+  .fta-notes-card.collapsed,
+  .todo-card.collapsed,
+  .ai-card.collapsed,
+  .kr-card.section-collapsed {
+    box-sizing: border-box;
+    height: var(--sec-collapsed-h);
+    min-height: var(--sec-collapsed-h);
+    max-height: var(--sec-collapsed-h);
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .aichat-section.collapsed > .aichat-hdr,
+  .heatmap-section.collapsed > .heatmap-hdr,
+  .fta-notes-card.collapsed > .fta-notes-hdr-bar,
+  .todo-card.collapsed > .todo-hdr,
+  .ai-card.collapsed > .ai-hdr,
+  .kr-card.section-collapsed > .kr-card-hdr {
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    display: flex;
+    align-items: center;
+  }
 </style>
 <div id="capBanner" role="status" aria-live="polite">
   <div id="capBannerHead">
@@ -4825,7 +5026,7 @@ html[data-theme="storm"] .status-select.na    { background-color: #000000; color
       <h2>Stories</h2>
       <div class="hdr-right">
         <span class="src" title="FTOP + FT Feedback">FTOP/Feedback</span>
-        <button class="section-refresh" id="btnRefreshStories" title="Refresh Spotlights + Insights counts">⟳</button>
+        <button class="section-refresh" id="btnRefreshStories" title="Pull spotlights from FTOP and insights from FTBI + FT Feedback, then recount (~40s)">⟳</button>
       </div>
     </div>
     <div class="tile-grid" style="--n: 2">
@@ -5583,7 +5784,7 @@ function renderContent() {
           <span class="hm-leg" title="FTA status disagrees with FTBI evidence"><span class="hm-swatch" style="background:#fff;box-shadow:0 0 0 1px #a5000f">!</span> Conflict</span>
         </div>
         <div class="hm-actions">
-          <button class="btn secondary" id="btnKrHmRefresh" title="Re-read FY27 condition status and FTBI evidence for this customer">⟳ Refresh</button>
+          <button class="btn secondary" id="btnKrHmRefresh" title="Re-read this customer's SAVED FY27 condition status + FTBI evidence. This is a local re-read, not an upstream pull — the live MIDAS/FTOP/Lynx pull is the customer ⟳ in the header, which takes ~5 min and runs through the processor queue.">⟳ Refresh</button>
           <button class="btn secondary" id="btnKrHmPng"  title="Export rendered heatmap as PNG">⬇ PNG</button>
           <button class="btn secondary" id="btnKrHmPptx" title="Export heatmap as a PowerPoint slide">⬇ PPTX</button>
         </div>
@@ -5609,33 +5810,6 @@ function renderContent() {
                   data-cust="${c.n}"
                   rows="10"
                   placeholder="Capture customer context, working theory, escalation notes, account-team dynamics…">${(c.fta_notes || '').replace(/</g, '&lt;')}</textarea>
-      </div>
-    </div>
-
-    <!-- PECs — collapsible section, same pattern as To Do / FTA Notes.
-         Populated asynchronously by hydratePecCard() because pec_details is a
-         separate fetch; the header count fills in when it lands. -->
-    <div class="todo-card collapsed" id="pecCard">
-      <div class="todo-hdr" onclick="if (event.target.tagName !== 'BUTTON' && !event.target.closest('a')) document.getElementById('pecCard').classList.toggle('collapsed')">
-        <span class="chev">▼</span>
-        <h3>PECs</h3>
-        <!-- The stage pill lives here, beside the list it summarises.
-             Reads c.pec_active / c.pec_closed directly: the pecActive and
-             pecClosed consts belong to the chip-row IIFE above and are NOT in
-             scope here, which is exactly how the first version of this block
-             threw "pecActive is not defined" and took the whole customer
-             render down with it. -->
-        <span class="csl-chip csl-pec-combined" data-cust="${c.n}"
-            title="${c.pec_active || 0} active · ${c.pec_closed || 0} closed">
-          <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="triage">—</span><span class="pec-combo-tag">triage</span></span>
-          <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="engage">—</span><span class="pec-combo-tag">engage</span></span>
-          <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="disengage">—</span><span class="pec-combo-tag">disengage</span></span>
-          <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-total">${(c.pec_active || 0) + (c.pec_closed || 0)}</span><span class="pec-combo-tag">total</span></span>
-        </span>
-        <span class="spacer"></span>
-      </div>
-      <div class="todo-body" id="pecCardBody" data-cust="${c.n}">
-        <div class="fy27-loading">Reading PECs…</div>
       </div>
     </div>
 
@@ -5677,6 +5851,33 @@ function renderContent() {
           <input type="text" id="todoAddNotes" placeholder="Notes (optional)" maxlength="300" />
           <button class="btn secondary" id="todoAddBtn" data-cust="${c.n}">+ Add</button>
         </div>
+      </div>
+    </div>
+
+    <!-- PECs — collapsible section, same pattern as To Do / FTA Notes.
+         Populated asynchronously by hydratePecCard() because pec_details is a
+         separate fetch; the header count fills in when it lands. -->
+    <div class="todo-card collapsed" id="pecCard">
+      <div class="todo-hdr" onclick="if (event.target.tagName !== 'BUTTON' && !event.target.closest('a')) document.getElementById('pecCard').classList.toggle('collapsed')">
+        <span class="chev">▼</span>
+        <h3>PECs</h3>
+        <!-- The stage pill lives here, beside the list it summarises.
+             Reads c.pec_active / c.pec_closed directly: the pecActive and
+             pecClosed consts belong to the chip-row IIFE above and are NOT in
+             scope here, which is exactly how the first version of this block
+             threw "pecActive is not defined" and took the whole customer
+             render down with it. -->
+        <span class="csl-chip csl-pec-combined" data-cust="${c.n}"
+            title="${c.pec_active || 0} active · ${c.pec_closed || 0} closed">
+          <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="triage">—</span><span class="pec-combo-tag">triage</span></span>
+          <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="engage">—</span><span class="pec-combo-tag">engage</span></span>
+          <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-stage" data-stage="disengage">—</span><span class="pec-combo-tag">disengage</span></span>
+          <span class="pec-combo-cell"><span class="pec-combo-num pec-combo-total">${(c.pec_active || 0) + (c.pec_closed || 0)}</span><span class="pec-combo-tag">total</span></span>
+        </span>
+        <span class="spacer"></span>
+      </div>
+      <div class="todo-body" id="pecCardBody" data-cust="${c.n}">
+        <div class="fy27-loading">Reading PECs…</div>
       </div>
     </div>
 
@@ -6144,10 +6345,28 @@ function todoActionsRemainFor(custName) {
   return total;
 }
 
+// Open titled To Dos across the portfolio — the "Actions Remain" tile.
+//
+// Scoped to the FTA's OWN customers. A customer transitioned to another FTA
+// (primary_fta_is_me === 0) is excluded from every other portfolio count: the
+// Customers tile reads 24 rather than 25, and the To Do Heatmap drops the row
+// and says "1 reassigned (excluded)" in its legend. This counter was the one
+// place still adding them in, so it read 75 against the heatmap's own
+// 48 Not Started + 24 In Progress = 72 — the three extra were GLOBEX MED's open
+// To Dos, which are no longer this FTA's to action.
+//
+// A nickname with no matching customer record is COUNTED, not dropped:
+// unknown provenance must not silently shrink the number.
 function titledTodoActionsRemain() {
   if (!window.todosByCust) return 0;
+  const reassigned = new Set(
+    (typeof CUSTOMERS !== "undefined" ? CUSTOMERS : [])
+      .filter(c => c && c.primary_fta_is_me === 0)
+      .map(c => c.n)
+  );
   let total = 0;
-  for (const rows of Object.values(window.todosByCust)) {
+  for (const [nick, rows] of Object.entries(window.todosByCust)) {
+    if (reassigned.has(nick)) continue;
     (rows || []).forEach(t => {
       const label = String(t.label || "").trim();
       if (!label || /^OPEN\b/i.test(label)) return;
@@ -6823,9 +7042,21 @@ function renderHeatmapJump(custName) {
   }
 }
 
-window.activeCust = localStorage.getItem("fta-workspace-active-cust") || "FABRIKAM MED";
-// Validate — if the saved customer doesn't exist anymore, fall back to FABRIKAM MED
-if (!CUSTOMERS.some(c => c.n === window.activeCust)) window.activeCust = "FABRIKAM MED";
+// Restore the customer the FTA was last viewing (written by switchCustomer).
+//
+// Deliberately NOT validated against CUSTOMERS here. CUSTOMERS is still [] at
+// this point in the script — it is populated later by __api.load() from
+// /api/tracker — so a membership check runs against an empty array, ALWAYS
+// fails, and silently discards the saved nickname. That is what pinned every
+// reload to FABRIKAM MED no matter which customer the FTA actually left open: the
+// value was read correctly and then immediately thrown away one line later.
+//
+// The check still happens, in the one place it can be meaningful: load() runs
+// it once the roster has actually arrived and falls back to the first customer
+// only if the saved one is genuinely gone (transitioned away, renamed).
+// renderContent() already no-ops on an unknown customer, so the brief window
+// before load() resolves is safe.
+window.activeCust = localStorage.getItem("fta-workspace-active-cust") || null;
 
 renderSidebar();
 renderContent();
@@ -7720,29 +7951,85 @@ window.__confirmDialog = function ({ title, body, confirmLabel = "Confirm",
     const inFlightIns = (ins && ins.in_flight) || 0;
     const fyLabel = spFiscal.label || inFiscal.label || "FY27";
 
+    // Days-left lives in the lead paragraph above the table now, so the status
+    // cell does not repeat it — that repetition was wrapping Status onto two
+    // lines for no added information.
     const obligation = n => n >= 1
       ? `<span class="ps-ok">met</span>`
-      : `<span class="ps-gap">not yet met</span> — ${qDaysLeft} day${qDaysLeft === 1 ? "" : "s"} left`;
+      : `<span class="ps-gap">not yet met</span>`;
+
+    // Q1..Q4 chips. A quarter is only "missed" once it is over — the quarter in
+    // play is shown as in-progress, because calling the current quarter missed
+    // on day one of it is just wrong.
+    const qStrip = (rows, countKey, unit) => {
+      if (!Array.isArray(rows) || !rows.length) {
+        return `<span class="ps-sub">per-quarter detail unavailable</span>`;
+      }
+      return `<span class="ps-qstrip">` + rows.map(r => {
+        const n = r[countKey] || 0;
+        const cls = r.future ? "ps-q-future"
+                  : r.current ? (r.met ? "ps-q-met" : "ps-q-current")
+                  : (r.met ? "ps-q-met" : "ps-q-miss");
+        const mark = r.future ? "" : (r.met ? " ✓" : (r.current ? "" : " ✗"));
+        const tip = r.future ? `${r.quarter} has not started`
+                  : r.met ? `${r.quarter}: ${n} ${unit} — commitment met`
+                  : r.current ? `${r.quarter} in progress: ${n} ${unit}, ${qDaysLeft} days left`
+                  : `${r.quarter} closed with ${n} ${unit} — commitment missed`;
+        return `<span class="ps-q ${cls}" title="${esc(tip)}">`
+             + `<span class="ps-q-lbl">${esc(r.quarter)}</span>`
+             + `<span class="ps-q-n">${r.future ? "–" : n}${mark}</span></span>`;
+      }).join("") + `</span>`;
+    };
+    const spByQ = (spot && spot.by_quarter) || [];
+    const inByQ = (ins && ins.by_quarter) || [];
+    const spQMet = (spot && spot.quarters_met) != null ? spot.quarters_met
+                 : spByQ.filter(r => r.met).length;
+    const inQMet = (ins && ins.quarters_met) != null ? ins.quarters_met
+                 : inByQ.filter(r => r.met).length;
+    // Quarters already closed — the denominator for "are we on pace".
+    const closedQ = spByQ.filter(r => !r.future && !r.current).length;
+    const pace = (met) => {
+      if (!closedQ) return `<span class="ps-sub">first quarter of the year</span>`;
+      return met >= closedQ
+        ? `<span class="ps-ok">on pace</span> <span class="ps-sub">— every closed quarter satisfied</span>`
+        : `<span class="ps-gap">${closedQ - met} quarter${closedQ - met === 1 ? "" : "s"} missed</span>`
+           + ` <span class="ps-sub">— a missed quarter cannot be recovered later in the year</span>`;
+    };
+    const inPending = (ins && ins.fy_pending_ftbi) || 0;
 
     const storyBlock = `<h4>Spotlights &amp; Insights — ${esc(fyLabel)} ${esc(qLabel)} commitment</h4>`
+      + `<p class="ps-sub" style="margin:-4px 0 8px">`
+      + `Both obligations are <strong>1 per quarter, 4 per year</strong>, and each quarter `
+      + `stands alone — a strong quarter does not cover a missed one. `
+      + `${esc(qLabel)} has <strong>${qDaysLeft}</strong> day${qDaysLeft === 1 ? "" : "s"} left.`
+      + `</p>`
       + `<table class="ps-table"><thead><tr>`
-      + `<th>Commitment</th><th class="num">${esc(qLabel)}</th><th class="num">${esc(fyLabel)} to date</th>`
+      + `<th>Commitment</th><th>${esc(fyLabel)} by quarter</th>`
+      + `<th class="num">${esc(qLabel)}</th><th class="num">Year</th>`
       + `<th>Status</th><th>Next</th>`
       + `</tr></thead><tbody>`
-      + `<tr><td><strong>Spotlight</strong> — 1 per quarter</td>`
+      + `<tr><td><strong>Spotlight</strong> — 1 per quarter<br>`
+      + `<span class="ps-sub">published customer win stories</span></td>`
+      + `<td>${qStrip(spByQ, "published", "published")}<br>`
+      + `<span class="ps-sub">${spQMet} of 4 quarters · ${pace(spQMet)}</span></td>`
       + `<td class="num">${spQ}</td><td class="num">${spFY}</td>`
-      + `<td>${obligation(spQ)}</td>`
-      + `<td>${spQFlight ? `${spQFlight} in flight this quarter. ` : ""}`
+      + `<td style="white-space:nowrap">${obligation(spQ)}</td>`
+      + `<td>${spQFlight ? `<strong>${spQFlight}</strong> in flight this quarter. ` : ""}`
       + `${spRec == null
             ? "Candidate count unavailable — FY27 scoring could not be read."
             : (spRec ? `${spRec} candidate${spRec === 1 ? "" : "s"} from FY27 KR wins.`
-                     : "No candidates surfaced from FY27 KR wins yet.")}</td></tr>`
+                     : "No candidates surfaced from FY27 KR wins yet — a published KR win is the usual trigger.")}</td></tr>`
       + `<tr><td><strong>Insight / Feedback</strong> — 1 per quarter<br>`
       + `<span class="ps-sub">a “+1” on an existing item counts`
       + `${inBasis === "ftbi" ? " · from FTBI"
-           : inBasis === "insight_index_fallback"
-             ? " · <span class='ps-gap'>FTBI not synced — Dataverse fallback, does not see +1s</span>"
+           : inBasis === "ftbi+dataverse" ? " · FTBI + FT Feedback, de-duplicated"
+           : inBasis === "dataverse"
+             ? " · <span class='ps-gap'>FT Feedback only — FTBI unreachable, +1 votes not counted</span>"
+           : inBasis === "none"
+             ? " · <span class='ps-gap'>no source reachable — count unknown, not zero</span>"
              : ""}</span></td>`
+      + `<td>${qStrip(inByQ, "credited", "credited")}<br>`
+      + `<span class="ps-sub">${inQMet} of 4 quarters · ${pace(inQMet)}</span></td>`
       + `<td class="num">${inQ}`
       + `${(inQNew != null || inQPlus)
             ? ` <span class="ps-sub">(${inQNew != null ? `${inQNew} new` : ""}`
@@ -7750,9 +8037,13 @@ window.__confirmDialog = function ({ title, body, confirmLabel = "Confirm",
               + `${inQPlus ? `${inQPlus} +1` : ""})</span>`
             : ""}</td>`
       + `<td class="num">${inFY}</td>`
-      + `<td>${obligation(inQ)}</td>`
-      + `<td>${inFlightIns ? `${inFlightIns} in flight. ` : ""}`
-      + `Raise a new item, or add a +1 to an existing one — both satisfy the quarter.</td></tr>`
+      + `<td style="white-space:nowrap">${obligation(inQ)}</td>`
+      + `<td>${inFlightIns ? `<strong>${inFlightIns}</strong> in flight. ` : ""}`
+      + `Raise a new item, or add a +1 to an existing one — both satisfy the quarter.`
+      + `${inPending
+            ? ` <span class="ps-sub">${inPending} filed item${inPending === 1 ? "" : "s"} `
+              + `not yet in FTBI's snapshot — already credited here, counted from FT Feedback.</span>`
+            : ""}</td></tr>`
       + `</tbody></table>`;
 
     // === 7. Blockers — operator-authored ==================================
@@ -7782,8 +8073,10 @@ window.__confirmDialog = function ({ title, body, confirmLabel = "Confirm",
     if (dq._stale) stale.push(`Data Quality counts are ${dq._age_hours != null ? dq._age_hours + "h" : "an unknown age"} old`);
     if (ic._stale) stale.push(`Copilot ideal-config readings are ${ic._age_hours != null ? ic._age_hours + "h" : "an unknown age"} old`);
     if (!kr6.reachable) stale.push("KR6 could not be read from FTOP, so its count is unknown rather than zero");
-    if (inBasis === "insight_index_fallback") {
-      stale.push("the Feedback/Insight count came from the Dataverse cache, which cannot see +1 votes on other people's items — run the FTBI feedback sync");
+    if (inBasis === "dataverse") {
+      stale.push("the Feedback/Insight count came from FT Feedback alone because FTBI was unreachable, so \u201C+1\u201D votes cast on other people's items are not counted \u2014 run the Stories refresh");
+    } else if (inBasis === "none") {
+      stale.push("neither FTBI nor FT Feedback could be reached, so the Feedback/Insight count is unknown rather than zero");
     } else if (inFtbi.stale) {
       stale.push(`FTBI feedback data is ${inFtbi.age_hours != null ? inFtbi.age_hours + "h" : "an unknown age"} old`);
     }
@@ -8418,11 +8711,20 @@ window.updateLabFocus = async function updateLabFocus() {
     const r = await fetch("/api/daily-focus");
     const data = await r.json();
     window.__priorityFocusItems = data.focus || [];
+    // Backs showPriorityMethodologyModal() — the "How is this calculated?"
+    // reference. Stashed on load rather than fetched again on click so the
+    // info button opens instantly and never shows a stale methodology if the
+    // scoring weights change server-side between a refresh and a click.
+    window.__priorityMethodology = data.methodology || null;
     const formula = document.getElementById("labFocusFormula");
     if (formula) formula.textContent = data.score_formula || "Score generated during daily refresh and Refresh Now.";
+    // Band badge is the PRIMARY sort key (Campaigns > KR > Execution Risk),
+    // so it is shown next to the score rather than buried in the reasons —
+    // two customers with the same score can be in different bands, and the
+    // band is what actually decided their order.
     focusHost.innerHTML = (data.focus || []).map(x => `
       <div class="lab-feed-row" data-cust="${escapeHtml(x.nickname)}" style="cursor:pointer">
-        <span class="lab-feed-icon"><span class="lab-score">${x.score}</span></span>
+        <span class="lab-feed-icon"><span class="lab-band lab-band-${escapeHtml((x.band || "d").toLowerCase())}" title="Campaign priority band — the PRIMARY sort key">${escapeHtml(x.band || "–")}</span><span class="lab-score" title="Sum of Campaign + KR + Execution points. Display only — ranking is decided tier-by-tier (Campaign, then KR, then Execution), so a lower total can still rank above a higher one.">${x.score}</span></span>
         <div><div class="lab-feed-title">${escapeHtml(x.nickname)}</div><div class="lab-feed-detail">${escapeHtml((x.reasons || []).join(" · "))}</div></div>
       </div>`).join("") || `<div class="drill-empty">No priority customers scored today.</div>`;
     focusHost.querySelectorAll("[data-cust]").forEach(el => el.onclick = () => showFocusScoreModal(el.dataset.cust));
@@ -8456,12 +8758,18 @@ function showFocusScoreModal(nickname) {
     });
   }
   back.querySelector("#focusScoreTitle").textContent = `${item.nickname} · Priority Score`;
-  back.querySelector("#focusScoreBadge").textContent = `${item.score} pts`;
+  back.querySelector("#focusScoreBadge").textContent = `${item.band ? item.band + " · " : ""}${item.score} pts`;
   const components = item.components || [];
-  back.querySelector("#focusScoreBody").innerHTML = `
-    <div class="def-sub">${escapeHtml(item.full_name || item.nickname)} · ${escapeHtml((item.reasons || []).join(" · "))}</div>
-    <div class="focus-score-list">
-      ${components.map(c => `
+  // Components arrive PRE-ORDERED by tier (Campaign, then Key Results, then
+  // Execution Risk) — the same order that decides the ranking. A header is
+  // inserted whenever the tier changes rather than grouping client-side, so
+  // the visual order can never drift from the server's actual sort key.
+  let lastTier = null;
+  const rowsHtml = components.map(c => {
+    const tierHdr = c.tier && c.tier !== lastTier
+      ? (lastTier = c.tier, `<div class="focus-score-tier-hdr">${escapeHtml(c.tier)}</div>`)
+      : "";
+    return tierHdr + `
         <div class="focus-score-row">
           <div>
             <div class="focus-score-title">${escapeHtml(c.label || "")}</div>
@@ -8469,7 +8777,12 @@ function showFocusScoreModal(nickname) {
             <div class="focus-score-detail">Count ${escapeHtml(String(c.count ?? 0))} × weight ${escapeHtml(String(c.weight ?? 0))}${c.cap ? ` · cap ${escapeHtml(String(c.cap))}` : ""}</div>
           </div>
           <div class="focus-score-points">+${escapeHtml(String(c.points ?? 0))}</div>
-        </div>`).join("")}
+        </div>`;
+  }).join("");
+  back.querySelector("#focusScoreBody").innerHTML = `
+    <div class="def-sub">${escapeHtml(item.full_name || item.nickname)} · ${escapeHtml((item.reasons || []).join(" · "))}</div>
+    <div class="focus-score-list">
+      ${rowsHtml || `<div class="drill-empty">No scored components.</div>`}
     </div>
     <div class="focus-score-actions">
       <button type="button" class="btn secondary" id="focusJumpBtn">Open customer</button>
@@ -8480,18 +8793,88 @@ function showFocusScoreModal(nickname) {
   back.classList.add("show");
 }
 
+// "How is this calculated?" — the full methodology reference, as opposed to
+// showFocusScoreModal() above which explains ONE customer's score. This one
+// explains the RULES: tier order, data source per tier, every weight, the
+// band assignment logic, and what is deliberately excluded and why.
+//
+// Rendered entirely from window.__priorityMethodology, which is the
+// `methodology` field on the /api/daily-focus response — the SAME
+// PRIORITY_WEIGHTS dict the backend scores against (see main.py
+// _priority_methodology()). There is no second copy of these numbers in the
+// frontend to fall out of sync with the code that actually produces a score.
+function showPriorityMethodologyModal() {
+  const m = window.__priorityMethodology;
+  if (!m) {
+    if (typeof toast === "function") toast("Methodology not loaded yet — open Daily Focus first.", "err");
+    return;
+  }
+  let back = document.getElementById("priorityMethodologyModal");
+  if (!back) {
+    back = document.createElement("div");
+    back.id = "priorityMethodologyModal";
+    back.className = "def-modal-backdrop";
+    back.innerHTML = `
+      <div class="def-modal priority-methodology-modal" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+        <div class="def-modal-head">
+          <h3 id="pmTitle">Customer Priority — How is this calculated?</h3>
+          <button type="button" class="def-close" title="Close">×</button>
+        </div>
+        <div class="def-modal-body" id="pmBody"></div>
+      </div>`;
+    document.body.appendChild(back);
+    back.addEventListener("click", e => { if (e.target === back) back.classList.remove("show"); });
+    back.querySelector(".def-close").addEventListener("click", () => back.classList.remove("show"));
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && back.classList.contains("show")) back.classList.remove("show");
+    });
+  }
+
+  const tierBlock = (t) => `
+    <div class="pm-tier">
+      <div class="pm-tier-hdr">
+        <span class="pm-tier-num">${escapeHtml(String(t.order))}</span>
+        <h4>${escapeHtml(t.name)}</h4>
+      </div>
+      <div class="pm-tier-sources">
+        <strong>Data source${(t.data_sources || []).length === 1 ? "" : "s"}:</strong>
+        <ul>${(t.data_sources || []).map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ul>
+      </div>
+      ${t.band_rule ? `<div class="pm-band-rule"><strong>Band rule:</strong> ${escapeHtml(t.band_rule)}</div>` : ""}
+      <table class="pm-weights-table">
+        <thead><tr><th>Signal</th><th class="num">Weight</th><th>What it means</th></tr></thead>
+        <tbody>
+          ${(t.signals || []).map(s => `
+            <tr>
+              <td>${escapeHtml(s.label)}</td>
+              <td class="num">+${escapeHtml(String(s.weight))}</td>
+              <td class="pm-detail">${escapeHtml(s.detail)}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+      ${t.known_gap ? `<div class="pm-known-gap"><strong>Known gap:</strong> ${escapeHtml(t.known_gap)}</div>` : ""}
+    </div>`;
+
+  back.querySelector("#pmBody").innerHTML = `
+    <div class="pm-principle">${escapeHtml(m.principle || "")}</div>
+    <div class="pm-sortkey"><strong>Sort key:</strong> <code>${escapeHtml(m.sort_key || "")}</code></div>
+    ${(m.tiers || []).map(tierBlock).join("")}
+    <div class="pm-excluded">
+      <h4>Deliberately NOT scored</h4>
+      <ul>
+        ${(m.excluded || []).map(e => `<li><strong>${escapeHtml(e.name)}</strong> — ${escapeHtml(e.reason)}</li>`).join("")}
+      </ul>
+    </div>`;
+  back.classList.add("show");
+}
+
 async function renderDrillPanel(tile) {
   const panel = document.getElementById("drillPanel");
-  panel.classList.toggle("daily-focus-drill", tile === "customers");
-  panel.classList.toggle("todo-heatmap-drill", tile === "todo-actions");
-  // KR Wins has FOUR sections (KR3/KR4/KR5/KR6) plus a summary line — about
-  // 480px of content against the default 240px cap. KR6 is the section that
-  // explains the tile's total, and it was the one below the fold, so the FTA
-  // saw three zeros next to a tile reading 2.
-  panel.classList.toggle("kr-wins-drill", tile === "kr-wins");
-  // Active PECs lists customer / PEC / title / workload / SME / stage. At the
-  // default width the title column wrapped to four lines while half the panel
-  // sat empty.
+  // daily-focus-drill / todo-heatmap-drill / kr-wins-drill / campaigns-drill
+  // no longer carry a height — every drill shares --drill-h now. Only the one
+  // class with real layout rules behind it is still applied: active-pecs-drill
+  // fixes the table's column widths. The campaigns list gets its full-width
+  // column from .drill-list-wide in the markup.
   panel.classList.toggle("active-pecs-drill", tile === "active-pecs");
   panel.style.display = "block";
 
@@ -8502,13 +8885,19 @@ async function renderDrillPanel(tile) {
       <button class="close" id="drillClose" title="Close">×</button></div>
       <div class="lab-focus-panel" id="labFocusPanel">
         <div class="lab-focus-card">
-          <div class="section-hdr"><h2>Priority Focus List</h2><span class="src">KR/PEC + prior-day Email/Teams signals</span></div>
+          <div class="section-hdr">
+            <h2>Customer Priority View</h2>
+            <span class="src">Campaigns &gt; Key Results &gt; Execution Risk</span>
+            <button type="button" class="pm-info-btn" id="btnPriorityMethodology"
+                    title="How is this calculated?">ⓘ How is this calculated?</button>
+          </div>
           <div id="labFocusFormula" class="muted" style="font-size:11px;margin:0 0 10px;">Score generated during daily refresh and Refresh Now.</div>
           <div id="labPriorityList" class="lab-feed-list"><div class="drill-empty">Loading focus list…</div></div>
         </div>
       </div>`;
     document.getElementById("drillClose").onclick = closeDrill;
     document.getElementById("btnLabFocusRefresh").onclick = () => window.updateLabFocus && window.updateLabFocus();
+    document.getElementById("btnPriorityMethodology").onclick = () => showPriorityMethodologyModal();
     if (window.updateLabFocus) await window.updateLabFocus();
     return;
   }
@@ -8525,14 +8914,24 @@ async function renderDrillPanel(tile) {
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     panel.innerHTML = `<div class="drill-hdr"><h3>Active PECs</h3>
       <span class="count">…</span>
-      <button class="section-refresh" id="btnPecDrillRefresh" title="Re-read PECs">⟳</button>
+      <button class="section-refresh" id="btnPecDrillRefresh" title="Re-read PECs from FTOP (live, ~5s)">⟳</button>
       <button class="close" id="drillClose" title="Close">×</button></div>
       <div class="drill-list"><div class="drill-empty">Reading PECs…</div></div>`;
     document.getElementById("drillClose").onclick = closeDrill;
 
-    const paint = async () => {
+    // force=true does the live FTOP pull first. Without it this button only
+    // re-read /api/pecs/active, which is the local cache — so "Re-read PECs"
+    // could never surface a PEC created or re-staged outside the workspace.
+    // Opening the drill deliberately does NOT force: that would put a ~5s
+    // upstream call in front of every single open.
+    const paint = async (force) => {
       let d;
       try {
+        if (force) {
+          panel.querySelector(".drill-list").innerHTML =
+            `<div class="drill-empty">Re-reading PECs from FTOP…</div>`;
+          await fetch("/api/pecs/refresh", { method: "POST" });
+        }
         d = await (await fetch("/api/pecs/active", { cache: "no-store" })).json();
       } catch (err) {
         panel.querySelector(".drill-list").innerHTML =
@@ -8569,7 +8968,7 @@ async function renderDrillPanel(tile) {
           }).join("")}</tbody>
         </table>`;
     };
-    document.getElementById("btnPecDrillRefresh").onclick = paint;
+    document.getElementById("btnPecDrillRefresh").onclick = () => paint(true);
     await paint();
     return;
   }
@@ -9142,9 +9541,20 @@ async function renderDrillPanel(tile) {
       <div class="drill-list"><div class="drill-empty">Loading FT Feedback rollup…</div></div>`;
     document.getElementById("drillClose").onclick = closeDrill;
     try {
-      const [sumR, portfolioR, ftbiR] = await Promise.all([
+      // Only two sources are needed here now. /api/insights/portfolio used to
+      // be fetched as well, to render a second "Workspace-tracked (Dataverse)"
+      // section below the credited list. It was removed 2026-10-05: it showed
+      // the same commitment a second time, keyed on customer instead of
+      // quarter, and once FTBI ingests a submission the item appeared in BOTH
+      // sections — a list that looked double-counted even though the credited
+      // number above it was correctly de-duplicated.
+      //
+      // The Dataverse pull itself is UNCHANGED and still essential: it is half
+      // of the credited union (FTBI cannot see a submission newer than its
+      // snapshot), and it supplies the per-customer 💡 chips via
+      // /api/customer/{n}/insights. Only this drill's duplicate view is gone.
+      const [sumR, ftbiR] = await Promise.all([
         fetch("/api/insights/summary").then(x => x.json()),
-        fetch("/api/insights/portfolio").then(x => x.json()).catch(() => ({})),
         fetch("/api/insights/ftbi?limit=200").then(x => x.json()).catch(() => ({})),
       ]);
       const fy = sumR.fiscal || currentStoryFiscal();
@@ -9162,29 +9572,29 @@ async function renderDrillPanel(tile) {
         const m = d.getMonth();
         return "Q" + (Math.floor(((m - 6 + 12) % 12) / 3) + 1);
       };
-      const ftbiRows = (ftbiR.rows || [])
+      // The credited count is a UNION of FTBI and Dataverse, so this list has
+      // to be one too — otherwise the header claims 11 credited and the list
+      // shows 6, which reads as a broken count.
+      //
+      // Items Dataverse has that FTBI has not ingested yet are folded into
+      // their own fiscal quarter as ordinary rows rather than being given a
+      // separate customer-keyed section (removed 2026-10-05). The server has
+      // already de-duplicated them by FBK number, so nothing here appears
+      // twice once FTBI's snapshot catches up — the row simply arrives from
+      // the other source and the total does not move.
+      const pendingRows = (sumR.fy_pending_ftbi_items || []).map(p => ({
+        feedback_id: p.fbk_id,
+        kind: "new",
+        created_on: p.created_on,
+        title: p.title,
+        stage: null,
+        priority: null,
+        _pending: true,
+      }));
+      const ftbiRows = [...(ftbiR.rows || []), ...pendingRows]
         .filter(r => r.created_on && (!fyStart || r.created_on >= fyStart)
                                   && (!fyEnd   || r.created_on <  fyEnd))
         .sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
-      // Dataverse rows still supply per-customer attribution the FTA entered,
-      // so keep them as a secondary section rather than discarding them.
-      const allInsights = (portfolioR.insights || [])
-        .map(ix => Object.assign({}, ix, {
-          _cust: ix.cust_nickname || "Unassigned",
-          _half: storyFiscalHalf(ix.created_on),
-          _createdLabel: storyDateLabel(ix.created_on),
-        }))
-        .filter(ix => ix._half)
-        .sort((a, b) => (parseStoryDate(b.created_on) || 0) - (parseStoryDate(a.created_on) || 0));
-      const stageBadge = (stage, state) => {
-        const s = (stage || '').toLowerCase();
-        const st = (state || '').toLowerCase();
-        if (st === 'inactive' || st === '1') return `<span style="color:var(--text-muted);">✓</span>`;
-        if (s.includes('reviewed') || s.includes('triaged')) return `<span style="color:#107C10;">✓</span>`;
-        if (s.includes('progress') || s.includes('engineering')) return `<span style="color:#8e44ad;">⚙</span>`;
-        if (s.includes('submitted') || s.includes('open') || s.includes('new')) return `<span style="color:#0078D4;">💡</span>`;
-        return `<span style="color:var(--text-muted);">💡</span>`;
-      };
       const credited = (sumR.fy_credited != null) ? sumR.fy_credited : (sumR.total_active || 0);
       const qLabel = fy.quarter || "";
       const qCred  = (sumR.q_credited != null) ? sumR.q_credited : null;
@@ -9207,14 +9617,15 @@ async function renderDrillPanel(tile) {
                     ${kindBadge(r.kind)} <strong>${escapeHtml(r.feedback_id || "")}</strong> ·
                     ${escapeHtml(r.title || "(untitled)").slice(0, 90)}
                   </span>
-                  <span class="story-meta">${escapeHtml(r.created_on || "")}${r.stage ? " · " + escapeHtml(r.stage) : ""}${r.priority ? " · " + escapeHtml(r.priority) : ""}</span>
+                  <span class="story-meta">${escapeHtml(r.created_on || "")}${r.stage ? " · " + escapeHtml(r.stage) : ""}${r.priority ? " · " + escapeHtml(r.priority) : ""}${r._pending ? ` · <span title="Filed in FT Feedback and already credited. FTBI is a periodic snapshot and has not ingested it yet — it will move to the FTBI source on the next refresh without changing the total." style="color:#8a6d00;">pending FTBI</span>` : ""}</span>
                 </div>`).join("")}`;
           }).join("")
-        : (basis === "insight_index_fallback"
-            ? `<div class="drill-empty">FTBI has not been synced yet, so “+1” votes are not
-                counted here.<br><span style="font-size:11.5px">A “+1” on someone else's item
-                satisfies the quarter, but Dataverse records it on <em>their</em> row — only FTBI
-                can see it. Run a refresh, or POST /api/insights/refresh-ftbi.</span></div>`
+        : (basis === "none"
+            ? `<div class="drill-empty">No source could be reached, so the count is
+                unknown — not zero.<br><span style="font-size:11.5px">FTBI supplies “+1”
+                votes (Dataverse records those on the other person's item and cannot see
+                them); FT Feedback supplies anything filed since FTBI's last snapshot.
+                Use the Stories ⟳ to pull both.</span></div>`
             : `<div class="drill-empty">Nothing credited in ${fyLabel} yet.<br>
                 <span style="font-size:11.5px">The commitment is one per quarter, and both a new
                 feedback item and a “+1” on an existing one count. Click <strong>💡</strong> on any
@@ -9224,31 +9635,16 @@ async function renderDrillPanel(tile) {
           <span class="count">${fyLabel} · ${credited} credited</span>
           <button class="close" id="drillClose" title="Close">×</button></div>
         <div class="story-half">
-          <span>${sumR.fy_new_ftbi != null ? sumR.fy_new_ftbi : "—"} new · ${sumR.fy_plus_one_ftbi != null ? sumR.fy_plus_one_ftbi : "—"} +1${basis === "ftbi" ? " · from FTBI" : ""}</span>
+          <span>${sumR.fy_new_ftbi != null ? sumR.fy_new_ftbi : "—"} new · ${sumR.fy_plus_one_ftbi != null ? sumR.fy_plus_one_ftbi : "—"} +1${
+            basis === "ftbi" ? " · from FTBI"
+            : basis === "ftbi+dataverse" ? " · FTBI + FT Feedback"
+            : basis === "dataverse" ? " · FT Feedback only" : ""}</span>
           <span>${qLabel ? `${qLabel}: ${qCred != null ? qCred : "—"} — ${qCred >= 1 ? "met" : `unmet${qDays != null ? `, ${qDays}d left` : ""}`}` : ""}</span>
         </div>
         <div class="story-list">
           ${ftbiSection}
-          ${allInsights.length ? `
-            <div class="story-half">
-              <span>Workspace-tracked (Dataverse)</span>
-              <span>${allInsights.length} with customer attribution</span>
-            </div>
-            ${allInsights.map(ix => `
-              <div class="story-row" data-cust="${escapeHtml(ix._cust)}">
-                <span class="story-title">
-                  <strong>${escapeHtml(ix._cust)}</strong> · ${stageBadge(ix.stage, ix.state)} ${ix.url ? `<a href="${escapeHtml(ix.url)}" target="_blank" style="color:inherit; text-decoration:none;">${escapeHtml(ix.title || '(untitled)').slice(0, 90)}</a>` : escapeHtml(ix.title || '(untitled)').slice(0, 90)}
-                </span>
-                <span class="story-meta">${escapeHtml(ix._createdLabel || '')}${ix.upvotes ? ' · ' + ix.upvotes + ' 👍' : ''}${ix.submitted_via === 'portal' ? ' · 🌐 portal' : (ix.submitted_via === 'powerapps' ? ' · ⚡ Power Apps' : '')}${ix.kr_label ? ' · ' + escapeHtml(ix.kr_label) : ''}</span>
-              </div>`).join("")}` : ""}
         </div>`;
       document.getElementById("drillClose").onclick = closeDrill;
-      panel.querySelectorAll(".story-customer-hdr[data-cust], .story-row[data-cust]").forEach(el => {
-        el.onclick = (ev) => {
-          if (ev.target.tagName === 'A') return;
-          _jumpToCustomer(el.dataset.cust);
-        };
-      });
     } catch (e) {
       panel.innerHTML = `<div class="drill-hdr"><h3>Insights</h3>
         <button class="close" id="drillClose" title="Close">×</button></div>
@@ -10185,19 +10581,10 @@ window.__api = (function() {
     }
   }
 
-  function titledTodoActionsRemain() {
-    if (!window.todosByCust) return 0;
-    let total = 0;
-    for (const rows of Object.values(window.todosByCust)) {
-      (rows || []).forEach((t, i) => {
-        const label = String(t.label || "").trim();
-        if (!label || /^OPEN\b/i.test(label)) return;
-        const status = t.status || "NOT STARTED";
-        if (status !== "COMPLETE" && status !== "N/A") total++;
-      });
-    }
-    return total;
-  }
+  // titledTodoActionsRemain() lives at top level — this IIFE used to carry a
+  // byte-identical second copy, which meant a fix to the counting rule had to
+  // be made twice or the tile and the Portfolio Summary would disagree.
+  // Removed 2026-10-06; calls here resolve to the single global definition.
 
   function updateMeta(meta) {
     const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -10533,10 +10920,11 @@ window.__api = (function() {
         const insR = await fetch("/api/insights/summary");
         if (insR.ok) {
           const ins = await insR.json();
-          // Show the CREDITED count (submissions + "+1" votes, from FTBI), not
-          // total_active. total_active counts only Dataverse rows the FTA owns,
-          // which structurally cannot include a +1 cast on someone else's item
-          // — so this tile read 0 while the Q1 commitment was already met.
+          // Show the CREDITED count — submissions + "+1" votes, unioned across
+          // FTBI and Dataverse and de-duplicated by FBK number. NOT
+          // total_active: that counts only Dataverse rows the FTA owns, which
+          // structurally cannot include a +1 cast on someone else's item, so
+          // this tile once read 0 while the Q1 commitment was already met.
           const credited = (ins.fy_credited != null) ? ins.fy_credited
                          : (ins.total_active || 0);
           _flashCounter('#ct-insights', credited);
@@ -10545,8 +10933,10 @@ window.__api = (function() {
             const ify = (ins.fiscal && ins.fiscal.label) || fyLbl;
             const q   = (ins.fiscal && ins.fiscal.quarter) || "";
             const qc  = (ins.q_credited != null) ? ins.q_credited : null;
-            if (ins.credited_basis === "insight_index_fallback") {
-              insHint.textContent = `${ify} · FTBI not synced — +1 votes not counted`;
+            if (ins.credited_basis === "none") {
+              // Neither source answered. Say so — a zero from an unreachable
+              // source reads as a missed commitment.
+              insHint.textContent = `${ify} · no source reachable — count unknown`;
             } else if (credited) {
               const nb = ins.fy_new_ftbi, pb = ins.fy_plus_one_ftbi;
               const parts = [];
@@ -10557,6 +10947,32 @@ window.__api = (function() {
             } else {
               insHint.textContent = `none credited in ${ify || "this FY"}`;
             }
+          }
+          // Tooltip carries the provenance: which source supplied what, and
+          // how many items Dataverse has that FTBI has not ingested yet. That
+          // lag is normal (FTBI is a periodic snapshot) and is the reason this
+          // tile is a union rather than an FTBI-only read.
+          const insTile = document.querySelector('[data-tile="insights"]');
+          if (insTile) {
+            const pend = ins.fy_pending_ftbi || 0;
+            const bits = [
+              `💡 ${credited} credited in ${(ins.fiscal && ins.fiscal.label) || "this FY"}`
+                + ` (${ins.fy_new_ftbi || 0} new + ${ins.fy_plus_one_ftbi || 0} "+1").`,
+              `Source: ${ins.credited_basis === "ftbi+dataverse"
+                 ? "FTBI + FT Feedback, de-duplicated by FBK number"
+                 : ins.credited_basis === "ftbi" ? "FTBI"
+                 : ins.credited_basis === "dataverse" ? "FT Feedback (FTBI unreachable)"
+                 : "none reachable"}.`,
+            ];
+            if (pend) {
+              bits.push(`${pend} filed item${pend === 1 ? "" : "s"} not yet in FTBI's `
+                + `snapshot — counted from FT Feedback so the quarter is not `
+                + `under-reported. They will not double-count when FTBI catches up.`);
+            }
+            if (ins.ftbi && ins.ftbi.synced_at) {
+              bits.push(`FTBI last synced ${ins.ftbi.synced_at}.`);
+            }
+            insTile.title = bits.join(" ");
           }
         }
       } catch { /* non-fatal */ }
@@ -10605,8 +11021,21 @@ window.__api = (function() {
     hydrateTodos(list);
     updateMeta(state.meta || {});
     // Pick a sensible default customer if the saved one no longer exists.
+    // This is the ONLY place the check is meaningful — CUSTOMERS has just been
+    // populated. Doing it at script-parse time instead (against an empty array)
+    // is what used to discard the restored nickname on every single reload.
     if (!CUSTOMERS.some(c => c.n === window.activeCust)) {
       window.activeCust = CUSTOMERS[0] ? CUSTOMERS[0].n : null;
+      // Persist the correction, otherwise a customer who has left the portfolio
+      // stays in localStorage forever and every future reload repeats this
+      // lookup-miss before falling back.
+      try {
+        if (window.activeCust) {
+          localStorage.setItem("fta-workspace-active-cust", window.activeCust);
+        } else {
+          localStorage.removeItem("fta-workspace-active-cust");
+        }
+      } catch (e) { /* storage disabled — the in-memory value is still correct */ }
     }
     renderSidebar();
     renderContent();
@@ -11008,10 +11437,61 @@ window.__api = (function() {
     const rStories = document.getElementById("btnRefreshStories");
     if (rStories) rStories.onclick = async (e) => {
       e.stopPropagation();
-      _spin(rStories); toast("Refreshing Stories counts…");
+      _spin(rStories);
+      toast("Pulling spotlights from FTOP + insights from FTBI/FT Feedback… (~40s)");
       try {
+        // This button used to call updateCounters() and nothing else, which only
+        // re-read numbers already cached in SQLite — it never contacted either
+        // source named on the tile. A spotlight published directly in FTOP (the
+        // exact case the Spotlights drill tells the FTA to press this for) stayed
+        // invisible. Measured on wiring it up: the FTOP pull returned 23
+        // spotlights while the tile was showing 1.
+        //
+        // Sequential, NOT Promise.all. The FTOP and FTBI pulls both drive the
+        // same shared Edge CDP session, and firing them concurrently makes them
+        // contend for it: measured, the FTOP spotlight pull returns 23 spotlights
+        // in ~24s on its own, but run in parallel with the FTBI pull it failed
+        // outright on one attempt and hung past 300s on the next. ~37s serial is
+        // the honest cost of three upstream reads through one browser session.
+        //
+        // Each pull gets its own try/catch so one source being down cannot sink
+        // the others. FT Feedback in particular authenticates through MSAL rather
+        // than the shared Edge session and is legitimately unavailable with no
+        // cached token; the quarterly commitment COUNT comes from FTBI anyway,
+        // so FT Feedback being skipped is a note, not a failure.
+        const step = async (path, retry = true) => {
+          let out;
+          try { out = (await call("POST", path)) || {}; }
+          catch (err) { out = { error: err.message || "request failed" }; }
+          // One retry on a TRANSIENT failure. These pulls share the single Edge
+          // CDP session with the page's own /api/capabilities?probe=1, so a press
+          // made while the page is still hydrating can lose the race — measured:
+          // the FTOP pull returns 23 spotlights on a settled page but reported
+          // "unavailable" every time it was clicked ~18s after a reload.
+          // A missing-token failure is deterministic, not transient, so it is
+          // not retried — that would just burn another second to fail identically.
+          if (retry && out.error && !/cached\s+\w*\s*token|no cached/i.test(out.error)) {
+            await new Promise(r => setTimeout(r, 2000));
+            return step(path, false);
+          }
+          return out;
+        };
+        const sp   = await step("/api/spotlights/sync-ftop");
+        const ff   = await step("/api/insights/sync-ftfeedback");
+        const ftbi = await step("/api/insights/refresh-ftbi");
+
         await updateCounters();
-        toast("Stories refreshed", "ok");
+
+        const parts = [];
+        parts.push(sp.error
+          ? "spotlights unavailable"
+          : `${sp.written ?? 0} spotlight${(sp.written ?? 0) === 1 ? "" : "s"} from FTOP`);
+        parts.push(ftbi.error
+          ? "FTBI credit unavailable"
+          : `${ftbi.new ?? 0} new + ${ftbi.plus_one ?? 0} +1 from FTBI`);
+        const note = ff.error ? " · FT Feedback skipped (no cached token)" : "";
+        toast("Stories refreshed — " + parts.join(" · ") + note,
+              (sp.error && ftbi.error) ? "err" : "ok");
       } catch (e) {
         toast("Stories refresh failed: " + e.message, "err");
       } finally { _stop(rStories); }
