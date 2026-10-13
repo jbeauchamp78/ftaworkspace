@@ -661,7 +661,7 @@ html[data-theme="win98"] .info-pill {
 .pm-info-btn {
   appearance: none; border: 1px solid var(--cp-border); background: var(--cp-surface);
   color: var(--cp-accent, #0078D4); border-radius: 999px; cursor: pointer;
-  font-size: 11px; font-weight: 600; padding: 3px 10px; margin-left: auto;
+  font-size: 11px; font-weight: 600; padding: 3px 10px; margin-left: 0;
   white-space: nowrap;
 }
 .pm-info-btn:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent, #0078D4); }
@@ -8900,7 +8900,6 @@ async function renderDrillPanel(tile) {
         <div class="lab-focus-card">
           <div class="section-hdr">
             <h2>Customer Priority View</h2>
-            <span class="src">Tiered Scoring Model: Campaigns &gt; Key Results &gt; Delivery Risk</span>
             <button type="button" class="pm-info-btn" id="btnPriorityMethodology"
                     title="Tiered Scoring Model: ranking rules, points and proposed changes">ⓘ How is this calculated?</button>
           </div>
