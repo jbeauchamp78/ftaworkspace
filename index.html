@@ -8718,23 +8718,33 @@ window.updateLabFocus = async function updateLabFocus() {
     window.__priorityMethodology = data.methodology || null;
     const formula = document.getElementById("labFocusFormula");
     if (formula) formula.textContent = data.score_formula || "Score generated during daily refresh and Refresh Now.";
-    // Band badge is the PRIMARY sort key (Campaigns > KR > Execution Risk),
+    const coverage = data.intent_coverage;
+    if (formula && coverage) formula.textContent += ` Workload Intent source coverage: ${coverage.available}/${coverage.tois} TOIs available; ${coverage.unknown} unknown; ${coverage.stale} stale.`;
+    // Band badge is the PRIMARY sort key (Campaigns > KR > Workload Intent),
     // so it is shown next to the score rather than buried in the reasons —
     // two customers with the same score can be in different bands, and the
     // band is what actually decided their order.
     focusHost.innerHTML = (data.focus || []).map(x => `
-      <div class="lab-feed-row" data-cust="${escapeHtml(x.nickname)}" style="cursor:pointer">
-        <span class="lab-feed-icon"><span class="lab-band lab-band-${escapeHtml((x.band || "d").toLowerCase())}" title="Campaign priority band — the PRIMARY sort key">${escapeHtml(x.band || "–")}</span><span class="lab-score" title="Sum of Campaign + KR + Execution points. Display only — ranking is decided tier-by-tier (Campaign, then KR, then Execution), so a lower total can still rank above a higher one.">${x.score}</span></span>
-        <div><div class="lab-feed-title">${escapeHtml(x.nickname)}</div><div class="lab-feed-detail">${escapeHtml((x.reasons || []).join(" · "))}</div></div>
-      </div>`).join("") || `<div class="drill-empty">No priority customers scored today.</div>`;
-    focusHost.querySelectorAll("[data-cust]").forEach(el => el.onclick = () => showFocusScoreModal(el.dataset.cust));
+      <div class="lab-feed-row" data-priority-id="${escapeHtml(x.priority_id)}" style="cursor:pointer">
+        <span class="lab-feed-icon"><span class="lab-band lab-band-${escapeHtml((x.band || "d").toLowerCase())}" title="Campaign priority band — the PRIMARY sort key">${escapeHtml(x.band || "–")}</span><span class="lab-score" title="Sum of Campaign + KR + Workload Intent points. Display only — ranking is decided tier-by-tier, so a lower total can still rank above a higher one.">${x.score}</span></span>
+        <div><div class="lab-feed-title">${escapeHtml(x.display_name)}</div><div class="lab-feed-detail">Campaign/KR: shared customer context · Intent: this TOI</div><div class="lab-feed-detail">${escapeHtml((x.reasons || []).join(" · "))}</div></div>
+      </div>`).join("") || `<div class="drill-empty">No confirmed TOI priority rows are available.</div>`;
+    focusHost.querySelectorAll("[data-priority-id]").forEach(el => el.onclick = () => showFocusScoreModal(el.dataset.priorityId));
+    if ((data.outside_toi_scope || []).length) {
+      focusHost.insertAdjacentHTML("beforeend", `<details class="pm-excluded">
+        <summary>Outside confirmed TOI scope (${data.outside_toi_scope.length} customers)</summary>
+        <p>These customers remain in the portfolio. No reference tenant is substituted into this list.</p>
+        ${data.outside_toi_scope.map(customer => `<button class="btn secondary" data-outside-cust="${escapeHtml(customer.nickname)}">${escapeHtml(customer.nickname)}</button>`).join(" ")}
+      </details>`);
+      focusHost.querySelectorAll("[data-outside-cust]").forEach(el => el.onclick = () => _jumpToCustomer(el.dataset.outsideCust));
+    }
   } catch (e) {
     focusHost.innerHTML = `<div class="drill-empty">Daily Focus failed.</div>`;
   }
 };
 
-function showFocusScoreModal(nickname) {
-  const item = (window.__priorityFocusItems || []).find(x => x.nickname === nickname);
+function showFocusScoreModal(priorityId) {
+  const item = (window.__priorityFocusItems || []).find(x => x.priority_id === priorityId);
   if (!item) return;
   let back = document.getElementById("focusScoreModal");
   if (!back) {
@@ -8757,11 +8767,11 @@ function showFocusScoreModal(nickname) {
       if (e.key === "Escape" && back.classList.contains("show")) back.classList.remove("show");
     });
   }
-  back.querySelector("#focusScoreTitle").textContent = `${item.nickname} · Priority Score`;
+  back.querySelector("#focusScoreTitle").textContent = `${item.display_name} · Priority Score`;
   back.querySelector("#focusScoreBadge").textContent = `${item.band ? item.band + " · " : ""}${item.score} pts`;
   const components = item.components || [];
   // Components arrive PRE-ORDERED by tier (Campaign, then Key Results, then
-  // Execution Risk) — the same order that decides the ranking. A header is
+  // Workload Intent) — the same order that decides the ranking. A header is
   // inserted whenever the tier changes rather than grouping client-side, so
   // the visual order can never drift from the server's actual sort key.
   let lastTier = null;
@@ -8781,6 +8791,8 @@ function showFocusScoreModal(nickname) {
   }).join("");
   back.querySelector("#focusScoreBody").innerHTML = `
     <div class="def-sub">${escapeHtml(item.full_name || item.nickname)} · ${escapeHtml((item.reasons || []).join(" · "))}</div>
+    <div class="pm-band-rule">${escapeHtml(item.signal_scope)}</div>
+    ${item.intent_evidence ? `<div class="pm-band-rule"><strong>Workload Intent evidence: ${escapeHtml(item.intent_evidence.status)}</strong><br>${escapeHtml(item.intent_evidence.note)}${item.intent_evidence.synced_at ? `<br>Refreshed: ${escapeHtml(item.intent_evidence.synced_at)}` : ""}</div>` : ""}
     <div class="focus-score-list">
       ${rowsHtml || `<div class="drill-empty">No scored components.</div>`}
     </div>
@@ -8853,6 +8865,7 @@ function showPriorityMethodologyModal() {
         </tbody>
       </table>
       ${t.known_gap ? `<div class="pm-known-gap"><strong>Known gap:</strong> ${escapeHtml(t.known_gap)}</div>` : ""}
+      ${t.workloads ? `<div class="pm-tier-sources"><strong>Scored workload families:</strong><ul>${t.workloads.map(workload => `<li>${escapeHtml(workload)}</li>`).join("")}</ul></div>` : ""}
     </div>`;
 
   back.querySelector("#pmBody").innerHTML = `
@@ -8908,7 +8921,24 @@ async function renderDrillPanel(tile) {
         </div>
       </div>`;
     document.getElementById("drillClose").onclick = closeDrill;
-    document.getElementById("btnLabFocusRefresh").onclick = () => window.updateLabFocus && window.updateLabFocus();
+    document.getElementById("btnLabFocusRefresh").onclick = async () => {
+      const button = document.getElementById("btnLabFocusRefresh");
+      button.disabled = true;
+      try {
+        const rosterResponse = await fetch("/api/fy27/toi/refresh?dry_run=false", { method: "POST" });
+        const rosterResult = await rosterResponse.json();
+        if (!rosterResponse.ok) throw new Error(rosterResult.detail || `HTTP ${rosterResponse.status}`);
+        const response = await fetch("/api/priority/intents/refresh", { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+        if (!result.ok) toast("Some Workload Intent sources could not refresh; those customers show unknown evidence.", "err");
+        await window.updateLabFocus();
+      } catch (error) {
+        toast(`Priority refresh failed: ${error.message}`, "err");
+      } finally {
+        button.disabled = false;
+      }
+    };
     document.getElementById("btnPriorityMethodology").onclick = () => showPriorityMethodologyModal();
     if (window.updateLabFocus) await window.updateLabFocus();
     return;
