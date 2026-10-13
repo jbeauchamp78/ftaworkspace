@@ -8817,7 +8817,7 @@ function showPriorityMethodologyModal() {
     back.innerHTML = `
       <div class="def-modal priority-methodology-modal" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
         <div class="def-modal-head">
-          <h3 id="pmTitle">Customer Priority — How is this calculated?</h3>
+          <h3 id="pmTitle">Tiered Scoring Model - How is this calculated?</h3>
           <button type="button" class="def-close" title="Close">×</button>
         </div>
         <div class="def-modal-body" id="pmBody"></div>
@@ -8856,9 +8856,22 @@ function showPriorityMethodologyModal() {
     </div>`;
 
   back.querySelector("#pmBody").innerHTML = `
+    <div class="pm-principle"><strong>Purpose:</strong> ${escapeHtml(m.summary || "")}</div>
     <div class="pm-principle">${escapeHtml(m.principle || "")}</div>
     <div class="pm-sortkey"><strong>Sort key:</strong> <code>${escapeHtml(m.sort_key || "")}</code></div>
+    <div class="pm-excluded">
+      <h4>How the points work</h4>
+      <ul>${(m.point_rules || []).map(rule => `<li>${escapeHtml(rule)}</li>`).join("")}</ul>
+    </div>
     ${(m.tiers || []).map(tierBlock).join("")}
+    ${m.example ? `<div class="pm-band-rule"><strong>${escapeHtml(m.example.title)}:</strong> ${escapeHtml(m.example.text)}</div>` : ""}
+    <div class="pm-excluded">
+      <h4>Proposed changes - not included in current scores</h4>
+      ${(m.proposed_changes || []).map(change => `
+        <p><strong>${escapeHtml(change.name)}</strong><br>${escapeHtml(change.detail)}</p>
+        ${change.workloads ? `<strong>Proposed workload scope:</strong><ul>${change.workloads.map(workload => `<li>${escapeHtml(workload)}</li>`).join("")}</ul>` : ""}
+      `).join("")}
+    </div>
     <div class="pm-excluded">
       <h4>Deliberately NOT scored</h4>
       <ul>
@@ -8887,9 +8900,9 @@ async function renderDrillPanel(tile) {
         <div class="lab-focus-card">
           <div class="section-hdr">
             <h2>Customer Priority View</h2>
-            <span class="src">Campaigns &gt; Key Results &gt; Execution Risk</span>
+            <span class="src">Tiered Scoring Model: Campaigns &gt; Key Results &gt; Delivery Risk</span>
             <button type="button" class="pm-info-btn" id="btnPriorityMethodology"
-                    title="How is this calculated?">ⓘ How is this calculated?</button>
+                    title="Tiered Scoring Model: ranking rules, points and proposed changes">ⓘ How is this calculated?</button>
           </div>
           <div id="labFocusFormula" class="muted" style="font-size:11px;margin:0 0 10px;">Score generated during daily refresh and Refresh Now.</div>
           <div id="labPriorityList" class="lab-feed-list"><div class="drill-empty">Loading focus list…</div></div>
